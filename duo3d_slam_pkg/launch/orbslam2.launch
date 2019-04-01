@@ -1,0 +1,15 @@
+<launch>
+
+<arg name="acumular" default="false"/>
+
+<!--lancando o driver da camera-->
+<include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
+</include>
+
+<!--lancando o orbslam2 com as configuracoes necessarias-->
+<include file="$(find orb_slam_2_ros)/ros/launch/duo3d.launch">
+</include>
+
+<!--aqui lancar a acumulacao a partir de overlap-->
+
+</launch>

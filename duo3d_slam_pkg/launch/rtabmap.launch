@@ -1,0 +1,93 @@
+<launch>
+
+<arg name="acumular" default="false"/>
+<arg name="visualizar" default="false"/>
+<arg name="rtabmapviz" default="true" />
+
+<!--lancando o driver da camera-->
+<include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
+    <arg name="feedback" value="false"/>
+</include>
+
+<!--lancando o rtabmap com as configuracoes necessarias-->
+<node pkg="rtabmap_ros" type="stereo_odometry" name="duo3d_stereo_odometry" output="screen">
+      <remap from="left/image_rect"       to="/duo3d/left/image_rect"/>
+      <remap from="right/image_rect"      to="/duo3d/right/image_rect"/>
+      <remap from="left/camera_info"      to="/duo3d/left/camera_info"/>
+      <remap from="right/camera_info"     to="/duo3d/right/camera_info"/>
+      <remap from="odom"                  to="/stereo_odometry"/>
+
+      <param name="frame_id" type="string" value="/duo3d/camera_frame"/>
+      <param name="odom_frame_id" type="string" value="odom"/>
+
+      <param name="Odom/Strategy" type="string" value="0"/> <!-- 0=BOW, 1=OpticalFlow -->
+      <param name="Odom/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
+      <param name="Odom/MinInliers" type="string" value="10"/>
+      <param name="Odom/RoiRatios" type="string" value="0.03 0.03 0.04 0.04"/>
+      <param name="Odom/MaxDepth" type="string" value="10"/>
+      <param name="OdomBow/NNDR" type="string" value="0.8"/>
+      <param name="Odom/MaxFeatures" type="string" value="1000"/>
+      <param name="Odom/FillInfoData" type="string" value="$(arg rtabmapviz)"/>
+      <param name="GFTT/MinDistance" type="string" value="10"/>
+      <param name="GFTT/QualityLevel" type="string" value="0.00001"/>
+   </node>
+
+   <group ns="rtabmap">
+      <!-- Visual SLAM: args: "delete_db_on_start" and "udebug" -->
+      <node name="rtabmap_duo3d" pkg="rtabmap_ros" type="rtabmap" output="screen" args="--delete_db_on_start">
+         <param name="frame_id" type="string" value="/duo3d/camera_frame"/>
+         <param name="subscribe_stereo" type="bool" value="true"/>
+         <param name="subscribe_depth" type="bool" value="false"/>
+
+         <remap from="left/image_rect" to="/duo3d/left/image_rect"/>
+         <remap from="right/image_rect" to="/duo3d/right/image_rect"/>
+         <remap from="left/camera_info" to="/duo3d/left/camera_info"/>
+         <remap from="right/camera_info" to="/duo3d/right/camera_info"/>
+
+         <remap from="odom" to="/stereo_odometry"/>
+
+         <param name="queue_size" type="int" value="30"/>
+
+         <!-- RTAB-Map's parameters -->
+         <param name="Rtabmap/TimeThr" type="string" value="700"/>
+         <param name="Rtabmap/DetectionRate" type="string" value="1"/>
+
+         <param name="Kp/WordsPerImage" type="string" value="200"/>
+         <param name="Kp/RoiRatios" type="string" value="0.03 0.03 0.04 0.04"/>
+         <param name="Kp/DetectorStrategy" type="string" value="0"/>   <!-- use SURF -->
+         <param name="Kp/NNStrategy" type="string" value="1"/>         <!-- kdTree -->
+
+         <param name="SURF/HessianThreshold" type="string" value="100"/>
+
+         <param name="LccBow/MinInliers" type="string" value="10"/>
+         <param name="LccBow/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
+
+         <param name="LccReextract/Activated" type="string" value="true"/>
+         <param name="LccReextract/MaxWords" type="string" value="500"/>
+         <param name="LccReextract/MaxDepth" type="string" value="10"/>
+      </node>
+
+<!-- Visualisation RTAB-Map -->
+      <node if="$(arg rtabmapviz)" pkg="rtabmap_ros" type="rtabmapviz" name="rtabmapviz" args="-d $(find rtabmap_ros)/launch/config/rgbd_gui.ini" output="screen">
+         <param name="subscribe_stereo" type="bool" value="true"/>
+         <param name="subscribe_odom_info" type="bool" value="true"/>
+         <param name="queue_size" type="int" value="10"/>
+         <param name="frame_id" type="string" value="base_footprint"/>
+         <remap from="left/image_rect" to="/duo3d/left/image_rect"/>
+         <remap from="right/image_rect" to="/duo3d/right/image_rect"/>
+         <remap from="left/camera_info" to="/duo3d/left/camera_info"/>
+         <remap from="right/camera_info" to="/duo3d/right/camera_info"/>
+         <remap from="odom_info" to="/odom_info"/>
+         <remap from="odom" to="/stereo_odometry"/>
+         <remap from="mapData" to="mapData"/>
+      </node>
+
+   </group>
+
+<!--aqui lancar a acumulacao a partir de overlap-->
+
+<!--aqui lanca o rviz dedicado-->
+   <node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_rtabmap" args="-d $(find duo3d_slam_pkg)/config/stereo_vis.rviz">
+   </node>
+
+</launch>

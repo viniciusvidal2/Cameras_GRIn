@@ -1,6 +1,7 @@
 <launch>
 
 <arg name="playback" default="false"/>
+<arg name="visualizar" default="true"/>
 <arg name="acumular" default="false"/>
 
 <!--lancando o driver da camera-->
@@ -11,9 +12,13 @@
 </group>
 
 <!--lancando o orbslam2 com as configuracoes necessarias-->
-<include file="$(find orb_slam_2_ros)/ros/launch/duo3d.launch">
+<include file="$(find duo3d_slam_pkg)/OrbSLAM2/launch/duo3d.launch">
 </include>
 
 <!--aqui lancar a acumulacao a partir de overlap-->
+
+<!--visualizar os resultados no rviz-->
+<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/orbslam2_vis.rviz">
+</node>
 
 </launch>

@@ -1,10 +1,14 @@
 <launch>
 
+<arg name="playback" default="false"/>
 <arg name="acumular" default="false"/>
 
 <!--lancando o driver da camera-->
-<include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
-</include>
+<group unless="$(arg playback)">
+    <include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
+          <arg name="feedback" value="false"/>
+    </include>
+</group>
 
 <!--lancando o orbslam2 com as configuracoes necessarias-->
 <include file="$(find orb_slam_2_ros)/ros/launch/duo3d.launch">

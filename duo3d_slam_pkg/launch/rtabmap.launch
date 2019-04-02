@@ -1,13 +1,16 @@
 <launch>
 
+<arg name="playback" default="false"/>
 <arg name="acumular" default="false"/>
-<arg name="visualizar" default="false"/>
+<arg name="visualizar" default="true"/>
 <arg name="rtabmapviz" default="true" />
 
 <!--lancando o driver da camera-->
-<include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
-    <arg name="feedback" value="false"/>
-</include>
+<group unless="$(arg playback)">
+    <include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
+          <arg name="feedback" value="false"/>
+    </include>
+</group>
 
 <!--lancando o rtabmap com as configuracoes necessarias-->
 <node pkg="rtabmap_ros" type="stereo_odometry" name="duo3d_stereo_odometry" output="screen">

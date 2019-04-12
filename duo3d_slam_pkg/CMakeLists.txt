@@ -8,12 +8,18 @@ project(duo3d_slam_pkg)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp rospy sensor_msgs nav_msgs pcl_ros
+  roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+find_package(PCL 1.2 REQUIRED)
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+find_package(OpenCV)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -115,13 +121,18 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
 # include
-  ${catkin_INCLUDE_DIRS}
+${OpenCV_INCLUDE_DIRS}
+${catkin_INCLUDE_DIRS}
+${Eigen_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
 #   src/${PROJECT_NAME}/duo3d_slam_pkg.cpp
 # )
+
+add_executable(acumular_viso2 src/acumular_viso2.cpp)
+target_link_libraries(acumular_viso2 ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

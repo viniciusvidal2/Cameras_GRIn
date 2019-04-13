@@ -17,8 +17,8 @@
 
 
   <buildtool_depend>catkin</buildtool_depend>
-  <build_depend>roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs </build_depend>
-  <run_depend>roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs </run_depend>
+  <build_depend>roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs camera_info_manager image_geometry</build_depend>
+  <run_depend>roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs camera_info_manager image_geometry</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

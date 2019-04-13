@@ -89,6 +89,11 @@
 <!--aqui lancar a acumulacao a partir de overlap-->
 <group if="$(arg acumular)">
     <node name="acumular_viso2" pkg="duo3d_slam_pkg" type="acumular_viso2" output="screen">
+        <param name="camera_calibration_yaml"  value="file://$(find duo3d_slam_pkg)/calib/duo3d"/>
+        <param name="cloud_topic_in"  value="/stereo/points2"                                   />
+        <param name="odom_topic_in"   value="/stereo_odometer/odometry"                         />
+        <param name="cloud_topic_out" value="/nuvem_acumulada"                                  />
+        <param name="overlap_rate"    value="90"                                                />
     </node>
 </group>
 

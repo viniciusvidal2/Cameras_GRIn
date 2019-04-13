@@ -23,16 +23,18 @@
       <param name="frame_id" type="string" value="/duo3d/camera_frame"/>
       <param name="odom_frame_id" type="string" value="odom"/>
 
-      <param name="Odom/Strategy" type="string" value="0"/> <!-- 0=BOW, 1=OpticalFlow -->
+      <param name="Odom/Strategy" type="string" value="0"/> <!-- 0=BOW, 1=OpticalFlow 5=ORB_SLAM2 -->
       <param name="Odom/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
-      <param name="Odom/MinInliers" type="string" value="10"/>
+      <param name="Odom/MinInliers" type="string" value="7"/>
       <param name="Odom/RoiRatios" type="string" value="0.03 0.03 0.04 0.04"/>
-      <param name="Odom/MaxDepth" type="string" value="10"/>
+      <param name="Odom/MaxDepth" type="string" value="6"/>
       <param name="OdomBow/NNDR" type="string" value="0.8"/>
       <param name="Odom/MaxFeatures" type="string" value="1000"/>
       <param name="Odom/FillInfoData" type="string" value="$(arg rtabmapviz)"/>
       <param name="GFTT/MinDistance" type="string" value="10"/>
       <param name="GFTT/QualityLevel" type="string" value="0.00001"/>
+
+
    </node>
 
    <group ns="rtabmap">
@@ -49,25 +51,30 @@
 
          <remap from="odom" to="/stereo_odometry"/>
 
-         <param name="queue_size" type="int" value="30"/>
+         <param name="queue_size" type="int" value="10"/>
 
          <!-- RTAB-Map's parameters -->
          <param name="Rtabmap/TimeThr" type="string" value="700"/>
-         <param name="Rtabmap/DetectionRate" type="string" value="1"/>
+         <param name="Rtabmap/DetectionRate" type="string" value="2"/>
 
          <param name="Kp/WordsPerImage" type="string" value="200"/>
          <param name="Kp/RoiRatios" type="string" value="0.03 0.03 0.04 0.04"/>
          <param name="Kp/DetectorStrategy" type="string" value="0"/>   <!-- use SURF -->
          <param name="Kp/NNStrategy" type="string" value="1"/>         <!-- kdTree -->
 
-         <param name="SURF/HessianThreshold" type="string" value="100"/>
+         <param name="SURF/HessianThreshold" type="string" value="500"/>
 
-         <param name="LccBow/MinInliers" type="string" value="10"/>
-         <param name="LccBow/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
+         <param name="Vis/MinInliers" type="string" value="10"/>
+         <param name="Vis/EstimationType" type="string" value="1"/> <!-- 3D->2D (PnP) -->
 
-         <param name="LccReextract/Activated" type="string" value="true"/>
-         <param name="LccReextract/MaxWords" type="string" value="500"/>
-         <param name="LccReextract/MaxDepth" type="string" value="10"/>
+         <param name="RGBD/LoopClosureReextractFeautures" type="string" value="true"/>
+         <param name="Vis/MaxWords" type="string" value="500"/>
+         <param name="Vis/MaxDepth" type="string" value="10"/>
+
+         <param name="Grid/DepthDecimation" type="int" value="1"/>
+         <param name="Grid/CellSize" type="double" value="0.01"/>
+         <param name="cloud_filter_radius" type="double" value="0.0"/>
+         <param name="Grid/RangeMax" type="double" value="0.0"/>
       </node>
 
 <!-- Visualisation RTAB-Map -->

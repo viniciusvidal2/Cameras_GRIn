@@ -135,6 +135,8 @@ add_executable(acumular_viso2 src/acumular_viso2.cpp)
 target_link_libraries(acumular_viso2 ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 add_executable(sync_odom src/sync_odom.cpp)
 target_link_libraries(sync_odom ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
+add_executable(sync_tf src/sync_tf.cpp)
+target_link_libraries(sync_tf ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

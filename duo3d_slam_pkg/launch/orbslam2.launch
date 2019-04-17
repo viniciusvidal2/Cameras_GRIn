@@ -4,6 +4,11 @@
 <arg name="visualizar" default="true"/>
 <arg name="acumular" default="false"/>
 
+<arg name="camera_frame"  default="/duo3d/camera_frame"/>
+<arg name="optical_frame" default="duo3d_camera"       />
+<arg name="base_frame"    default="base_link"          />
+<arg name="odom_frame"    default="odom"               />
+
 <!--lancando o driver da camera-->
 <group unless="$(arg playback)">
     <include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
@@ -14,6 +19,36 @@
 <!--lancando o orbslam2 com as configuracoes necessarias-->
 <include file="$(find duo3d_slam_pkg)/OrbSLAM2/launch/duo3d.launch">
 </include>
+
+<!--Fazendo nuvem de pontos a partir de imagens na ocasiao de tocando bags-->
+<group if="$(arg playback)">
+    <arg name="pi/2" value="1.5707963267948966" />
+    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_link"   args="0 0 0 0 0 $(arg pi/2) $(arg camera_frame) $(arg optical_frame) 100" />
+    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_camera" args="0 0 0 0 0 0 $(arg base_frame) $(arg camera_frame) 100" />
+
+    <group ns="stereo">
+    <node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" output="screen">
+        <remap from="/stereo/left/image_raw"    to="/duo3d/left/image_rect"/>
+        <remap from="/stereo/right/image_raw"   to="/duo3d/right/image_rect"/>
+        <remap from="/stereo/left/camera_info"  to="/duo3d/left/camera_info"/>
+        <remap from="/stereo/right/camera_info" to="/duo3d/right/camera_info"/>
+
+        <param name="approximate_sync" value="true"/>
+        <param name="queue_size" value="10"/>
+        <!--Melhorar visao stereo -->
+        <param name="prefilter_size" value="77"/>
+        <param name="prefilter_cap" value="34"/>
+        <param name="disparity_range" value="50"/>
+        <param name="min_disparity" value="0"/>
+        <param name="correlation_window_size" value="35"/>
+        <param name="speckle_size" value="1000"/>
+        <param name="speckle_range" value="3"/>
+        <param name="fullDP" value="true"/>
+        <param name="uniqueness_ratio" value="1.0"/>
+        <param name="texture_threshold" value="1000"/>
+    </node>
+    </group>
+</group>
 
 <!--aqui lancar a acumulacao a partir de overlap-->
 

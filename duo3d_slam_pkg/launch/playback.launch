@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="bag" default="duo3d_frentebaixo"/>
+  <arg name="bag" default="por_fora_frente_1"/>
   <param name="/use_sim_time" value="true"/>
 
   <!--descomprimir as imagens-->

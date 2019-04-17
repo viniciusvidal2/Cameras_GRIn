@@ -137,6 +137,8 @@ add_executable(sync_odom src/sync_odom.cpp)
 target_link_libraries(sync_odom ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 add_executable(sync_tf src/sync_tf.cpp)
 target_link_libraries(sync_tf ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
+add_executable(republish_cam_info src/republish_cam_info.cpp)
+target_link_libraries(republish_cam_info ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

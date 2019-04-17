@@ -7,7 +7,9 @@ Panels:
         - /Global Options1
         - /Status1
         - /Odometry1
+        - /Image1
         - /PointCloud21
+        - /PointCloud21/Status1
       Splitter Ratio: 0.5
     Tree Height: 522
   - Class: rviz/Selection
@@ -88,7 +90,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /duo3d/left/image_rect
+      Image Topic: /duo3d/left/image_rect1
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -123,7 +125,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Points
-      Topic: /nuvem_acumulada
+      Topic: /stereo/points2
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -153,25 +155,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.39150882
+      Distance: 4.18170357
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.0968856737
-        Y: 0.0422996059
-        Z: -0.357018292
+        X: 0.621681571
+        Y: -0.470576495
+        Z: 0.34279871
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: -1.56979632
+      Pitch: -1.54479671
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.39355469
+      Yaw: 4.69855118
     Saved: ~
 Window Geometry:
   Displays:

@@ -17,18 +17,35 @@
     </include>
 </group>
 
+<!--republicar com a calibracao correta para o resto do pipeline-->
+<node name="republish_info_left" pkg="duo3d_slam_pkg" type="republish_cam_info" output="screen">
+    <param name="image_topic_in" value="/duo3d/left/image_rect"/>
+    <param name="image_topic_out" value="/duo3d/left/image_rect1"/>
+    <param name="cam_info_out" value="/duo3d/left/camera_info1"/>
+    <param name="camera_name" value="duo3d_left"/>
+    <param name="file" value="file://$(find duo3d_slam_pkg)/calib/duo3d_left.yaml"/>
+</node>
+<node name="republish_info_right" pkg="duo3d_slam_pkg" type="republish_cam_info" output="screen">
+    <param name="image_topic_in" value="/duo3d/right/image_rect"/>
+    <param name="image_topic_out" value="/duo3d/right/image_rect1"/>
+    <param name="cam_info_out" value="/duo3d/right/camera_info1"/>
+    <param name="camera_name" value="duo3d_right"/>
+    <param name="file" value="file://$(find duo3d_slam_pkg)/calib/duo3d_right.yaml"/>
+</node>
+
 <!--Fazendo nuvem de pontos a partir de imagens na ocasiao de tocando bags-->
 <group if="$(arg playback)">
     <arg name="pi/2" value="1.5707963267948966" />
     <node pkg="tf" type="static_transform_publisher" name="duo3d_base_link"   args="0 0 0 0 0 $(arg pi/2) $(arg camera_frame) $(arg optical_frame) 100" />
     <node pkg="tf" type="static_transform_publisher" name="duo3d_base_camera" args="0 0 0 0 0 0 $(arg base_frame) $(arg camera_frame) 100" />
+    <node pkg="tf" type="static_transform_publisher" name="map_odom"          args="0 0 0 0 0 0 map $(arg odom_frame) 100" />
 
     <group ns="stereo">
     <node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" output="screen">
-        <remap from="/stereo/left/image_raw"    to="/duo3d/left/image_rect"/>
-        <remap from="/stereo/right/image_raw"   to="/duo3d/right/image_rect"/>
-        <remap from="/stereo/left/camera_info"  to="/duo3d/left/camera_info"/>
-        <remap from="/stereo/right/camera_info" to="/duo3d/right/camera_info"/>
+        <remap from="/stereo/left/image_raw"    to="/duo3d/left/image_rect1"/>
+        <remap from="/stereo/right/image_raw"   to="/duo3d/right/image_rect1"/>
+        <remap from="/stereo/left/camera_info"  to="/duo3d/left/camera_info1"/>
+        <remap from="/stereo/right/camera_info" to="/duo3d/right/camera_info1"/>
 
         <param name="approximate_sync" value="true"/>
         <param name="queue_size" value="10"/>
@@ -56,7 +73,7 @@
 <!--lancando o VISO2 com as configuracoes necessarias-->
 <node pkg="viso2_ros" type="stereo_odometer" name="stereo_odometer" output="screen">
     <remap from="stereo" to="/duo3d"/>
-    <remap from="image" to="image_rect"/>
+    <remap from="image" to="image_rect1"/>
     <param name="sensor_frame_id" value="$(arg camera_frame)"/>
     <param name="base_link_frame_id" value="$(arg base_frame)"/>
     <param name="approximate_sync" value="true"/>

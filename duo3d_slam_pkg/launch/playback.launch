@@ -8,6 +8,6 @@
   <node pkg="image_transport" type="republish" name="republish_right" output="screen" args="compressed in:=/duo3d/right/image_rect raw out:=/duo3d/right/image_rect"/>
 
   <!--tocar o bag com taxa mais lenta-->
-  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="/home/$(env USER)/Desktop/$(arg bag).bag --clock -r 0.4"/>
+  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="/home/$(env USER)/Desktop/$(arg bag).bag --clock -r 0.2"/>
 
 </launch>

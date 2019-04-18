@@ -16,6 +16,22 @@
     </include>
 </group>
 
+<!--republicar com a calibracao correta para o resto do pipeline-->
+<node name="republish_info_left" pkg="duo3d_slam_pkg" type="republish_cam_info" output="screen">
+    <param name="image_topic_in" value="/duo3d/left/image_rect"/>
+    <param name="image_topic_out" value="/duo3d/left/image_rect1"/>
+    <param name="cam_info_out" value="/duo3d/left/camera_info1"/>
+    <param name="camera_name" value="duo3d_left"/>
+    <param name="file" value="file://$(find duo3d_slam_pkg)/calib/duo3d_left.yaml"/>
+</node>
+<node name="republish_info_right" pkg="duo3d_slam_pkg" type="republish_cam_info" output="screen">
+    <param name="image_topic_in" value="/duo3d/right/image_rect"/>
+    <param name="image_topic_out" value="/duo3d/right/image_rect1"/>
+    <param name="cam_info_out" value="/duo3d/right/camera_info1"/>
+    <param name="camera_name" value="duo3d_right"/>
+    <param name="file" value="file://$(find duo3d_slam_pkg)/calib/duo3d_right.yaml"/>
+</node>
+
 <!--lancando o orbslam2 com as configuracoes necessarias-->
 <include file="$(find duo3d_slam_pkg)/OrbSLAM2/launch/duo3d.launch">
 </include>

@@ -7,8 +7,8 @@
           $(find orb_slam2_ros)/orb_slam2/Vocabulary/ORBvoc.txt
           $(find duo3d_slam_pkg)/OrbSLAM2/yaml/duo3d.yaml"
       output="screen">
-       <remap from="image_left/image_color_rect" to="/duo3d/left/image_rect" />
-       <remap from="image_right/image_color_rect" to="/duo3d/right/image_rect" />
+       <remap from="image_left/image_color_rect" to="/duo3d/left/image_rect1" />
+       <remap from="image_right/image_color_rect" to="/duo3d/right/image_rect1" />
 
        <param name="publish_pointcloud" type="bool" value="false" />
        <param name="pointcloud_frame_id" type="string" value="odom" />

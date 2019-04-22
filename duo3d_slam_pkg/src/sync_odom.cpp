@@ -151,10 +151,16 @@ int main(int argc, char **argv)
     caminho_zed = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
     caminho_odo = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
+    // Pega parametros vindos do launch
+    string imagem, pixhawk, camera;
+    n_.getParam("image_topic" , imagem );
+    n_.getParam("gt_topic"    , pixhawk);
+    n_.getParam("camera_topic", camera );
+
     // Subscriber para a imagem instantanea e odometrias
-    message_filters::Subscriber<sensor_msgs::Image> subima(nh, "/duo3d/left/image_rect"       , 10);
-    message_filters::Subscriber<Odometry>           subpix(nh, "/mavros/global_position/local", 10);
-    message_filters::Subscriber<Odometry>           subodo(nh, "/stereo_odometer/odometry"    , 10);
+    message_filters::Subscriber<sensor_msgs::Image> subima(nh, imagem , 10);
+    message_filters::Subscriber<Odometry>           subpix(nh, pixhawk, 10);
+    message_filters::Subscriber<Odometry>           subodo(nh, camera , 10);
 
     // Sincroniza as leituras dos topicos
     Synchronizer<syncPolicy> sync(syncPolicy(10), subima, subpix, subodo);

@@ -3,16 +3,23 @@
 <arg name="playback" default="false"/>
 <arg name="visualizar" default="true"/>
 <arg name="acumular" default="false"/>
+<arg name="sync_tf" default="false"/>
 
 <arg name="camera_frame"  default="/duo3d/camera_frame"/>
 <arg name="optical_frame" default="duo3d_camera"       />
 <arg name="base_frame"    default="base_link"          />
 <arg name="odom_frame"    default="odom"               />
 
-<!--lancando o driver da camera-->
+<!--lancando o driver da camera se nao for playback-->
 <group unless="$(arg playback)">
     <include file="$(find duo3d_driver)/launch/duo3d_depth.launch">
           <arg name="feedback" value="false"/>
+    </include>
+</group>
+
+<!--se for tocar um bag-->
+<group if="$(arg playback)">
+    <include file="$(find duo3d_slam_pkg)/launch/playback.launch">
     </include>
 </group>
 
@@ -39,13 +46,13 @@
 <!--Fazendo nuvem de pontos a partir de imagens na ocasiao de tocando bags-->
 <group if="$(arg playback)">
     <arg name="pi/2" value="1.5707963267948966" />
-    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_link"   args="0 0 0 0 0 $(arg pi/2) $(arg camera_frame) $(arg optical_frame) 100" />
-    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_camera" args="0 0 0 0 0 0 $(arg base_frame) $(arg camera_frame) 100" />
+    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_link"   args="0 0 0 0 0 $(arg pi/2) $(arg camera_frame) $(arg optical_frame) 1000" />
+    <node pkg="tf" type="static_transform_publisher" name="duo3d_base_camera" args="0 0 0 0 0 0 $(arg base_frame) $(arg camera_frame) 1000" />
 
     <group ns="stereo">
     <node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" output="screen">
-        <remap from="/stereo/left/image_raw"    to="/duo3d/left/image_rect"/>
-        <remap from="/stereo/right/image_raw"   to="/duo3d/right/image_rect"/>
+        <remap from="/stereo/left/image_raw"    to="/duo3d/left/image_rect1"/>
+        <remap from="/stereo/right/image_raw"   to="/duo3d/right/image_rect1"/>
         <remap from="/stereo/left/camera_info"  to="/duo3d/left/camera_info"/>
         <remap from="/stereo/right/camera_info" to="/duo3d/right/camera_info"/>
 
@@ -71,5 +78,12 @@
 <!--visualizar os resultados no rviz-->
 <node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/orbslam2_vis.rviz">
 </node>
+
+<!--se for sincronizar com o ground truth-->
+<group if="$(arg sync_tf)">
+    <node name="sync_tf" pkg="duo3d_slam_pkg" type="sync_tf" output="screen">
+        <param name="gt_topic" value="/mavros/global_position/local"/>
+    </node>
+</group>
 
 </launch>

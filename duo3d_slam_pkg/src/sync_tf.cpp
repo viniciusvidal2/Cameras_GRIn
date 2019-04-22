@@ -27,6 +27,7 @@
 
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/LinearMath/Matrix3x3.h>
+#include <geometry_msgs/PoseStamped.h>
 
 using namespace nav_msgs;
 using namespace std;
@@ -39,6 +40,9 @@ typedef PointXYZRGBNormal PointT;
 PointCloud<PointT>::Ptr caminho_pix;
 PointCloud<PointT>::Ptr caminho_odo;
 tf::TransformListener *orbslam_tf;
+
+double distancia_duo = 0, distancia_pix = 0, ref_duo_x, ref_duo_y, ref_pix_x, ref_pix_y;
+bool primeira_vez_duo = true, primeira_vez_pix = true;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 void visualizar_nuvem(){
@@ -74,14 +78,27 @@ void atualizar_nuvem(const OdometryConstPtr& odom, string nome){
   caminho_pix->push_back(point);
   ROS_INFO("Mais um ponto PIX");
 
+  if(!primeira_vez_pix){
+      distancia_pix = sqrt( pow(point.x-ref_pix_x, 2) + pow(point.y-ref_pix_y, 2) );
+  } else {
+      ref_pix_x = point.x; ref_pix_y = point.y;
+      primeira_vez_pix = false;
+  }
+  ROS_INFO("DISTANCIA DA PIX: %.2f", distancia_pix);
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void atualizar_nuvem2(tf::StampedTransform t, string nome){
+void atualizar_nuvem2(const tf::StampedTransform t, string nome){
   // Salvar cada odometria na nuvem
   PointT point;
   tf::Quaternion q_atual;
   tf::Matrix3x3 m;
   double roll, pitch, yaw;
+
+//  geometry_msgs::PoseStamped msg;
+  tf::Vector3 v;
+  v = t.getOrigin();
+
+  cout << v.getX() << " " << v.getY() << endl;
 
 //  q_atual.setX((double)odom->pose.pose.orientation.x);
 //  q_atual.setY((double)odom->pose.pose.orientation.y);
@@ -98,9 +115,9 @@ void atualizar_nuvem2(tf::StampedTransform t, string nome){
 //  point.normal_z = yaw;
 
   // Acumular na nuvem pix
-  point.r = 0.0f; point.g = 250.0f; point.b = 0.0f; // Verde para referencia
+  point.r = 0.0f; point.g = 0.0f; point.b = 250.0f; // Azul para referencia
   caminho_odo->push_back(point);
-  ROS_INFO("Mais um ponto PIX");
+  ROS_INFO("Mais um ponto DUO");
 
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -131,7 +148,7 @@ void pixCallback(const nav_msgs::OdometryConstPtr& msg_pix)
     tf::StampedTransform trans;
     try
     {
-        orbslam_tf->waitForTransform("odom", "/duo3d/camera_frame", msg_pix->header.stamp, ros::Duration(3.0));
+        orbslam_tf->waitForTransform("odom", "/duo3d/camera_frame", msg_pix->header.stamp, ros::Duration(1.0));
         orbslam_tf->lookupTransform( "odom", "/duo3d/camera_frame", msg_pix->header.stamp, trans);
     }
     catch (tf::TransformException& ex){
@@ -149,8 +166,19 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "sync_tf");
     ros::NodeHandle nh;
+    ros::NodeHandle n_("~");
 
-    ros::Subscriber sub = nh.subscribe("/mavros/global_position/local", 1000, pixCallback);
+    // Inicia nuvens
+    caminho_pix = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    caminho_odo = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+
+    // Inicia tf listener
+    orbslam_tf = (tf::TransformListener*) new tf::TransformListener;
+
+    string topico_gt;
+    n_.getParam("gt_topic", topico_gt);
+
+    ros::Subscriber sub = nh.subscribe(topico_gt, 1, pixCallback);
 
     while(ros::ok()){
       ros::spinOnce();

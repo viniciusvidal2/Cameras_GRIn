@@ -2,7 +2,7 @@
 
 <arg name="playback"     default="true"/>
 <arg name="visualizar"   default="true" />
-<arg name="sync_odom"    default="false"/>
+<arg name="sync_odom"    default="true"/>
 
 <arg name="camera_frame"  default="base_link"/>
 <arg name="optical_frame" default="camera_color_left"/>
@@ -14,8 +14,6 @@
 <!--    Tocando o bag tambem-->
     <include file="$(find kitti_datasets)/launch/playback.launch">
     </include>
-    <node pkg="tf" type="static_transform_publisher" name="base_link2left"  args="0 0 0 0 0 0 $(arg base_frame) camera_color_left  100" />
-    <node pkg="tf" type="static_transform_publisher" name="base_link2right" args="0 0 0 0 0 0 $(arg base_frame) camera_color_right 100" />
 
     <group ns="stereo">
     <node name="stereo_image_proc" pkg="stereo_image_proc" type="stereo_image_proc" output="screen">
@@ -81,11 +79,12 @@
 
 <!--caso de testar com o ground truth para avaliar odometria-->
 <group if="$(arg sync_odom)">
-<node name="sincronizar_ground_truth" pkg="duo3d_slam_pkg" type="sync_odom" output="screen">
-    <param name="image_topic"  value="/kitti/camera_color_left/image_raw"/>
-    <param name="gt_topic"     value="/mavros/global_position/local"/>
-    <param name="camera_topic" value="/stereo_odometer/odometry"/>
-</node>
+    <node name="sincronizar_ground_truth" pkg="kitti_datasets" type="sync_dados" output="screen">
+        <param name="image_topic"  value="/kitti/left/image_raw"/>
+        <param name="gt_topic"     value="/kitti/oxts/gps/fix"/>
+        <param name="camera_topic" value="/stereo_odometer/odometry"/>
+        <param name="raio_terra"   value="3931000"/>
+    </node>
 </group>
 
 </launch>

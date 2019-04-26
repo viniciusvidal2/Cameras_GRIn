@@ -1,0 +1,100 @@
+<launch>
+
+<arg name="playback"     default="true"/>
+<arg name="visualizar"   default="true" />
+<arg name="sync_odom"    default="true"/>
+<arg name="viso"         default="true"/>
+<arg name="orb"          default="false"/>
+
+<arg name="camera_frame" default="camera_left"/>
+<arg name="base_frame"   default="base_link"  />
+<arg name="odom_frame"   default="world"      />
+
+
+<!--Fazendo nuvem de pontos a partir de imagens na ocasiao de tocando bags-->
+<group if="$(arg playback)">
+<!--    Tocando o bag tambem-->
+    <include file="$(find kitti_datasets)/launch/playback.launch">
+        <arg name="avaliar_odom" value="true"/>
+    </include>
+</group>
+
+<!--lancando OrbSLAM2 para comparar tambem-->
+<group if="$(arg orb)">
+<node name="duo3d_orbslam2" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo"
+    args="$(find orb_slam2_ros)/orb_slam2/Vocabulary/ORBvoc.txt
+      $(find duo3d_slam_pkg)/OrbSLAM2/yaml/kitti.yaml"
+    output="screen">
+     <remap from="image_left/image_color_rect" to="/kitti/left/image_rect" />
+     <remap from="image_right/image_color_rect" to="/kitti/right/image_rect" />
+
+     <param name="publish_pointcloud" type="bool" value="true" />
+     <param name="pointcloud_frame_id" type="string" value="$(arg odom_frame)" />
+     <param name="camera_frame_id" type="string" value="$(arg base_frame)" />
+</node>
+</group>
+
+<!--lancando o VISO2 com as configuracoes necessarias-->
+<group if="$(arg viso)">
+
+<node pkg="tf" type="static_transform_publisher" name="camera_base_link"   args="0 0 0 0 0 0 $(arg camera_frame) $(arg base_frame) 1000" />
+
+<node pkg="viso2_ros" type="stereo_odometer" name="stereo_odometer" output="screen">
+    <remap from="stereo" to="/kitti"/>
+    <remap from="image" to="image_rect"/>
+    <remap from="camera_info" to="camera_info"/>
+    <param name="sensor_frame_id" value="$(arg camera_frame)"/>
+    <param name="base_link_frame_id" value="$(arg camera_frame)"/>
+    <param name="approximate_sync" value="true"/>
+    <param name="publish_tf" value="false"/>
+    <param name="queue_size" value="10"/>
+    <param name="odom_frame_id" value="$(arg odom_frame)"/>
+
+    <!--Ajustar melhores valores para fazer o match das nuvens-->
+    <param name="max_features" value="2"/>
+    <param name="bucket_width" value="50"/>
+    <param name="bucket_height" value="=50"/>
+    <param name="nms_n" value="3"/>
+    <param name="nms_tau" value="50"/>
+    <param name="match_binsize" value="50"/>
+    <param name="match_radius" value="200"/> <!--esse parametro e bastante importante, afeta a distancia entre features-->
+    <param name="outlier_disp_tolerance" value="5"/>
+    <param name="outlier_flow_tolerance" value="5"/>
+    <param name="match_disp_tolerance" value="2"/>
+    <param name="half_resolution" value="1"/> <!--melhor esse mesmo-->
+    <param name="refinement" value="1"/>
+    <param name="ransac_iters" value="200"/>
+    <param name="inlier_threshold" value="1.5"/>
+    <param name="reweighting" value="true"/> <!--default ja-->
+    <param name="ref_frame_change_method" value="0"/>
+    <param name="ref_frame_motion_threshold" value="5.0"/>
+    <param name="ref_frame_inlier_threshold" value="150"/>
+</node>
+</group>
+
+<!--visualizar os resultados no rviz-->
+<group if="$(arg viso)">
+<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/avaliar_odom_viso_vis.rviz">
+</node>
+</group>
+<group if="$(arg orb)">
+<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/avaliar_odom_viso_orb.rviz">
+</node>
+</group>
+
+<!--caso de testar com o ground truth para avaliar odometria-->
+<group if="$(arg sync_odom)">
+    <group if="$(arg viso)">
+    <node name="sincronizar_ground_truth" pkg="kitti_datasets" type="sync_tf_kitti" output="screen">
+        <param name="image_topic" value="/kitti/left/image_rect"   />
+        <param name="viso_topic"  value="/stereo_odometer/odometry"/>
+    </node>
+    </group>
+    <group if="$(arg orb)">
+    <node name="sincronizar_ground_truth" pkg="kitti_datasets" type="sync_orb_kitti" output="screen">
+        <param name="image_topic" value="/kitti/left/image_rect"/>
+    </node>
+    </group>
+</group>
+
+</launch>

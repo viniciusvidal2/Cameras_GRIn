@@ -18,6 +18,7 @@ find_package(catkin REQUIRED
     pcl_ros
     tf
     cv_bridge
+    tf_conversions
 )
 
 catkin_package(
@@ -38,6 +39,16 @@ include_directories(
 
 add_executable(sync_dados src/sync_dados.cpp)
 target_link_libraries(sync_dados
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+add_executable(sync_tf_kitti src/sync_tf.cpp)
+target_link_libraries(sync_tf_kitti
+    ${catkin_LIBRARIES}
+    ${PCL_LIBRARIES}
+)
+add_executable(sync_orb_kitti src/sync_orb_kitti.cpp)
+target_link_libraries(sync_orb_kitti
     ${catkin_LIBRARIES}
     ${PCL_LIBRARIES}
 )

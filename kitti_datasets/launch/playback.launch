@@ -1,19 +1,28 @@
 <launch>
 
-  <arg name="bag" default="kitti_2011_09_26_drive_0001_synced"/>
+  <arg name="bag" default="kitti_data_odometry_color_sequence_00"/>
+  <arg name="folder" default="/media/$(env USER)/HD/kitti/Odometry_benchmark"/>
+
+  <arg name="avaliar_odom" default="true"/>
+
   <param name="/use_sim_time" value="true"/>
 
-  <!--descomprimir as imagens-->
-<!--  <node pkg="image_transport" type="republish" name="republish_left"  output="screen" args="compressed in:=/duo3d/left/image_rect raw out:=/duo3d/left/image_rect"/>-->
-<!--  <node pkg="image_transport" type="republish" name="republish_right" output="screen" args="compressed in:=/duo3d/right/image_rect raw out:=/duo3d/right/image_rect"/>-->
-
   <!--tocar o bag com taxa mais lenta-->
-<!--  <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="/home/$(env USER)/kitti_bags/$(arg bag).bag clock -r 0.05">-->
-<node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="/media/$(env USER)/HD/kitti/Drive01/$(arg bag).bag --clock -r 0.5">
+  <group if="$(arg avaliar_odom)">
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg folder)/$(arg bag).bag --clock -r 0.05">
+        <remap from="/kitti/camera_color_left/image_rect"  to="/kitti/left/image_rect" />
+        <remap from="/kitti/camera_color_right/image_rect" to="/kitti/right/image_rect"/>
+        <remap from="/kitti/camera_color_right/camera_info" to="/kitti/right/camera_info"/>
+        <remap from="/kitti/camera_color_left/camera_info"  to="/kitti/left/camera_info" />
+    </node>
+  </group>
+  <group unless="$(arg avaliar_odom)">
+    <node pkg="rosbag" type="play" name="rosbag_play" output="screen" args="$(arg folder)/$(arg bag).bag --clock -r 0.5">
         <remap from="/kitti/camera_color_left/image_raw"  to="/kitti/left/image_raw" />
         <remap from="/kitti/camera_color_right/image_raw" to="/kitti/right/image_raw"/>
         <remap from="/kitti/camera_color_right/camera_info" to="/kitti/right/camera_info"/>
         <remap from="/kitti/camera_color_left/camera_info"  to="/kitti/left/camera_info" />
-</node>
+    </node>
+  </group>
 
 </launch>

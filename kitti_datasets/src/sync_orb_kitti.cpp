@@ -91,7 +91,6 @@ void atualizar_nuvem(const tf::StampedTransform t, string nome){
         ROS_INFO("DISTANCIA ORB: %.2f", distancia_orb);
 
         // Acumular na nuvem orb
-
         point.r = 0.0f; point.g = 0.0f; point.b = 250.0f; // Azul para referencia
         caminho_orb->push_back(point);
     }
@@ -122,18 +121,17 @@ void salvar_nuvens(){
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void orbCallback(const sensor_msgs::ImageConstPtr &msg_ima)
 {
-    ROS_INFO("ENTROU NO CALLBACK!");
     tf::StampedTransform trans_orb, trans_kitti;
     try
     {
-        kitti_tf->waitForTransform("world", "camera_left", msg_ima->header.stamp, ros::Duration(1.0));
+        kitti_tf->waitForTransform("world", "camera_left", msg_ima->header.stamp, ros::Duration(0.2));
         kitti_tf->lookupTransform( "world", "camera_left", msg_ima->header.stamp, trans_kitti);
-        orb_tf->waitForTransform("world", "base_link", msg_ima->header.stamp, ros::Duration(1.0));
+        orb_tf->waitForTransform("world", "base_link", msg_ima->header.stamp, ros::Duration(0.2));
         orb_tf->lookupTransform( "world", "base_link", msg_ima->header.stamp, trans_orb);
     }
     catch (tf::TransformException& ex){
         ROS_ERROR("%s",ex.what());
-        ROS_WARN("Cannot accumulate");
+        ROS_WARN("Nao pode ouvir as transformacoes");
         return;
     }
 

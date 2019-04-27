@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="bag" default="kitti_data_odometry_color_sequence_00"/>
+  <arg name="bag" default="kitti_data_odometry_color_sequence_04"/>
   <arg name="folder" default="/media/$(env USER)/HD/kitti/Odometry_benchmark"/>
 
   <arg name="avaliar_odom" default="true"/>

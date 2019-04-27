@@ -3,8 +3,8 @@
 <arg name="playback"     default="true"/>
 <arg name="visualizar"   default="true" />
 <arg name="sync_odom"    default="true"/>
-<arg name="viso"         default="true"/>
-<arg name="orb"          default="false"/>
+<arg name="viso"         default="false"/>
+<arg name="orb"          default="true"/>
 
 <arg name="camera_frame" default="camera_left"/>
 <arg name="base_frame"   default="base_link"  />
@@ -21,6 +21,7 @@
 
 <!--lancando OrbSLAM2 para comparar tambem-->
 <group if="$(arg orb)">
+
 <node name="duo3d_orbslam2" pkg="orb_slam2_ros" type="orb_slam2_ros_stereo"
     args="$(find orb_slam2_ros)/orb_slam2/Vocabulary/ORBvoc.txt
       $(find duo3d_slam_pkg)/OrbSLAM2/yaml/kitti.yaml"
@@ -37,7 +38,7 @@
 <!--lancando o VISO2 com as configuracoes necessarias-->
 <group if="$(arg viso)">
 
-<node pkg="tf" type="static_transform_publisher" name="camera_base_link"   args="0 0 0 0 0 0 $(arg camera_frame) $(arg base_frame) 1000" />
+<node pkg="tf" type="static_transform_publisher" name="camera_base_link" args="0 0 0 0 -1.57 0 $(arg camera_frame) $(arg base_frame) 1000" />
 
 <node pkg="viso2_ros" type="stereo_odometer" name="stereo_odometer" output="screen">
     <remap from="stereo" to="/kitti"/>
@@ -74,11 +75,11 @@
 
 <!--visualizar os resultados no rviz-->
 <group if="$(arg viso)">
-<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/avaliar_odom_viso_vis.rviz">
+<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find kitti_datasets)/rviz/avaliar_odom_viso_vis.rviz">
 </node>
 </group>
 <group if="$(arg orb)">
-<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find duo3d_slam_pkg)/config/avaliar_odom_viso_orb.rviz">
+<node if="$(arg visualizar)" pkg="rviz" type="rviz" name="rviz_orbslam" args="-d $(find kitti_datasets)/rviz/avaliar_odom_orb_vis.rviz">
 </node>
 </group>
 

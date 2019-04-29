@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>944</width>
-    <height>704</height>
+    <width>1119</width>
+    <height>698</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -40,7 +40,58 @@
        <attribute name="title">
         <string>Inicio</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_2"/>
+       <widget class="QPushButton" name="pushButton_inicio">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>40</y>
+          <width>131</width>
+          <height>25</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Inicia cameras</string>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_captura">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>80</y>
+          <width>331</width>
+          <height>80</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Captura temporizada - capturar por (segundos):</string>
+        </property>
+        <widget class="QLineEdit" name="lineEdit_tempo">
+         <property name="geometry">
+          <rect>
+           <x>30</x>
+           <y>40</y>
+           <width>113</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>1</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_capturar">
+         <property name="geometry">
+          <rect>
+           <x>180</x>
+           <y>40</y>
+           <width>131</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Capturar!</string>
+         </property>
+        </widget>
+       </widget>
       </widget>
      </widget>
     </item>

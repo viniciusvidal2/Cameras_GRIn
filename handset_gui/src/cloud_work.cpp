@@ -12,6 +12,10 @@
 
 #include <boost/lexical_cast.hpp>
 
+#include <tf/tf.h>
+#include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
+
 namespace handset_gui {
 
 using namespace std;
@@ -79,14 +83,17 @@ void Cloud_Work::passthrough(PointCloud<PointT>::Ptr cloud, string field, float 
     ps.filter(*cloud);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset, Eigen::Matrix4f *T){
+Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset){
+    Eigen::Matrix4f T;
     Eigen::Matrix3f R = rot.matrix();//cout << "R " << R << endl;
     Eigen::MatrixXf t(3,1);
     t = offset;//cout << "T " << T << endl;
-    *T << R,t,
+    T << R,t,
          0,0,0,1;
     cout << "\n\n Tira teima se esta funcionando transformacao:\n";
-    cout << "RT " << *T << endl;
+    cout << "RT " << T << endl;
+
+    return T;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
@@ -127,12 +134,14 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
 
+        ROS_INFO("NADA A ACUMULAR POR ENQUANTO!");
+
     } else {
         // Primeira nuvem
         *acumulada_global          += *parcial;
         *acumulada_parcial_anterior = *parcial;
         // Primeira transformacao vinda da odometria -> converter matriz 4x4
-        qt2T(rot, offset, T_anterior);
+        T_anterior = qt2T(rot, offset);
         // Podemos dizer que nao e mais primeira vez, chaveia a variavel
         set_primeira_vez(false);
     }
@@ -150,7 +159,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         Eigen::Vector3f offset;
         // Vamos aquisitar e acumular enquanto nao acabar o tempo
         t_inicio_aquisicao = ros::Time::now();
-        while((ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao){
+        while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
 
             // Converte nuvem -> ja devia estar filtrada do outro no
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
@@ -174,7 +183,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
                 return;
             }
             Eigen::Affine3d eigen_trf;
-            tf::transformTFToEigen(trans, eigen_trf);
+//            tf::transformTFToEigen(trans, eigen_trf); ARRUMAR AQUI!!!!
             // Transforma nuvem para o frame da ASTRA, camera_rgb_optical_frame, e para a odometria medida pela ZED no momento
             transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, eigen_trf);
             transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
@@ -190,14 +199,15 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         registra_global_icp(acumulada_parcial, q, offset);
 
         // Salva os dados na pasta do projeto
-        salva_dados_parciais(acumulada_parcial, q, offset, msg_image);
 
     } // fim do if -> acumular ou nao
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot,
-                                      Eigen::Vector3f offset, sensor_msgs::ImageConstPtr &imagem){
+void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
+                                      Eigen::Quaternion<float> rot,
+                                      Eigen::Vector3f offset,
+                                      sensor_msgs::ImageConstPtr &imagem){
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

@@ -21,7 +21,7 @@ include_directories(${PCL_INCLUDE_DIRS})
 # Use this to define what the package will export (e.g. libs, headers).
 # Since the default here is to produce only a binary, we don't worry about
 # exporting anything. 
-catkin_package(CATKIN_DEPENDS qt_build roscpp cv_bridge sensor_msgs std_msgs image_transport nav_msgs pcl_ros)
+catkin_package(CATKIN_DEPENDS qt_build roscpp cv_bridge sensor_msgs std_msgs image_transport nav_msgs pcl_ros tf2_ros tf tf_conversions)
 
 ##############################################################################
 # Qt Environment

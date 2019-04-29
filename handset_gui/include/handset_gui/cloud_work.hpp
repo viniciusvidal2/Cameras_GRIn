@@ -105,7 +105,7 @@ private:
   Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, PointCloud<PointT>::Ptr final, Eigen::Matrix4f T);
   void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
   void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-  void qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset, Eigen::Matrix4f *T);
+  Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
   void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, sensor_msgs::ImageConstPtr &imagem);
 
   /// Variaveis ///

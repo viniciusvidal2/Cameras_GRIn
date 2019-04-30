@@ -51,15 +51,15 @@ void Cloud_Work::init(){
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
-    pub_total   = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global"  , 10);
+    pub_total   = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
     // Inicia subscriber de TF assincrono
     p_listener = (tf::TransformListener*) new tf::TransformListener;
 
     // Subscribers para sincronizar
     message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "topico_imagem", 10);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "topico_nuvem", 10);
-    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "topico_odom", 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "topico_nuvem" , 10);
+    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "topico_odom"  , 10);
     sync.reset(new Sync(syncPolicy(10), sub_imagem, sub_nuvem, sub_odom));
     sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
 
@@ -221,5 +221,8 @@ void Cloud_Work::set_primeira_vez(bool flag){
     primeira_vez = flag;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::set_tempo_aquisicao(float t){
+    t_aquisicao = t;
+}
 
 } // Fim do namespace handset_gui

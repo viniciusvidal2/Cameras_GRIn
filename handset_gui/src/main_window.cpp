@@ -44,6 +44,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     cw.init();
     cw.set_inicio_acumulacao(false);
     cw.set_primeira_vez(true);
+    cw.set_inicio_acumulacao(ui.lineEdit_tempo->text().toFloat()); // Tempo default para garantir
 }
 
 MainWindow::~MainWindow() {}
@@ -52,6 +53,18 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     //	WriteSettings();
     QMainWindow::closeEvent(event);
+}
+
+/// Botao de inicio do sistemas de cameras
+void MainWindow::on_pushButton_inicio_clicked(){
+    system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch'");
+}
+
+/// Botao para iniciar a captura corretamente por tanto tempo
+void MainWindow::on_pushButton_capturar_clicked(){
+    float t = ui.lineEdit_tempo->text().toFloat();
+    cw.set_tempo_aquisicao(t); // Tempo maximo de aquisicao
+    cw.set_inicio_acumulacao(true); // Liberar a flag de inicio de aquisicao
 }
 
 }  // namespace handset_gui

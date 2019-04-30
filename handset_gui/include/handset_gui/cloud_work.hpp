@@ -87,6 +87,7 @@ public:
 //  void run_class();
   void set_inicio_acumulacao(bool flag);
   void set_primeira_vez(bool flag);
+  void set_tempo_aquisicao(float t);
 
   QMutex* mutex;
 

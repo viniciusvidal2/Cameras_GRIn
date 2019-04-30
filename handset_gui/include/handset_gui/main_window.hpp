@@ -64,6 +64,10 @@ public:
 
 public Q_SLOTS:
 
+private Q_SLOTS:
+    void on_pushButton_inicio_clicked();
+    void on_pushButton_capturar_clicked();
+
 private:
     Ui::MainWindowDesign ui;
     QNode qnode;

@@ -1,25 +1,25 @@
 %YAML:1.0
 
 # Camera calibration and distortion parameters (OpenCV)
-Camera.fx: 159.96622204802125
-Camera.fy: 159.96622204802125
-Camera.cx: 208.96023211537334
-Camera.cy: 120.334872279303
+Camera.fx: 154.935438
+Camera.fy: 156.155365
+Camera.cx: 151.545764
+Camera.cy: 119.698462
 
-Camera.k1: 0
-Camera.k2: 0
-Camera.p1: 0
-Camera.p2: 0
+Camera.k1: -0.014992
+Camera.k2: -0.000406
+Camera.p1: 0.004022
+Camera.p2: -0.002482
 Camera.k3: 0
 
 Camera.width: 320
 Camera.height: 240
 
 # Camera frames per second
-Camera.fps: 14.0
+Camera.fps: 30.0
 
 # stereo baseline times fx
-Camera.bf: 4.48168003144038
+Camera.bf: 4.764320
 
 # Color order of the images (0: BGR, 1: RGB. It is ignored if images are grayscale)
 Camera.RGB: 1

@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 2.8.3)
 project(duo3d_slam_pkg)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs
+  roscpp rospy sensor_msgs nav_msgs pcl_ros std_msgs tf tf_conversions geometry_msgs camera_info_manager image_geometry
 )
 
 ## System dependencies are found with CMake's conventions
@@ -133,6 +133,12 @@ ${Eigen_INCLUDE_DIRS}
 
 add_executable(acumular_viso2 src/acumular_viso2.cpp)
 target_link_libraries(acumular_viso2 ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
+add_executable(sync_odom src/sync_odom.cpp)
+target_link_libraries(sync_odom ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
+add_executable(sync_tf src/sync_tf.cpp)
+target_link_libraries(sync_tf ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
+add_executable(republish_cam_info src/republish_cam_info.cpp)
+target_link_libraries(republish_cam_info ${PCL_LIBRARIES} ${catkin_LIBRARIES} )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries

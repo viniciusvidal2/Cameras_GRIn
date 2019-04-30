@@ -1,0 +1,10 @@
+<launch>
+
+<!--lancar astra-->
+<include file="$(find astra_launch)/launch/astra.launch">
+</include>
+<!--lancar zed-->
+<include file="$(find zed_wrapper)/launch/zed.launch">
+</include>
+
+</launch>

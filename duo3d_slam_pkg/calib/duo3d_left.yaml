@@ -1,0 +1,20 @@
+image_width: 320
+image_height: 240
+camera_name: duo3d_left
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [154.935438, 0.0, 151.545764, 0.0, 156.155365, 119.698462, 0.0, 0.0, 1.0]
+distortion_model: plumb_bob
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.014992, -0.000406, 0.004022, -0.002482, 0.0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [0.999833, -0.017888, -0.003760, 0.017890, 0.999840, 0.000365, 0.003753, -0.000432, 0.999993]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [159.684452, 0.0, 146.978401, 0.0, 0.0, 159.684452, 120.694904, 0.0, 0.0, 0.0, 1.0, 0.0]

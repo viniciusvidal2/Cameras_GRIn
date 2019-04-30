@@ -1,0 +1,7 @@
+<launch>
+
+<!--lancando somente a GUI aqui-->
+<node name="handset_gui_node" pkg="handset_gui" type="handset_gui" output="screen">
+</node>
+
+</launch>

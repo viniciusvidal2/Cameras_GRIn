@@ -66,7 +66,8 @@ typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, O
 PointCloud<PointT>::Ptr nuvem_colorida;
 tf::TransformListener *p_listener;
 ros::Publisher pub;
-ros::Publisher pub2;
+ros::Publisher pub_cloud;
+ros::Publisher pub_img;
 // Matriz intrinseca K para Depth cam
 Eigen::Matrix3f K1; //  MATLAB
 
@@ -171,16 +172,23 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::Imag
 
     nuvem_colorida->header.frame_id = "camera_rgb_optical_frame";
 
-    // Publicando Nuvem
+    // Mensagem Nuvem
     toROSMsg(*nuvem_colorida, msg_cor);
     msg_cor.header.frame_id = nuvem_colorida->header.frame_id;
     msg_cor.header.stamp = ros::Time::now();
-    pub.publish(msg_cor);
 
-    // Publicando Odometria
+    // Mensagem Odometria
     Odometry msg_odo2 = *msg_odo;
     msg_odo2.header.stamp = msg_cor.header.stamp;
-    pub2.publish(msg_odo2);
+
+    // Mensagem imagem para sincronizar a frente
+    sensor_msgs::Image msg_rgb2 = *msg_rgb;
+    msg_rgb2.header.stamp = msg_cor.header.stamp;
+
+    // Publicando tudo junto
+    pub_cloud.publish(msg_odo2);
+    pub.publish(msg_cor);
+    pub_img.publish(msg_rgb2);
 
     //    tempo(t_init, t_fim);
 
@@ -224,9 +232,9 @@ int main(int argc, char **argv)
 
     nuvem_colorida = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
-    pub = nh.advertise<sensor_msgs::PointCloud2>("/astra_projetada", 10);
-
-    pub2 = nh.advertise<Odometry>("/odom2", 10);
+    pub       = nh.advertise<sensor_msgs::PointCloud2>("/astra_projetada", 10);
+    pub_cloud = nh.advertise<Odometry>("/odom2", 10);
+    pub_img   = nh.advertise<sensor_msgs::Image>("/astra_rgb", 10);
 
     message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw", 10);
     message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"    , 10);

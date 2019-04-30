@@ -21,6 +21,7 @@
 namespace handset_gui {
 
 using namespace Qt;
+using namespace std;
 
 /*****************************************************************************
 ** Implementation [MainWindow]
@@ -40,8 +41,10 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     setWindowIcon(QIcon(":/images/icon.png"));
     ui.aba_1->setCurrentIndex(0); // ensure the first tab is showing - qt-designer should have this already hardwired, but often loses it (settings?).
 
+    qnode.init();
+
     // Inicia a classe que trabalha as nuvens, principal do programa
-    cw.init();
+//    cw.init();
     cw.set_inicio_acumulacao(false);
     cw.set_primeira_vez(true);
     cw.set_inicio_acumulacao(ui.lineEdit_tempo->text().toFloat()); // Tempo default para garantir
@@ -51,7 +54,9 @@ MainWindow::~MainWindow() {}
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    //	WriteSettings();
+    // Terminar tudo no sistema para nao conflitar com a proxima abertura
+    system("gnome-terminal -x sh -c 'rosnode kill --all'");
+
     QMainWindow::closeEvent(event);
 }
 

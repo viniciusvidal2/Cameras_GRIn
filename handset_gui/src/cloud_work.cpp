@@ -51,20 +51,57 @@ void Cloud_Work::init(){
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
-    pub_total   = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
+    pub_global  = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
     // Inicia subscriber de TF assincrono
     p_listener = (tf::TransformListener*) new tf::TransformListener;
 
     // Subscribers para sincronizar
-    message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "topico_imagem", 10);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "topico_nuvem" , 10);
-    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "topico_odom"  , 10);
+    message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "/astra_rgb"      , 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "/astra_projetada", 10);
+    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/odom2"          , 10);
     sync.reset(new Sync(syncPolicy(10), sub_imagem, sub_nuvem, sub_odom));
     sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
 
-    ros::spin();
+    // Inicio do acumulo de pontos do NVM
+//    pontos_nvm.conservativeResize(1, 6);
+//    pontos_nvm << 0, 0, 0, 0, 0, 0; // Para inicio
+//    cout << "Como iniciou os pontos:\n" << pontos_nvm << endl;
 
+    // Inicio do contador de imagens capturadas
+    contador_imagens = 0;
+
+    // Por garantia iniciar aqui tambem
+    set_inicio_acumulacao(false);
+    set_primeira_vez(true);
+
+    // Rodar o no
+    ros::Rate rate(2);
+    while(ros::ok()){
+
+        // Publica recorrentemente a nuvem atual
+        this->publica_nuvens();
+
+        ros::spinOnce();
+        rate.sleep();
+    }
+
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::publica_nuvens(){
+    sensor_msgs::PointCloud2 parcial, global;
+    // Arrumando frames
+    acumulada_global->header.frame_id = acumulada_parcial->header.frame_id;
+    parcial.header.frame_id = acumulada_parcial->header.frame_id;
+    global.header.frame_id  = acumulada_parcial->header.frame_id;
+    parcial.header.stamp = ros::Time::now();
+    global.header.stamp = parcial.header.stamp;
+    // Convertendo e Publicando
+    toROSMsg(*acumulada_parcial, parcial);
+    toROSMsg(*acumulada_global , global );
+    pub_parcial.publish(parcial);
+    pub_global.publish(global);
+    ROS_INFO("Nuvens publicadas .....");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
@@ -150,7 +187,6 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
 void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image,
                                      const sensor_msgs::PointCloud2ConstPtr &msg_cloud,
                                      const OdometryConstPtr &msg_odom){
-
     ROS_INFO("Entramos no callback de acumulacao");
     // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
     if(realizar_acumulacao){
@@ -158,9 +194,8 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         Eigen::Quaternion<float> q;
         Eigen::Vector3f offset;
         // Vamos aquisitar e acumular enquanto nao acabar o tempo
-        t_inicio_aquisicao = ros::Time::now();
+        ros::Time t_inicio_aquisicao = ros::Time::now();
         while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
-
             // Converte nuvem -> ja devia estar filtrada do outro no
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
@@ -180,15 +215,19 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
                 p_listener->lookupTransform( "camera_rgb_optical_frame", "zed_current_frame", msg_cloud->header.stamp, trans);
             }
             catch (tf::TransformException& ex){
+                ROS_WARN("Nao conseguiu escutar transformada fixa e portanto nao vai dar bom.");
                 return;
             }
             Eigen::Affine3d eigen_trf;
-//            tf::transformTFToEigen(trans, eigen_trf); ARRUMAR AQUI!!!!
+            tf::transformTFToEigen(trans, eigen_trf);
             // Transforma nuvem para o frame da ASTRA, camera_rgb_optical_frame, e para a odometria medida pela ZED no momento
             transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, eigen_trf);
             transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
             // Acumula na nuvem parcial, enquanto dentro do tempo, depois acumula ela de forma correta
+            acumulada_parcial->header.frame_id = msg_cloud->header.frame_id;
             *acumulada_parcial += *nuvem_inst;
+            cout << "Diferenca de tempo de publicacao: " << (ros::Time::now() - t_inicio_aquisicao).toSec() << endl;
+            cout << "Tempo limite: " << t_aquisicao << endl;
 
         } // fim do while -> contagem de tempo
 
@@ -198,7 +237,8 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         // Acumular com a global, a depender se primeira vez ou nao
         registra_global_icp(acumulada_parcial, q, offset);
 
-        // Salva os dados na pasta do projeto
+        // Salva os dados na pasta do projeto -> PARCIAIS
+        this->salva_dados_parciais(acumulada_parcial, q, offset, msg_image);
 
     } // fim do if -> acumular ou nao
 
@@ -207,8 +247,66 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
                                       Eigen::Quaternion<float> rot,
                                       Eigen::Vector3f offset,
-                                      sensor_msgs::ImageConstPtr &imagem){
+                                      const sensor_msgs::ImageConstPtr &imagem){
+    // Atualiza contador de imagens - tambem usado para as nuvens parciais
+    contador_imagens++;
 
+    // Nome da pasta para salvar
+    char* home;
+    home = getenv("HOME");
+      if (home!=NULL)
+        printf ("The current path is: %s", home);
+    std::string pasta = std::string(home)+"/Desktop/teste/";
+    std::string arquivo_imagem = pasta + std::to_string(contador_imagens) + ".jpg";
+    std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
+    std::string arquivo_nvm    = pasta + std::to_string(contador_imagens) + ".nvm";
+
+    // Converte e salva imagem
+    cv_bridge::CvImagePtr imgptr;
+    imgptr = cv_bridge::toCvCopy(imagem, sensor_msgs::image_encodings::RGB8);
+    imwrite(arquivo_imagem, imgptr->image);
+
+    // Salva a nuvem parcial em PLY
+    pcl::io::savePLYFileASCII(arquivo_nuvem, *cloud);
+
+    // Centro da camera, para escrever no arquivo NVM
+    Eigen::MatrixXf C = calcula_centro_camera(rot, offset);
+
+    // Escreve o arquivo NVM parcial, super necessario
+    ofstream file(arquivo_nvm);
+    if(file.is_open()){
+        file << "NVM_V3\n\n";
+        file << "1\n"; // Quantas imagens, sempre uma aqui
+        file << escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
+        file << "\n\n\n\n0\n\n"; // 0 intermediario
+        file << "#The last part of NVM files points to the PLY files\n"; // Fim das contas
+        file << "#The first number is the number of associated PLY files\n";
+        file << "#each following number gives a model-index that has PLY\n";
+        file << "0";
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
+    std::string linha = nome;
+    // Adicionar foco
+    // Adicionar quaternion
+    linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());
+    // Adicionar centro da camera
+    linha = linha + " " + std::to_string(C(0, 0)) + " " + std::to_string(C(1, 0)) + " " + std::to_string(C(2, 0));
+    // Adicionar distorcao radial (crendo 0) e 0 final
+    linha = linha + " 0 0";
+    // Escrever isso -> NAO PULA LINHA, SO RETORNA O CONTEUDO
+    return linha;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset){
+    Eigen::MatrixXf C(3, 1);
+    Eigen::MatrixXf R = q.matrix();
+    Eigen::MatrixXf t(3,1);
+    t = offset;
+    C = -R.transpose()*t;
+
+    return C;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// Sets

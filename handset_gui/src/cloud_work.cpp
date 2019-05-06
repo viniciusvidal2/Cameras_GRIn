@@ -45,9 +45,10 @@ void Cloud_Work::init(){
     ros::NodeHandle nh_;
 
     // Inicia nuvens globais
-    acumulada_parcial          = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    acumulada_parcial_anterior = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    acumulada_global           = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    acumulada_parcial              = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    acumulada_parcial_anterior     = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    acumulada_global               = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    acumulada_parcial_frame_camera = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
@@ -63,10 +64,12 @@ void Cloud_Work::init(){
     sync.reset(new Sync(syncPolicy(10), sub_imagem, sub_nuvem, sub_odom));
     sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
 
-    // Inicio do acumulo de pontos do NVM
-//    pontos_nvm.conservativeResize(1, 6);
-//    pontos_nvm << 0, 0, 0, 0, 0, 0; // Para inicio
-//    cout << "Como iniciou os pontos:\n" << pontos_nvm << endl;
+    // Inicio do modelo da camera
+    char* home;
+    home = getenv("HOME");
+    string file = std::string(home)+"/handsets_ws/src/Cameras_GRIn/astra_calibrada/calib/astra2.yaml";
+    camera_info_manager::CameraInfoManager caminfo(nh_, "astra", file);
+    astra_model.fromCameraInfo(caminfo.getCameraInfo());
 
     // Inicio do contador de imagens capturadas
     contador_imagens = 0;
@@ -193,20 +196,23 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         ROS_INFO("Gravando nuvens que chegam para acumular");
         Eigen::Quaternion<float> q;
         Eigen::Vector3f offset;
+        // Reiniciando nuvens parciais
+        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear();
         // Vamos aquisitar e acumular enquanto nao acabar o tempo
         ros::Time t_inicio_aquisicao = ros::Time::now();
         while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
             // Converte nuvem -> ja devia estar filtrada do outro no
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
+            // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
+             acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
+            *acumulada_parcial_frame_camera += *nuvem_inst;
             // Converte odometria
             q.x() = (float)msg_odom->pose.pose.orientation.x;
             q.y() = (float)msg_odom->pose.pose.orientation.y;
             q.z() = (float)msg_odom->pose.pose.orientation.z;
             q.w() = (float)msg_odom->pose.pose.orientation.w;
             offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
-            // Converte imagem -> somente na hora de salvar a principio essa merda
-
             // Escuta transformacao entre frames - a principio fixa
             tf::StampedTransform trans;
             try
@@ -254,8 +260,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     // Nome da pasta para salvar
     char* home;
     home = getenv("HOME");
-      if (home!=NULL)
-        printf ("The current path is: %s", home);
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_imagem = pasta + std::to_string(contador_imagens) + ".jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
@@ -278,7 +282,27 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
         file << "NVM_V3\n\n";
         file << "1\n"; // Quantas imagens, sempre uma aqui
         file << escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
-        file << "\n\n\n\n0\n\n"; // 0 intermediario
+        file << "\n\n"+std::to_string(acumulada_parcial->size())+"\n"; // Total de pontos
+        // Ponto a ponto apos ser projetado na imagem
+        cv::Point3d ponto3D;
+        cv::Point2d pontoProjetado;
+        for(int i=0; i < acumulada_parcial_frame_camera->size(); i++){
+            ponto3D.x = acumulada_parcial_frame_camera->points[i].x;
+            ponto3D.y = acumulada_parcial_frame_camera->points[i].y;
+            ponto3D.z = acumulada_parcial_frame_camera->points[i].z;
+            pontoProjetado = astra_model.project3dToPixel(ponto3D);
+            if(pontoProjetado.x > 0 && pontoProjetado.x < astra_model.fullResolution().width &&
+               pontoProjetado.y > 0 && pontoProjetado.y < astra_model.fullResolution().height){
+                string linha = to_string(ponto3D.x) + " " + to_string(ponto3D.y) + " " + to_string(ponto3D.z) + " "; // PONTO XYZ
+                linha = linha + to_string(acumulada_parcial->points[i].r) + " " + to_string(acumulada_parcial->points[i].g) + " " + to_string(acumulada_parcial->points[i].b) + " "; // CORES RGB
+                linha = linha + "1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
+                linha = linha + to_string(pontoProjetado.x) + " "  +to_string(pontoProjetado.y) + "\n"; // PIXEL projetado
+                // Escrever no arquivo completo -> o fim da string 'linha' ja pula para a proxima linha
+                file << linha;
+
+            }
+        }
+        file << "\n\n\n0\n\n"; // 0 intermediario
         file << "#The last part of NVM files points to the PLY files\n"; // Fim das contas
         file << "#The first number is the number of associated PLY files\n";
         file << "#each following number gives a model-index that has PLY\n";

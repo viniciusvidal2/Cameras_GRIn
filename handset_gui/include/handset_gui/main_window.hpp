@@ -67,11 +67,14 @@ public Q_SLOTS:
 private Q_SLOTS:
     void on_pushButton_inicio_clicked();
     void on_pushButton_capturar_clicked();
+    void on_pushButton_gravardados_clicked();
 
 private:
     Ui::MainWindowDesign ui;
     QNode qnode;
     Cloud_Work cw;
+
+    bool controle_gravacao; // Se esta gravando ou nao para mudar botao e mexer com o processo
 };
 
 }  // namespace handset_gui

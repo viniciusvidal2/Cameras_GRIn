@@ -236,9 +236,9 @@ int main(int argc, char **argv)
     pub_cloud = nh.advertise<Odometry>("/odom2", 10);
     pub_img   = nh.advertise<sensor_msgs::Image>("/astra_rgb", 10);
 
-    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw", 10);
-    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"    , 10);
-    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                   , 10);
+    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw"  , 10);
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw", 10);
+    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"              , 10);
     Synchronizer<syncPolicy> sync(syncPolicy(10), rgb_sub, depth_sub, subodo);
     sync.registerCallback(boost::bind(&callback, _1, _2, _3));
 

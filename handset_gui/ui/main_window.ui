@@ -59,7 +59,7 @@
           <x>40</x>
           <y>80</y>
           <width>331</width>
-          <height>80</height>
+          <height>181</height>
          </rect>
         </property>
         <property name="title">
@@ -68,8 +68,8 @@
         <widget class="QLineEdit" name="lineEdit_tempo">
          <property name="geometry">
           <rect>
-           <x>30</x>
-           <y>40</y>
+           <x>20</x>
+           <y>120</y>
            <width>113</width>
            <height>25</height>
           </rect>
@@ -82,7 +82,7 @@
          <property name="geometry">
           <rect>
            <x>180</x>
-           <y>40</y>
+           <y>120</y>
            <width>131</width>
            <height>25</height>
           </rect>
@@ -91,6 +91,32 @@
           <string>Capturar!</string>
          </property>
         </widget>
+        <widget class="QPushButton" name="pushButton">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>150</y>
+           <width>291</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Encerrar Captura</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QPushButton" name="pushButton_gravardados">
+        <property name="geometry">
+         <rect>
+          <x>210</x>
+          <y>40</y>
+          <width>161</width>
+          <height>25</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Gravar dados</string>
+        </property>
        </widget>
       </widget>
      </widget>

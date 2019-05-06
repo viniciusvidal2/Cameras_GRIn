@@ -130,6 +130,7 @@ private:
     // Nuvem acumulada total
     PointCloud<PointT>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
+    PointCloud<PointT>::Ptr acumulada_parcial_frame_camera;
     PointCloud<PointT>::Ptr acumulada_parcial;
     PointCloud<PointT>::Ptr acumulada_parcial_anterior;
     // Matriz de transformacao para a iteracao anterior
@@ -141,6 +142,8 @@ private:
     ros::Publisher pub_parcial;
     // Pasta onde sera guardado o projeto para o MART e tudo o mais
     std::string pasta;
+    // Modelo da camera astra
+    image_geometry::PinholeCameraModel astra_model;
     /// ARQUIVO NVM
     // Contador de imagens capturadas
     int contador_imagens;

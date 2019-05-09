@@ -33,6 +33,7 @@
 #include <pcl/registration/icp.h>
 #include <pcl/io/ascii_io.h>
 #include <pcl/io/ply_io.h>
+#include <pcl/features/normal_3d.h>
 
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -133,6 +134,7 @@ private:
     PointCloud<PointT>::Ptr acumulada_parcial_frame_camera;
     PointCloud<PointT>::Ptr acumulada_parcial;
     PointCloud<PointT>::Ptr acumulada_parcial_anterior;
+    PointCloud<PointT>::Ptr temp_nvm;
     // Matriz de transformacao para a iteracao anterior
     Eigen::Matrix4f T_anterior;
     // Listener assincrono para tf entre zed e astra
@@ -150,6 +152,8 @@ private:
     // Matriz de pontos
     Eigen::MatrixXd pontos_nvm;
     /// ARQUIVO NVM - FIM
+    // Mutex de acumulacao
+    bool mutex_acumulacao;
 };
 
 }

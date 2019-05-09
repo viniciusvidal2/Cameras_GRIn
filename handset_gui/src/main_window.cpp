@@ -88,5 +88,10 @@ void MainWindow::on_pushButton_gravardados_clicked(){
     }
 }
 
+/// Botao para chamar o RVIZ
+void MainWindow::on_pushButton_visualizar_clicked(){
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/inst.rviz'");
+}
+
 }  // namespace handset_gui
 

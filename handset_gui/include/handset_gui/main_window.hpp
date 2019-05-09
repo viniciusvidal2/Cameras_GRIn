@@ -68,6 +68,7 @@ private Q_SLOTS:
     void on_pushButton_inicio_clicked();
     void on_pushButton_capturar_clicked();
     void on_pushButton_gravardados_clicked();
+    void on_pushButton_visualizar_clicked();
 
 private:
     Ui::MainWindowDesign ui;

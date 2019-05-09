@@ -49,6 +49,7 @@ void Cloud_Work::init(){
     acumulada_parcial_anterior     = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
     acumulada_global               = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
     acumulada_parcial_frame_camera = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    temp_nvm                       = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
@@ -67,7 +68,7 @@ void Cloud_Work::init(){
     // Inicio do modelo da camera
     char* home;
     home = getenv("HOME");
-    string file = std::string(home)+"/handsets_ws/src/Cameras_GRIn/astra_calibrada/calib/astra2.yaml";
+    string file = "file://"+std::string(home)+"/handsets_ws/src/Cameras_GRIn/astra_calibrada/calib/astra2.yaml";
     camera_info_manager::CameraInfoManager caminfo(nh_, "astra", file);
     astra_model.fromCameraInfo(caminfo.getCameraInfo());
 
@@ -77,6 +78,9 @@ void Cloud_Work::init(){
     // Por garantia iniciar aqui tambem
     set_inicio_acumulacao(false);
     set_primeira_vez(true);
+
+    // Inicio do mutex de acumulacao - verdadeiro se estamos acumulando
+    mutex_acumulacao = false;
 
     // Rodar o no
     ros::Rate rate(2);
@@ -104,7 +108,6 @@ void Cloud_Work::publica_nuvens(){
     toROSMsg(*acumulada_global , global );
     pub_parcial.publish(parcial);
     pub_global.publish(global);
-    ROS_INFO("Nuvens publicadas .....");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
@@ -173,9 +176,32 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     // Se primeira vez, so acumula, senao registra com ICP com a
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
-
-        ROS_INFO("NADA A ACUMULAR POR ENQUANTO!");
-
+        /// Fazendo de forma simplificada a principio
+        ROS_INFO("Comecando o ICP...");
+        // Transformacao atual em forma matricial
+        Eigen::Matrix4f T_atual = qt2T(rot, offset);
+        if(mutex_acumulacao == 0){
+            mutex_acumulacao = 1;
+            // Criacao do calculador de icp e resultado final sobre a propria acumulada
+            pcl::IterativeClosestPoint<PointT, PointT> icp;
+            icp.setUseReciprocalCorrespondences(true);
+//            icp.setMaximumIterations(700);
+//            icp.setMaxCorrespondenceDistance(0.1);
+//            icp.setRANSACIterations(700);
+//            icp.setTransformationEpsilon(1*1e-9);
+//            icp.setEuclideanFitnessEpsilon(1*1e-10);
+//            icp.setInputSource(parcial);
+//            icp.setInputTarget(acumulada_global);
+//            ROS_INFO("Alinhando nuvens...");
+//            pcl::PointCloud<PointT> final;
+//            icp.align(final, T_atual);
+//            *acumulada_global += final;
+//            cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
+//            cout << "\nScore: " << icp.getFitnessScore();
+            *acumulada_global += *parcial;
+            // Liberar mutex e ver o resultado da acumulacao no rviz
+            mutex_acumulacao = 0;
+        }
     } else {
         // Primeira nuvem
         *acumulada_global          += *parcial;
@@ -190,14 +216,12 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
 void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image,
                                      const sensor_msgs::PointCloud2ConstPtr &msg_cloud,
                                      const OdometryConstPtr &msg_odom){
-    ROS_INFO("Entramos no callback de acumulacao");
     // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
     if(realizar_acumulacao){
-        ROS_INFO("Gravando nuvens que chegam para acumular");
         Eigen::Quaternion<float> q;
         Eigen::Vector3f offset;
         // Reiniciando nuvens parciais
-        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear();
+        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
         // Vamos aquisitar e acumular enquanto nao acabar o tempo
         ros::Time t_inicio_aquisicao = ros::Time::now();
         while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
@@ -205,37 +229,29 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
             // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
-             acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
+            acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
             *acumulada_parcial_frame_camera += *nuvem_inst;
+            // Rotacao para corrigir odometria
+            Eigen::Affine3f affine;
+            Eigen::Matrix3f matrix;
+            matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY()) * Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ());
+            Eigen::Quaternion<float> rot_temp(matrix);
+            Eigen::Vector3f offset_temp;
+            offset_temp << 0.0, 0.0, 0.0;
+            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset_temp, rot_temp);
             // Converte odometria
             q.x() = (float)msg_odom->pose.pose.orientation.x;
             q.y() = (float)msg_odom->pose.pose.orientation.y;
             q.z() = (float)msg_odom->pose.pose.orientation.z;
             q.w() = (float)msg_odom->pose.pose.orientation.w;
             offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
-            // Escuta transformacao entre frames - a principio fixa
-            tf::StampedTransform trans;
-            try
-            {
-                p_listener->waitForTransform("camera_rgb_optical_frame", "zed_current_frame", msg_cloud->header.stamp, ros::Duration(3.0));
-                p_listener->lookupTransform( "camera_rgb_optical_frame", "zed_current_frame", msg_cloud->header.stamp, trans);
-            }
-            catch (tf::TransformException& ex){
-                ROS_WARN("Nao conseguiu escutar transformada fixa e portanto nao vai dar bom.");
-                return;
-            }
-            Eigen::Affine3d eigen_trf;
-            tf::transformTFToEigen(trans, eigen_trf);
-            // Transforma nuvem para o frame da ASTRA, camera_rgb_optical_frame, e para a odometria medida pela ZED no momento
-            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, eigen_trf);
+            // Transforma nuvem segundo odometria da ZED e acumula na nuvem parcial, enquanto dentro do tempo
             transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
-            // Acumula na nuvem parcial, enquanto dentro do tempo, depois acumula ela de forma correta
-            acumulada_parcial->header.frame_id = msg_cloud->header.frame_id;
+            acumulada_parcial->header.frame_id = "odom"; // Aqui ja estamos levando a transformacao da ZED
             *acumulada_parcial += *nuvem_inst;
-            cout << "Diferenca de tempo de publicacao: " << (ros::Time::now() - t_inicio_aquisicao).toSec() << endl;
-            cout << "Tempo limite: " << t_aquisicao << endl;
-
         } // fim do while -> contagem de tempo
+
+        ROS_INFO("Nuvem parcial capturada");
 
         // Nao podemos mais acumular enquanto o botao nao chamar de novo
         set_inicio_acumulacao(false);
@@ -245,6 +261,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         this->salva_dados_parciais(acumulada_parcial, q, offset, msg_image);
+        cout << "Dados salvos!!\n\n";
 
     } // fim do if -> acumular ou nao
 
@@ -270,8 +287,8 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     imgptr = cv_bridge::toCvCopy(imagem, sensor_msgs::image_encodings::RGB8);
     imwrite(arquivo_imagem, imgptr->image);
 
-    // Salva a nuvem parcial em PLY
-    pcl::io::savePLYFileASCII(arquivo_nuvem, *cloud);
+//    // Salva a nuvem parcial em PLY
+//    pcl::io::savePLYFileASCII(arquivo_nuvem, *cloud);
 
     // Centro da camera, para escrever no arquivo NVM
     Eigen::MatrixXf C = calcula_centro_camera(rot, offset);
@@ -279,6 +296,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     // Escreve o arquivo NVM parcial, super necessario
     ofstream file(arquivo_nvm);
     if(file.is_open()){
+
         file << "NVM_V3\n\n";
         file << "1\n"; // Quantas imagens, sempre uma aqui
         file << escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
@@ -293,13 +311,19 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
             pontoProjetado = astra_model.project3dToPixel(ponto3D);
             if(pontoProjetado.x > 0 && pontoProjetado.x < astra_model.fullResolution().width &&
                pontoProjetado.y > 0 && pontoProjetado.y < astra_model.fullResolution().height){
+                // Adicionar na nuvem de pontos que vai pro NVM e sera salva
+                PointT ponto_temp;
+                ponto_temp.x = ponto3D.x; ponto_temp.y = ponto3D.y; ponto_temp.z = ponto3D.z;
+                ponto_temp.r = acumulada_parcial->points[i].r; ponto_temp.g = acumulada_parcial->points[i].g; ponto_temp.b = acumulada_parcial->points[i].b;
+                temp_nvm->push_back(ponto_temp);
+
                 string linha = to_string(ponto3D.x) + " " + to_string(ponto3D.y) + " " + to_string(ponto3D.z) + " "; // PONTO XYZ
                 linha = linha + to_string(acumulada_parcial->points[i].r) + " " + to_string(acumulada_parcial->points[i].g) + " " + to_string(acumulada_parcial->points[i].b) + " "; // CORES RGB
-                linha = linha + "1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
+                linha = linha + "1 1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
                 linha = linha + to_string(pontoProjetado.x) + " "  +to_string(pontoProjetado.y) + "\n"; // PIXEL projetado
                 // Escrever no arquivo completo -> o fim da string 'linha' ja pula para a proxima linha
+                std::replace(linha.begin(), linha.end(), ',', '.'); // Altera virgula por ponto
                 file << linha;
-
             }
         }
         file << "\n\n\n0\n\n"; // 0 intermediario
@@ -307,12 +331,37 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
         file << "#The first number is the number of associated PLY files\n";
         file << "#each following number gives a model-index that has PLY\n";
         file << "0";
+    } // fim do if is open
+    file.close(); // Fechar para nao ter erro
+
+    // Calcular normais para a nuvem
+    cout << "\nCalculando normais...\n\n";
+    pcl::NormalEstimation<PointT, pcl::Normal> ne;
+    ne.setInputCloud(temp_nvm);
+    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+    ne.setSearchMethod (tree);
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+    ne.setKSearch(12); // Quantos vizinhos procurar
+    ne.compute(*cloud_normals);
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr final_nvm (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
+    pcl::concatenateFields(*temp_nvm, *cloud_normals, *final_nvm);
+    // Filtrar normais que tenham nan
+    pcl::PointCloud<pcl::PointXYZRGBNormal>::iterator it;
+    for(it=final_nvm->begin(); it!=final_nvm->end(); ++it){
+        if(it->normal_x != it->normal_x) // porque o nan eh maluco
+            final_nvm->erase(it);
     }
-}
+
+    // Salvar nuvem em arquivo .ply
+    pcl::io::savePLYFileASCII(arquivo_nuvem, *final_nvm);
+    cout << "\nNuvem salva!\n\n\n";
+
+} // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
     // Adicionar foco
+    linha = linha + " " + to_string(astra_model.fx());
     // Adicionar quaternion
     linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());
     // Adicionar centro da camera
@@ -320,6 +369,7 @@ std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C
     // Adicionar distorcao radial (crendo 0) e 0 final
     linha = linha + " 0 0";
     // Escrever isso -> NAO PULA LINHA, SO RETORNA O CONTEUDO
+    std::replace(linha.begin(), linha.end(), ',', '.');
     return linha;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -330,6 +380,7 @@ Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Ei
     t = offset;
     C = -R.transpose()*t;
 
+    cout << "\nCentro da camera:\n" << C << endl;
     return C;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

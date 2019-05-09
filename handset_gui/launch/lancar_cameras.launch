@@ -10,7 +10,9 @@
 <!--transformada estatica tf para relacionar as duas cameras-->
 <arg name="pi/2" value="1.5707963267948966"/>
 <arg name="astra2zed" value="0 0 0 0.0 -$(arg pi/2) $(arg pi/2)"/>
-<node pkg="tf" type="static_transform_publisher" name="base_astra_to_zed" args="$(arg astra2zed) camera_rgb_optical_frame zed_current_frame 5"/>
+<!--<node pkg="tf" type="static_transform_publisher" name="base_astra_to_zed" args="$(arg astra2zed) camera_rgb_optical_frame zed_current_frame 5"/>-->
+<!--<node pkg="tf" type="static_transform_publisher" name="base_astra_to_zed" args="0 0 0 0 0 0 camera_rgb_optical_frame zed_current_frame 5"/>-->
+<node pkg="tf" type="static_transform_publisher" name="ligar_zed_astra"   args="0 0 0 0 0 0 zed_camera_center camera_link 5"/>
 
 <!--lancar no de projecao calibrada da nuvem da astra-->
 <node name="astra_calibrada_node" pkg="astra_calibrada" type="nuvem_astra_calibrada" output="screen">

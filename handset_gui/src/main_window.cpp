@@ -93,5 +93,10 @@ void MainWindow::on_pushButton_visualizar_clicked(){
     system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/inst.rviz'");
 }
 
+/// Botao para salvar tudo referente a acumulada
+void MainWindow::on_pushButton_encerrar_clicked(){
+    cw.salvar_acumulada();
+}
+
 }  // namespace handset_gui
 

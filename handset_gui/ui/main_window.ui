@@ -75,7 +75,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>0.2</string>
+          <string>0.9</string>
          </property>
         </widget>
         <widget class="QPushButton" name="pushButton_capturar">
@@ -91,7 +91,7 @@
           <string>Capturar!</string>
          </property>
         </widget>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="QPushButton" name="pushButton_encerrar">
          <property name="geometry">
           <rect>
            <x>20</x>

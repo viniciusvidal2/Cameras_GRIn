@@ -82,6 +82,13 @@ void Cloud_Work::init(){
     // Inicio do mutex de acumulacao - verdadeiro se estamos acumulando
     mutex_acumulacao = false;
 
+    // Definicao de rotacao fixa entre frame da ASTRA e da ZED
+    Eigen::Matrix3f matrix;
+    matrix = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
+    Eigen::Quaternion<float> rot_temp(matrix);
+    rot_astra_zed = rot_temp.inverse();
+    offset_astra_zed << -0.001, -0.090, -0.025;
+
     // Rodar o no
     ros::Rate rate(2);
     while(ros::ok()){
@@ -185,20 +192,20 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             // Criacao do calculador de icp e resultado final sobre a propria acumulada
             pcl::IterativeClosestPoint<PointT, PointT> icp;
             icp.setUseReciprocalCorrespondences(true);
-//            icp.setMaximumIterations(700);
-//            icp.setMaxCorrespondenceDistance(0.1);
-//            icp.setRANSACIterations(700);
-//            icp.setTransformationEpsilon(1*1e-9);
-//            icp.setEuclideanFitnessEpsilon(1*1e-10);
-//            icp.setInputSource(parcial);
-//            icp.setInputTarget(acumulada_global);
-//            ROS_INFO("Alinhando nuvens...");
-//            pcl::PointCloud<PointT> final;
-//            icp.align(final, T_atual);
-//            *acumulada_global += final;
-//            cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
-//            cout << "\nScore: " << icp.getFitnessScore();
-            *acumulada_global += *parcial;
+            icp.setMaximumIterations(100);
+            icp.setMaxCorrespondenceDistance(0.5);
+            icp.setRANSACIterations(100);
+            icp.setTransformationEpsilon(1*1e-9);
+            icp.setEuclideanFitnessEpsilon(1*1e-10);
+            icp.setInputSource(parcial);
+            icp.setInputTarget(acumulada_global);
+            ROS_INFO("Alinhando nuvens...");
+            pcl::PointCloud<PointT> final;
+            icp.align(final, T_atual);
+            *acumulada_global += final;
+            cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
+            cout << "\nScore: " << icp.getFitnessScore();
+//            *acumulada_global += *parcial;
             // Liberar mutex e ver o resultado da acumulacao no rviz
             mutex_acumulacao = 0;
         }
@@ -220,6 +227,14 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
     if(realizar_acumulacao){
         Eigen::Quaternion<float> q;
         Eigen::Vector3f offset;
+
+        // Converte odometria -> so uma vez no inicio para evitar drifts
+        q.x() = (float)msg_odom->pose.pose.orientation.x;
+        q.y() = (float)msg_odom->pose.pose.orientation.y;
+        q.z() = (float)msg_odom->pose.pose.orientation.z;
+        q.w() = (float)msg_odom->pose.pose.orientation.w;
+        offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
+
         // Reiniciando nuvens parciais
         acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
         // Vamos aquisitar e acumular enquanto nao acabar o tempo
@@ -232,22 +247,9 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
             acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
             *acumulada_parcial_frame_camera += *nuvem_inst;
             // Rotacao para corrigir odometria
-            Eigen::Affine3f affine;
-            Eigen::Matrix3f matrix;
-            matrix = Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY()) * Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ());
-            Eigen::Quaternion<float> rot_temp(matrix);
-            Eigen::Vector3f offset_temp;
-            offset_temp << 0.0, 0.0, 0.0;
-            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset_temp, rot_temp);
-            // Converte odometria
-            q.x() = (float)msg_odom->pose.pose.orientation.x;
-            q.y() = (float)msg_odom->pose.pose.orientation.y;
-            q.z() = (float)msg_odom->pose.pose.orientation.z;
-            q.w() = (float)msg_odom->pose.pose.orientation.w;
-            offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
-            // Transforma nuvem segundo odometria da ZED e acumula na nuvem parcial, enquanto dentro do tempo
-            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
-            acumulada_parcial->header.frame_id = "odom"; // Aqui ja estamos levando a transformacao da ZED
+            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+            // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
+            acumulada_parcial->header.frame_id = "odom";
             *acumulada_parcial += *nuvem_inst;
         } // fim do while -> contagem de tempo
 
@@ -256,11 +258,14 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         // Nao podemos mais acumular enquanto o botao nao chamar de novo
         set_inicio_acumulacao(false);
 
+//        // Transforma nuvem segundo odometria da ZED e acumula na nuvem parcial, enquanto dentro do tempo
+//        transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
+
         // Acumular com a global, a depender se primeira vez ou nao
         registra_global_icp(acumulada_parcial, q, offset);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
-        this->salva_dados_parciais(acumulada_parcial, q, offset, msg_image);
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q, offset, msg_image);
         cout << "Dados salvos!!\n\n";
 
     } // fim do if -> acumular ou nao
@@ -316,7 +321,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
                 ponto_temp.x = ponto3D.x; ponto_temp.y = ponto3D.y; ponto_temp.z = ponto3D.z;
                 ponto_temp.r = acumulada_parcial->points[i].r; ponto_temp.g = acumulada_parcial->points[i].g; ponto_temp.b = acumulada_parcial->points[i].b;
                 temp_nvm->push_back(ponto_temp);
-
+                // Construindo a linha do arquivo
                 string linha = to_string(ponto3D.x) + " " + to_string(ponto3D.y) + " " + to_string(ponto3D.z) + " "; // PONTO XYZ
                 linha = linha + to_string(acumulada_parcial->points[i].r) + " " + to_string(acumulada_parcial->points[i].g) + " " + to_string(acumulada_parcial->points[i].b) + " "; // CORES RGB
                 linha = linha + "1 1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
@@ -378,10 +383,23 @@ Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Ei
     Eigen::MatrixXf R = q.matrix();
     Eigen::MatrixXf t(3,1);
     t = offset;
-    C = -R.transpose()*t;
+    C = -R.transpose()*t; // Tirei o sinal negativo porque achei que estava dando o contrario
 
     cout << "\nCentro da camera:\n" << C << endl;
     return C;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::salvar_acumulada(){
+    // Nome da pasta para salvar
+    char* home;
+    home = getenv("HOME");
+    std::string pasta = std::string(home)+"/Desktop/teste/";
+    std::string arquivo_nuvem = pasta+"nuvem_final.ply";
+
+    // A principio so salvar a nuvem
+    ROS_INFO("Salvando nuvem acumulada.....");
+    pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global);
+    ROS_INFO("Nuvem salva na pasta correta!!");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// Sets

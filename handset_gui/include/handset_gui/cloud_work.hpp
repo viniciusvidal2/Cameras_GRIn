@@ -96,6 +96,7 @@ public:
     void set_inicio_acumulacao(bool flag);
     void set_primeira_vez(bool flag);
     void set_tempo_aquisicao(float t);
+    void salvar_acumulada();
 
     QMutex* mutex;
 
@@ -154,6 +155,9 @@ private:
     /// ARQUIVO NVM - FIM
     // Mutex de acumulacao
     bool mutex_acumulacao;
+    // Transformacao fixa entre o frame da astra e da zed
+    Eigen::Vector3f offset_astra_zed;
+    Eigen::Quaternion<float> rot_astra_zed;
 };
 
 }

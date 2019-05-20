@@ -78,6 +78,14 @@ target_link_libraries(nuvem_astra_calibrada
   ${roslib_LIBRARIES}
 )
 
+add_executable(calibrar_astra_online src/calibrar_astra_online.cpp)
+target_link_libraries(calibrar_astra_online
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${roslib_LIBRARIES}
+)
+
 #add_executable(viewer viewer.cpp)
 #target_link_libraries(viewer ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
 

@@ -46,6 +46,7 @@ using namespace std;
 using namespace tf;
 using namespace message_filters;
 using namespace nav_msgs;
+using namespace cv;
 
 bool primeira_vez = true;
 
@@ -60,7 +61,7 @@ typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointClo
 void callback(const sensor_msgs::ImageConstPtr& msg_img,
               const sensor_msgs::PointCloud2ConstPtr& cloud){
     cv_bridge::CvImagePtr cv_ptr_img;
-    cv_ptr_img = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::TYPE_8UC3 );
+    cv_ptr_img = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::TYPE_8UC3);
 
     if(primeira_vez){
 
@@ -69,8 +70,10 @@ void callback(const sensor_msgs::ImageConstPtr& msg_img,
         cv::Mat image_gray;
         cv::cvtColor(cv_ptr_img->image, image_gray, cv::COLOR_BGR2GRAY);
 
-        cv::imwrite("/home/grin/Desktop/calibrando/gray.jpg", image_gray);
-        cv::imwrite("/home/grin/Desktop/calibrando/rgb.jpg" , cv_ptr_img->image);
+        vector<int> compression_params;
+        compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+        cv::imwrite("/home/grin/Desktop/calibrando/gray.png", image_gray, compression_params);
+        cv::imwrite("/home/grin/Desktop/calibrando/rgb.png" , cv_ptr_img->image, compression_params);
 
         PointCloud<PointT>::Ptr xyzrgb (new PointCloud<PointT>());
         fromROSMsg(*cloud, *xyzrgb);
@@ -94,17 +97,31 @@ void callback(const sensor_msgs::ImageConstPtr& msg_img,
 
         primeira_vez = false;
 
-    } else {
+        ROS_INFO("Nuvens gravadas, falta a imagem infravermelha.");
+
+    }
+
+}
+
+void callback_ir(const sensor_msgs::ImageConstPtr& msg){
+
+    if(!primeira_vez){
 
         ROS_INFO("Gravando imagem infravermelha...");
 
-        cv::imwrite("/home/grin/Desktop/calibrando/ir.jpg", cv_ptr_img->image);
+        cv_bridge::CvImagePtr cv_ptr_img;
+        cv_ptr_img = cv_bridge::toCvCopy(msg);
+        Mat im = cv_ptr_img->image.clone();
+        im.convertTo(im, CV_8U, 1/256.0);
 
-        ROS_INFO("TUDO GRAVADO");
+        vector<int> compression_params;
+        compression_params.push_back(CV_IMWRITE_PNG_COMPRESSION);
+        cv::imwrite("/home/grin/Desktop/calibrando/ir.png", im, compression_params);
+
+        ROS_INFO("Imagem infravermelha gravada, acabou");
 
         ros::shutdown();
     }
-
 }
 
 int main(int argc, char **argv)
@@ -112,19 +129,19 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "calibrar_astra_online");
     ros::NodeHandle nh;
 
-    message_filters::Subscriber<sensor_msgs::Image>       img_sub  (nh, "/camera/rgb/image_raw"          , 10);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> cloudsub (nh, "/camera/depth_registered/points", 10);
+    message_filters::Subscriber<sensor_msgs::Image>       img_sub  (nh, "/camera/rgb/image_raw", 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> cloudsub (nh, "/camera/depth/points" , 10);
     Synchronizer<syncPolicy> sync(syncPolicy(10), img_sub, cloudsub);
     sync.registerCallback(boost::bind(&callback, _1, _2));
 
+    ros::Subscriber irsub = nh.subscribe("/camera/ir/image", 100, callback_ir);
 
     while(ros::ok()){
         if(primeira_vez == false){
-//            img_sub.unsubscribe();
-//            cloudsub.unsubscribe();
 
-            img_sub.subscribe( nh, "/camera/ir/image_raw"   , 10);
-            cloudsub.subscribe(nh, "/camera/depth/image_raw", 10);
+            img_sub.unsubscribe();
+            cloudsub.unsubscribe();
+
         }
         ros::spinOnce();
     }

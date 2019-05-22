@@ -75,6 +75,9 @@ void Cloud_Work::init(){
     // Inicio do contador de imagens capturadas
     contador_imagens = 0;
 
+    // Quantas nuvens acumular a cada captura
+    n_nuvens_instantaneas = 2; // Inicia aqui, mas vai pegar do GUI
+
     // Por garantia iniciar aqui tambem
     set_inicio_acumulacao(false);
     set_primeira_vez(true);
@@ -193,10 +196,10 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             pcl::IterativeClosestPoint<PointT, PointT> icp;
             icp.setUseReciprocalCorrespondences(true);
             icp.setMaximumIterations(100);
-            icp.setMaxCorrespondenceDistance(0.5);
+//            icp.setMaxCorrespondenceDistance(0.5);
             icp.setRANSACIterations(100);
-            icp.setTransformationEpsilon(1*1e-9);
-            icp.setEuclideanFitnessEpsilon(1*1e-10);
+//            icp.setTransformationEpsilon(1*1e-9);
+//            icp.setEuclideanFitnessEpsilon(1*1e-10);
             icp.setInputSource(parcial);
             icp.setInputTarget(acumulada_global);
             ROS_INFO("Alinhando nuvens...");
@@ -205,7 +208,6 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             *acumulada_global += final;
             cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
             cout << "\nScore: " << icp.getFitnessScore();
-//            *acumulada_global += *parcial;
             // Liberar mutex e ver o resultado da acumulacao no rviz
             mutex_acumulacao = 0;
         }
@@ -237,9 +239,11 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Reiniciando nuvens parciais
         acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
-        // Vamos aquisitar e acumular enquanto nao acabar o tempo
-        ros::Time t_inicio_aquisicao = ros::Time::now();
-        while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
+        // Vamos aquisitar e acumular enquanto nao juntar n_nuvens_instantaneas
+//        ros::Time t_inicio_aquisicao = ros::Time::now();
+//        while( (ros::Time::now() - t_inicio_aquisicao).toSec() < t_aquisicao ){
+        int cont_nuvens = 0;
+        while( cont_nuvens < n_nuvens_instantaneas ){
             // Converte nuvem -> ja devia estar filtrada do outro no
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
@@ -251,6 +255,8 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
             // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
             acumulada_parcial->header.frame_id = "odom";
             *acumulada_parcial += *nuvem_inst;
+            // Atualiza contagem de nuvens durante captura
+            cont_nuvens++;
         } // fim do while -> contagem de tempo
 
         ROS_INFO("Nuvem parcial capturada");
@@ -412,8 +418,8 @@ void Cloud_Work::set_primeira_vez(bool flag){
     primeira_vez = flag;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::set_tempo_aquisicao(float t){
-    t_aquisicao = t;
+void Cloud_Work::set_n_nuvens_aquisicao(float t){
+    n_nuvens_instantaneas = t;
 }
 
 } // Fim do namespace handset_gui

@@ -69,7 +69,7 @@ void MainWindow::on_pushButton_inicio_clicked(){
 /// Botao para iniciar a captura corretamente por tanto tempo
 void MainWindow::on_pushButton_capturar_clicked(){
     float t = ui.lineEdit_tempo->text().toFloat();
-    cw.set_tempo_aquisicao(t); // Tempo maximo de aquisicao
+    cw.set_n_nuvens_aquisicao(t); // Numero de nuvens para aquisitar no instante
     cw.set_inicio_acumulacao(true); // Liberar a flag de inicio de aquisicao
 }
 

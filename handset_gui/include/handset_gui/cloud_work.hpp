@@ -95,7 +95,7 @@ public:
     //  void run_class();
     void set_inicio_acumulacao(bool flag);
     void set_primeira_vez(bool flag);
-    void set_tempo_aquisicao(float t);
+    void set_n_nuvens_aquisicao(float t);
     void salvar_acumulada();
 
     QMutex* mutex;
@@ -127,8 +127,6 @@ private:
     bool realizar_acumulacao;
     // Analisa se primeira vez ou nao para controlar acumulacao
     bool primeira_vez;
-    // Tempo global de inicio de cada aquisicao e por quanto tempo ficara aquisitando
-    float t_aquisicao;
     // Nuvem acumulada total
     PointCloud<PointT>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
@@ -158,6 +156,8 @@ private:
     // Transformacao fixa entre o frame da astra e da zed
     Eigen::Vector3f offset_astra_zed;
     Eigen::Quaternion<float> rot_astra_zed;
+    // Contador de nuvens repetidas capturadas
+    int n_nuvens_instantaneas;
 };
 
 }

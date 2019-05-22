@@ -85,6 +85,9 @@ Eigen::MatrixXf P;
 
 Eigen::Matrix3f F;
 
+// Resolucao da nuvem
+int resolucao;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Filtro para distâncias
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,8 +137,9 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::Imag
 
     float x, y, z;
     PointT current_point;
-    for(int v = 0; v < depthHeight; v=v+2){
-        for(int u = 0; u < depthWidth; u=u+2){
+    resolucao = resolucao > 0 ? resolucao : 2;
+    for(int v = 0; v < depthHeight; v=v+resolucao){
+        for(int u = 0; u < depthWidth; u=u+resolucao){
             //            cout << "aqui\n";
             z = cv_ptr_d->image.at<short int>(v, u);
             if(z!=0){ // eliminando pontos de prof. zero
@@ -200,6 +204,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "nuvem_astra_calibrada");
 
     ros::NodeHandle nh;
+    ros::NodeHandle n_("~");
 
     // Variáveis
     K1 <<  582.9937,   -2.8599,  308.9297, // CAMERA IR, PROFUNDIDADE
@@ -231,6 +236,9 @@ int main(int argc, char **argv)
             -0.000673889418073,  -0.044225087946452,  -0.498521482515482;
 
     nuvem_colorida = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+
+    // Resolucao para a nuvem vinda no parametro
+    n_.getParam("resolucao", resolucao);
 
     pub       = nh.advertise<sensor_msgs::PointCloud2>("/astra_projetada", 10);
     pub_cloud = nh.advertise<Odometry>("/odom2", 10);

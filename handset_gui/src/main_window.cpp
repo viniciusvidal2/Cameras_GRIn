@@ -42,6 +42,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.aba_1->setCurrentIndex(0); // ensure the first tab is showing - qt-designer should have this already hardwired, but often loses it (settings?).
     controle_gravacao = false; // Nao estamos gravando ainda
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
+    ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
 
     qnode.init();
 
@@ -64,12 +65,14 @@ void MainWindow::closeEvent(QCloseEvent *event)
 /// Botao de inicio do sistemas de cameras
 void MainWindow::on_pushButton_inicio_clicked(){
     system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch'");
+    ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
 }
 
 /// Botao para iniciar a captura corretamente por tanto tempo
 void MainWindow::on_pushButton_capturar_clicked(){
     float t = ui.lineEdit_tempo->text().toFloat();
     cw.set_n_nuvens_aquisicao(t); // Numero de nuvens para aquisitar no instante
+    cw.set_profundidade_max(ui.lineEdit_profundidade->text().toFloat()); // Profundidade para filtrar as nuvens capturadas
     cw.set_inicio_acumulacao(true); // Liberar a flag de inicio de aquisicao
 }
 

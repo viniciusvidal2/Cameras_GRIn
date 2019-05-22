@@ -97,6 +97,7 @@ public:
     void set_primeira_vez(bool flag);
     void set_n_nuvens_aquisicao(float t);
     void salvar_acumulada();
+    void set_profundidade_max(float d);
 
     QMutex* mutex;
 
@@ -158,6 +159,8 @@ private:
     Eigen::Quaternion<float> rot_astra_zed;
     // Contador de nuvens repetidas capturadas
     int n_nuvens_instantaneas;
+    // Profundidade do filtro obtida da GUI
+    float profundidade_max;
 };
 
 }

@@ -143,8 +143,8 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
     t = offset;//cout << "T " << T << endl;
     T << R,t,
          0,0,0,1;
-    cout << "\n\n Tira teima se esta funcionando transformacao:\n";
-    cout << "RT " << T << endl;
+//    cout << "\n\n Tira teima se esta funcionando transformacao:\n";
+//    cout << "RT " << T << endl;
 
     return T;
 }
@@ -165,7 +165,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
       registration.setRANSACIterations(700);
       registration.setTransformationEpsilon(1*1e-9);
       registration.setEuclideanFitnessEpsilon(0.00000000001);
-      registration.setInputCloud(src);
+      registration.setInputSource(src);
       registration.setInputTarget(tgt);
       registration.align(*final, T);
       T_icp = registration.getFinalTransformation()*T;
@@ -186,6 +186,13 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     // Se primeira vez, so acumula, senao registra com ICP com a
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
+        /// Simplificando para calcular icp, mas somar a nuvem completa
+        PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
+        PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
+        *temp_src = *parcial; *temp_tgt = *acumulada_global;
+        filter_grid(temp_src, 0.05);
+        filter_grid(temp_tgt, 0.05);
+        pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_filtrada.ply", *temp_src); // Ver se esta pouco ou muito
         /// Fazendo de forma simplificada a principio
         ROS_INFO("Comecando o ICP...");
         // Transformacao atual em forma matricial
@@ -195,17 +202,19 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             // Criacao do calculador de icp e resultado final sobre a propria acumulada
             pcl::IterativeClosestPoint<PointT, PointT> icp;
             icp.setUseReciprocalCorrespondences(true);
-            icp.setMaximumIterations(100);
-//            icp.setMaxCorrespondenceDistance(0.5);
-            icp.setRANSACIterations(100);
-//            icp.setTransformationEpsilon(1*1e-9);
-//            icp.setEuclideanFitnessEpsilon(1*1e-10);
-            icp.setInputSource(parcial);
-            icp.setInputTarget(acumulada_global);
+            icp.setMaximumIterations(600);
+            icp.setMaxCorrespondenceDistance(0.2);
+            icp.setRANSACIterations(200);
+            icp.setTransformationEpsilon(1*1e-9);
+            icp.setEuclideanFitnessEpsilon(1*1e-10);
+            icp.setInputSource(temp_src);
+            icp.setInputTarget(temp_tgt);
             ROS_INFO("Alinhando nuvens...");
             pcl::PointCloud<PointT> final;
             icp.align(final, T_atual);
-            *acumulada_global += final;
+            // Transformar a parcial original com a transformaçao obtida
+            transformPointCloud(*parcial, *parcial, icp.getFinalTransformation());
+            *acumulada_global += *parcial;
             cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
             cout << "\nScore: " << icp.getFitnessScore();
             // Liberar mutex e ver o resultado da acumulacao no rviz
@@ -247,6 +256,11 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
             // Converte nuvem -> ja devia estar filtrada do outro no
             PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
+            // Garante que nao ha nenhum nan
+            vector<int> indicesnan;
+            removeNaNFromPointCloud(*nuvem_inst, *nuvem_inst, indicesnan);
+            // Filtro de profundidade como vinda da GUI
+            passthrough(nuvem_inst, "z", 0, profundidade_max);
             // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
             acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
             *acumulada_parcial_frame_camera += *nuvem_inst;
@@ -421,5 +435,10 @@ void Cloud_Work::set_primeira_vez(bool flag){
 void Cloud_Work::set_n_nuvens_aquisicao(float t){
     n_nuvens_instantaneas = t;
 }
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::set_profundidade_max(float d){
+    profundidade_max = d;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 
 } // Fim do namespace handset_gui

@@ -151,24 +151,38 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
                                 const PointCloud<PointT>::Ptr tgt,
-                                PointCloud<PointT>::Ptr final,
                                 Eigen::Matrix4f T){
     ROS_INFO("Entrando no ICP");
+    // Reduzindo complexidade das nuvens
+    PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
+    PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
+    *temp_src = *src; *temp_tgt = *tgt;
+    float leaf_size = 0.05;
+    filter_grid(temp_src, leaf_size);
+    filter_grid(temp_tgt, leaf_size);
+    // Criando o otimizador de ICP
     pcl::IterativeClosestPoint<PointT, PointT> registration;
     registration.setUseReciprocalCorrespondences(true);
-    Eigen::Matrix4f T_icp = T;
-    for(int i = 0; i < 1; i++)
-    {
-  //    registration.setMaxCorrespondenceDistance(0.1);
-  //    registration.setMaxCorrespondenceDistance(0.0009);
-      registration.setMaximumIterations(700);
-      registration.setRANSACIterations(700);
-      registration.setTransformationEpsilon(1*1e-9);
-      registration.setEuclideanFitnessEpsilon(0.00000000001);
-      registration.setInputSource(src);
-      registration.setInputTarget(tgt);
-      registration.align(*final, T);
-      T_icp = registration.getFinalTransformation()*T;
+    registration.setInputTarget(temp_tgt);
+    registration.setMaximumIterations(200);
+    registration.setTransformationEpsilon(1*1e-9);
+    registration.setEuclideanFitnessEpsilon(1*1e-10);
+    registration.setMaxCorrespondenceDistance(4*leaf_size);
+    registration.setRANSACIterations(200);
+    // Processo iterativo de ajuste fino do ICP
+    Eigen::Matrix4f T_icp = T, prev;
+    int iteracoes_icp = 5;
+    for(int i = 0; i < iteracoes_icp; i++){
+      registration.setInputSource(temp_src);
+      registration.align(*temp_src, T_icp); // Vamos chegando a temp_src mais proxima a cada iteracao
+      T_icp = registration.getFinalTransformation();//*T_icp; // Aproximando a transformacao total
+
+      // Reduzindo a distancia de criterio para refinar mais ainda a transformacao final
+      if(fabs((registration.getLastIncrementalTransformation()-prev).sum()) < registration.getTransformationEpsilon()
+         && registration.getMaxCorrespondenceDistance() > 2.0*leaf_size)
+          registration.setMaxCorrespondenceDistance(registration.getMaxCorrespondenceDistance() - 0.001);
+
+      prev = registration.getLastIncrementalTransformation();
     }
     if(registration.hasConverged()){
         cout << "\nConvergiu: " << registration.hasConverged() << " score: " <<
@@ -193,33 +207,20 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
         filter_grid(temp_src, 0.05);
         filter_grid(temp_tgt, 0.05);
         pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_filtrada.ply", *temp_src); // Ver se esta pouco ou muito
-        /// Fazendo de forma simplificada a principio
-        ROS_INFO("Comecando o ICP...");
+
         // Transformacao atual em forma matricial
         Eigen::Matrix4f T_atual = qt2T(rot, offset);
         if(mutex_acumulacao == 0){
             mutex_acumulacao = 1;
-            // Criacao do calculador de icp e resultado final sobre a propria acumulada
-            pcl::IterativeClosestPoint<PointT, PointT> icp;
-            icp.setUseReciprocalCorrespondences(true);
-            icp.setMaximumIterations(600);
-            icp.setMaxCorrespondenceDistance(0.2);
-            icp.setRANSACIterations(200);
-            icp.setTransformationEpsilon(1*1e-9);
-            icp.setEuclideanFitnessEpsilon(1*1e-10);
-            icp.setInputSource(temp_src);
-            icp.setInputTarget(temp_tgt);
-            ROS_INFO("Alinhando nuvens...");
-            pcl::PointCloud<PointT> final;
-            icp.align(final, T_atual);
-            // Transformar a parcial original com a transformaçao obtida
-            transformPointCloud(*parcial, *parcial, icp.getFinalTransformation());
+            /// Alinhar nuvem de forma fina por ICP - ja devolve a nuvem parcial transformada, so acumular ///
+            Eigen::Matrix4f T_icp;
+//            T_icp = this->icp(acumulada_global, parcial, T_atual);
+            transformPointCloud(*parcial, *parcial, T_atual);
             *acumulada_global += *parcial;
-            cout << "\n\nResultado do alinhamento: " << icp.hasConverged() << endl;
-            cout << "\nScore: " << icp.getFitnessScore();
             // Liberar mutex e ver o resultado da acumulacao no rviz
             mutex_acumulacao = 0;
         }
+
     } else {
         // Primeira nuvem
         *acumulada_global          += *parcial;
@@ -278,14 +279,11 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         // Nao podemos mais acumular enquanto o botao nao chamar de novo
         set_inicio_acumulacao(false);
 
-//        // Transforma nuvem segundo odometria da ZED e acumula na nuvem parcial, enquanto dentro do tempo
-//        transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset, q);
-
         // Acumular com a global, a depender se primeira vez ou nao
         registra_global_icp(acumulada_parcial, q, offset);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
-        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q, offset, msg_image);
+        this->salva_dados_parciais(acumulada_parcial, q.inverse(), -offset, msg_image);
         cout << "Dados salvos!!\n\n";
 
     } // fim do if -> acumular ou nao
@@ -309,7 +307,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
     // Converte e salva imagem
     cv_bridge::CvImagePtr imgptr;
-    imgptr = cv_bridge::toCvCopy(imagem, sensor_msgs::image_encodings::RGB8);
+    imgptr = cv_bridge::toCvCopy(imagem, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imagem, imgptr->image);
 
 //    // Salva a nuvem parcial em PLY
@@ -415,11 +413,37 @@ void Cloud_Work::salvar_acumulada(){
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_nuvem = pasta+"nuvem_final.ply";
+    std::string arquivo_mesh  = pasta+"mesh_final.ply";
 
     // A principio so salvar a nuvem
     ROS_INFO("Salvando nuvem acumulada.....");
     pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global);
     ROS_INFO("Nuvem salva na pasta correta!!");
+
+    // Salvar o MESH resultante
+    ROS_INFO("Salvando o MESH......");
+    Mesh m();
+    m.setPointCloud(acumulada_global);
+    m.triangulate();
+    m.saveMesh(arquivo_mesh);
+    ROS_INFO("MESH salvo na pasta correta!!");
+
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::reiniciar(){
+    // Reinicia tudo que pode ser reiniciado aqui
+    acumulada_global->clear(); acumulada_parcial->clear();
+    acumulada_parcial_anterior->clear(); acumulada_parcial_frame_camera->clear();
+
+    system("gnome-terminal -x sh -c 'rosservice call /zed/reset_odometry'");
+
+    set_primeira_vez(true); // Vamos ter a primeira vez de aquisicao novamente
+
+    contador_imagens = 0;
+
+    cout << "\n\n\n\nRESETOU TUDO CAMERAS E ZED \n\n\n\n" << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// Sets

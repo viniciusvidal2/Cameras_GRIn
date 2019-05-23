@@ -74,6 +74,8 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include "mesh.hpp"
+
 using namespace pcl;
 using namespace message_filters;
 using namespace nav_msgs;
@@ -98,6 +100,7 @@ public:
     void set_n_nuvens_aquisicao(float t);
     void salvar_acumulada();
     void set_profundidade_max(float d);
+    void reiniciar();
 
     QMutex* mutex;
 
@@ -117,7 +120,7 @@ private:
     void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem);
     void publica_nuvens();
     std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
-    Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, PointCloud<PointT>::Ptr final, Eigen::Matrix4f T);
+    Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
 

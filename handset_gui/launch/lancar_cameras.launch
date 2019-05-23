@@ -16,7 +16,7 @@
 
 <!--lancar no de projecao calibrada da nuvem da astra-->
 <node name="astra_calibrada_node" pkg="astra_calibrada" type="nuvem_astra_calibrada" output="screen">
-    <arg name="resolucao" value="2"/>
+    <param name="resolucao" value="1"/>
 </node>
 
 </launch>

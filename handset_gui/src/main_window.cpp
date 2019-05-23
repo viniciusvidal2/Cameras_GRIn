@@ -101,5 +101,10 @@ void MainWindow::on_pushButton_encerrar_clicked(){
     cw.salvar_acumulada();
 }
 
+/// Botao para reiniciar as nuvens e odometria da ZED, ou seja, tudo novo na captura
+void MainWindow::on_pushButton_reiniciar_clicked(){
+    cw.reiniciar();
+}
+
 }  // namespace handset_gui
 

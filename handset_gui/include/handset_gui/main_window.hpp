@@ -70,6 +70,7 @@ private Q_SLOTS:
     void on_pushButton_gravardados_clicked();
     void on_pushButton_visualizar_clicked();
     void on_pushButton_encerrar_clicked();
+    void on_pushButton_reiniciar_clicked();
 
 private:
     Ui::MainWindowDesign ui;

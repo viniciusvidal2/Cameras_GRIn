@@ -16,6 +16,8 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
+//#include "../include/handset_gui/mesh.hpp"
+
 namespace handset_gui {
 
 using namespace std;
@@ -59,9 +61,9 @@ void Cloud_Work::init(){
     p_listener = (tf::TransformListener*) new tf::TransformListener;
 
     // Subscribers para sincronizar
-    message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "/astra_rgb"      , 10);
-    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "/astra_projetada", 10);
-    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/odom2"          , 10);
+    message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "/camera/rgb/image_rect_color"      , 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "/camera/depth_registered/points", 10);
+    message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/zed/odom"          , 10);
     sync.reset(new Sync(syncPolicy(10), sub_imagem, sub_nuvem, sub_odom));
     sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
 
@@ -71,6 +73,8 @@ void Cloud_Work::init(){
     string file = "file://"+std::string(home)+"/handsets_ws/src/Cameras_GRIn/astra_calibrada/calib/astra2.yaml";
     camera_info_manager::CameraInfoManager caminfo(nh_, "astra", file);
     astra_model.fromCameraInfo(caminfo.getCameraInfo());
+
+//    me.setPointCloud(acumulada_global);
 
     // Inicio do contador de imagens capturadas
     contador_imagens = 0;
@@ -90,7 +94,8 @@ void Cloud_Work::init(){
     matrix = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse();
-    offset_astra_zed << -0.001, -0.090, -0.025;
+//    offset_astra_zed << -0.001, -0.090, -0.025;
+    offset_astra_zed << 0, 0, 0;
 
     // Rodar o no
     ros::Rate rate(2);
@@ -283,8 +288,29 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         registra_global_icp(acumulada_parcial, q, offset);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
-        this->salva_dados_parciais(acumulada_parcial, q.inverse(), -offset, msg_image);
-        cout << "Dados salvos!!\n\n";
+        this->salva_dados_parciais(acumulada_parcial, q, -offset, msg_image, "qm");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse(), -offset, msg_image, "q_m");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse(), offset, msg_image, "q_M");
+        this->salva_dados_parciais(acumulada_parcial, q, offset, msg_image, "qM");
+
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed*q, -offset, msg_image, "razqm");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q, -offset, msg_image, "raz_qm");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q.inverse(), -offset, msg_image, "raz_q_m");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed*q.inverse(), -offset, msg_image, "razq_m");
+        this->salva_dados_parciais(acumulada_parcial, q*rot_astra_zed, -offset, msg_image, "qrazm");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse()*rot_astra_zed, -offset, msg_image, "q_razm");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse()*rot_astra_zed.inverse(), -offset, msg_image, "q_raz_m");
+        this->salva_dados_parciais(acumulada_parcial, q*rot_astra_zed.inverse(), -offset, msg_image, "qraz_m");
+
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed*q, offset, msg_image, "razqM");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q, offset, msg_image, "raz_qM");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q.inverse(), offset, msg_image, "raz_q_M");
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed*q.inverse(), offset, msg_image, "razq_M");
+        this->salva_dados_parciais(acumulada_parcial, q*rot_astra_zed, offset, msg_image, "qrazM");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse()*rot_astra_zed, offset, msg_image, "q_razM");
+        this->salva_dados_parciais(acumulada_parcial, q.inverse()*rot_astra_zed.inverse(), offset, msg_image, "q_raz_M");
+        this->salva_dados_parciais(acumulada_parcial, q*rot_astra_zed.inverse(), offset, msg_image, "qraz_M");
+        ROS_INFO("Dados Parciais salvos!");
 
     } // fim do if -> acumular ou nao
 
@@ -293,14 +319,17 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
                                       Eigen::Quaternion<float> rot,
                                       Eigen::Vector3f offset,
-                                      const sensor_msgs::ImageConstPtr &imagem){
+                                      const sensor_msgs::ImageConstPtr &imagem,
+                                      std::string tent){
     // Atualiza contador de imagens - tambem usado para as nuvens parciais
     contador_imagens++;
+
+    ROS_INFO("Salvando arquivo parcial %s.", tent);
 
     // Nome da pasta para salvar
     char* home;
     home = getenv("HOME");
-    std::string pasta = std::string(home)+"/Desktop/teste/";
+    std::string pasta = std::string(home)+"/Desktop/teste/"+tent+"_"; // Diferenciando pra pegar o quaternion certo de orientacao
     std::string arquivo_imagem = pasta + std::to_string(contador_imagens) + ".jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
     std::string arquivo_nvm    = pasta + std::to_string(contador_imagens) + ".nvm";
@@ -309,9 +338,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     cv_bridge::CvImagePtr imgptr;
     imgptr = cv_bridge::toCvCopy(imagem, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imagem, imgptr->image);
-
-//    // Salva a nuvem parcial em PLY
-//    pcl::io::savePLYFileASCII(arquivo_nuvem, *cloud);
 
     // Centro da camera, para escrever no arquivo NVM
     Eigen::MatrixXf C = calcula_centro_camera(rot, offset);
@@ -323,61 +349,47 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
         file << "NVM_V3\n\n";
         file << "1\n"; // Quantas imagens, sempre uma aqui
         file << escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
-        file << "\n\n"+std::to_string(acumulada_parcial->size())+"\n"; // Total de pontos
-        // Ponto a ponto apos ser projetado na imagem
-        cv::Point3d ponto3D;
-        cv::Point2d pontoProjetado;
-        for(int i=0; i < acumulada_parcial_frame_camera->size(); i++){
-            ponto3D.x = acumulada_parcial_frame_camera->points[i].x;
-            ponto3D.y = acumulada_parcial_frame_camera->points[i].y;
-            ponto3D.z = acumulada_parcial_frame_camera->points[i].z;
-            pontoProjetado = astra_model.project3dToPixel(ponto3D);
-            if(pontoProjetado.x > 0 && pontoProjetado.x < astra_model.fullResolution().width &&
-               pontoProjetado.y > 0 && pontoProjetado.y < astra_model.fullResolution().height){
-                // Adicionar na nuvem de pontos que vai pro NVM e sera salva
-                PointT ponto_temp;
-                ponto_temp.x = ponto3D.x; ponto_temp.y = ponto3D.y; ponto_temp.z = ponto3D.z;
-                ponto_temp.r = acumulada_parcial->points[i].r; ponto_temp.g = acumulada_parcial->points[i].g; ponto_temp.b = acumulada_parcial->points[i].b;
-                temp_nvm->push_back(ponto_temp);
-                // Construindo a linha do arquivo
-                string linha = to_string(ponto3D.x) + " " + to_string(ponto3D.y) + " " + to_string(ponto3D.z) + " "; // PONTO XYZ
-                linha = linha + to_string(acumulada_parcial->points[i].r) + " " + to_string(acumulada_parcial->points[i].g) + " " + to_string(acumulada_parcial->points[i].b) + " "; // CORES RGB
-                linha = linha + "1 1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
-                linha = linha + to_string(pontoProjetado.x) + " "  +to_string(pontoProjetado.y) + "\n"; // PIXEL projetado
-                // Escrever no arquivo completo -> o fim da string 'linha' ja pula para a proxima linha
-                std::replace(linha.begin(), linha.end(), ',', '.'); // Altera virgula por ponto
-                file << linha;
-            }
-        }
-        file << "\n\n\n0\n\n"; // 0 intermediario
-        file << "#The last part of NVM files points to the PLY files\n"; // Fim das contas
-        file << "#The first number is the number of associated PLY files\n";
-        file << "#each following number gives a model-index that has PLY\n";
-        file << "0";
+//        file << "\n\n"+std::to_string(acumulada_parcial->size())+"\n"; // Total de pontos
+//        // Ponto a ponto apos ser projetado na imagem
+//        cv::Point3d ponto3D;
+//        cv::Point2d pontoProjetado;
+//        for(int i=0; i < acumulada_parcial_frame_camera->size(); i++){
+//            ponto3D.x = acumulada_parcial_frame_camera->points[i].x;
+//            ponto3D.y = acumulada_parcial_frame_camera->points[i].y;
+//            ponto3D.z = acumulada_parcial_frame_camera->points[i].z;
+//            pontoProjetado = astra_model.project3dToPixel(ponto3D);
+//            if(pontoProjetado.x > 0 && pontoProjetado.x < astra_model.fullResolution().width &&
+//               pontoProjetado.y > 0 && pontoProjetado.y < astra_model.fullResolution().height){
+//                // Adicionar na nuvem de pontos que vai pro NVM e sera salva
+//                PointT ponto_temp;
+//                ponto_temp.x = ponto3D.x; ponto_temp.y = ponto3D.y; ponto_temp.z = ponto3D.z;
+//                ponto_temp.r = acumulada_parcial->points[i].r; ponto_temp.g = acumulada_parcial->points[i].g; ponto_temp.b = acumulada_parcial->points[i].b;
+//                temp_nvm->push_back(ponto_temp);
+//                // Construindo a linha do arquivo
+//                string linha = to_string(ponto3D.x) + " " + to_string(ponto3D.y) + " " + to_string(ponto3D.z) + " "; // PONTO XYZ
+//                linha = linha + to_string(acumulada_parcial->points[i].r) + " " + to_string(acumulada_parcial->points[i].g) + " " + to_string(acumulada_parcial->points[i].b) + " "; // CORES RGB
+//                linha = linha + "1 1 " + to_string(int(pontoProjetado.x*pontoProjetado.y)) + " "; // Indice da foto e da feature
+//                linha = linha + to_string(pontoProjetado.x) + " "  +to_string(pontoProjetado.y) + "\n"; // PIXEL projetado
+//                // Escrever no arquivo completo -> o fim da string 'linha' ja pula para a proxima linha
+//                std::replace(linha.begin(), linha.end(), ',', '.'); // Altera virgula por ponto
+//                file << linha;
+//            }
+//        }
+//        file << "\n\n\n0\n\n"; // 0 intermediario
+//        file << "#The last part of NVM files points to the PLY files\n"; // Fim das contas
+//        file << "#The first number is the number of associated PLY files\n";
+//        file << "#each following number gives a model-index that has PLY\n";
+//        file << "0";
     } // fim do if is open
     file.close(); // Fechar para nao ter erro
 
     // Calcular normais para a nuvem
-    cout << "\nCalculando normais...\n\n";
-    pcl::NormalEstimation<PointT, pcl::Normal> ne;
-    ne.setInputCloud(temp_nvm);
-    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
-    ne.setSearchMethod (tree);
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
-    ne.setKSearch(12); // Quantos vizinhos procurar
-    ne.compute(*cloud_normals);
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::Ptr final_nvm (new pcl::PointCloud<pcl::PointXYZRGBNormal>);
-    pcl::concatenateFields(*temp_nvm, *cloud_normals, *final_nvm);
-    // Filtrar normais que tenham nan
-    pcl::PointCloud<pcl::PointXYZRGBNormal>::iterator it;
-    for(it=final_nvm->begin(); it!=final_nvm->end(); ++it){
-        if(it->normal_x != it->normal_x) // porque o nan eh maluco
-            final_nvm->erase(it);
-    }
+    pcl::PointCloud<PointTN>::Ptr final_parcial (new pcl::PointCloud<PointTN>);
+    this->calculateNormalsAndConcatenate(cloud, final_parcial);
 
     // Salvar nuvem em arquivo .ply
-    pcl::io::savePLYFileASCII(arquivo_nuvem, *final_nvm);
-    cout << "\nNuvem salva!\n\n\n";
+    pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial);
+    ROS_INFO("Nuvem salva!");
 
 } // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -390,8 +402,8 @@ std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C
     // Adicionar centro da camera
     linha = linha + " " + std::to_string(C(0, 0)) + " " + std::to_string(C(1, 0)) + " " + std::to_string(C(2, 0));
     // Adicionar distorcao radial (crendo 0) e 0 final
-    linha = linha + " 0 0";
-    // Escrever isso -> NAO PULA LINHA, SO RETORNA O CONTEUDO
+    linha = linha + " 0 0\n"; // IMPORTANTE pular linha aqui, o MeshRecon precisa disso no MART
+    // Muda as virgulas por pontos no arquivo
     std::replace(linha.begin(), linha.end(), ',', '.');
     return linha;
 }
@@ -421,16 +433,11 @@ void Cloud_Work::salvar_acumulada(){
     ROS_INFO("Nuvem salva na pasta correta!!");
 
     // Salvar o MESH resultante
-    ROS_INFO("Salvando o MESH......");
-    Mesh m();
-    m.setPointCloud(acumulada_global);
-    m.triangulate();
-    m.saveMesh(arquivo_mesh);
-    ROS_INFO("MESH salvo na pasta correta!!");
+    ROS_INFO("Processando a MESH, aguarde......");
+    this->triangulate();
+    this->saveMesh(arquivo_mesh);
 
 }
-///////////////////////////////////////////////////////////////////////////////////////////
-
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::reiniciar(){
     // Reinicia tudo que pode ser reiniciado aqui
@@ -464,5 +471,53 @@ void Cloud_Work::set_profundidade_max(float d){
     profundidade_max = d;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+/// Mesh
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::triangulate(){
+    if(acumulada_global->size() > 0){
+        PointCloud<PointTN>::Ptr cloud_normals (new PointCloud<PointTN>());
+        calculateNormalsAndConcatenate(acumulada_global, cloud_normals);
+
+        pcl::search::KdTree<PointTN>::Ptr tree2 (new pcl::search::KdTree<PointTN>);
+
+        GreedyProjectionTriangulation<PointTN> gp3;
+        gp3.setSearchRadius (0.025);
+        gp3.setMu (2.5);
+        gp3.setMaximumNearestNeighbors (100);
+        gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
+        gp3.setMinimumAngle(M_PI/18); // 10 degrees
+        gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+        gp3.setNormalConsistency(false);
+        ROS_INFO("Construindo Mesh sobre a nuvem....");
+        gp3.setInputCloud (cloud_normals);
+        gp3.setSearchMethod (tree2);
+        gp3.reconstruct (triangulos);
+        ROS_INFO("Mesh reconstruida!");
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2){
+    ROS_INFO("Calculando normais da nuvem, aguarde...");
+    NormalEstimation<PointT, Normal> ne;
+    ne.setInputCloud(cloud);
+    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+    ne.setSearchMethod(tree);
+    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+    ne.setKSearch(30);
+
+    ne.compute(*cloud_normals);
+
+    concatenateFields(*cloud, *cloud_normals, *cloud2);
+
+    vector<int> indicesnan;
+    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
+    ROS_INFO("Normais calculadas!");
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::saveMesh(std::string nome){
+    ROS_INFO("Salvando a Mesh no nome correto...");
+    if(savePolygonFilePLY(nome, triangulos))
+        ROS_INFO("Mesh salva!");
+}
 
 } // Fim do namespace handset_gui

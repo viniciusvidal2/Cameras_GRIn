@@ -32,8 +32,12 @@
 #include <pcl/filters/passthrough.h>
 #include <pcl/registration/icp.h>
 #include <pcl/io/ascii_io.h>
+#include <pcl/io/vtk_lib_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/geometry/mesh_io.h>
+#include <pcl/PolygonMesh.h>
+#include <pcl/surface/gp3.h>
 
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -74,15 +78,14 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-#include "mesh.hpp"
-
 using namespace pcl;
+using namespace pcl::io;
+using namespace pcl::geometry;
 using namespace message_filters;
 using namespace nav_msgs;
 using namespace cv;
 
 namespace handset_gui {
-
 
 class Cloud_Work : public QThread
 {
@@ -90,6 +93,7 @@ class Cloud_Work : public QThread
 public:
     /// Definicoes ///
     typedef PointXYZRGB PointT;
+    typedef PointXYZRGBNormal PointTN;
 
     Cloud_Work(int argc, char** argv, QMutex*);
     virtual ~Cloud_Work();
@@ -117,8 +121,11 @@ private:
     void passthrough(PointCloud<PointT>::Ptr cloud, std::string field, float min, float max);
     void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem);
-    void publica_nuvens();
+    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem, std::string tent);
+    void publica_nuvens();    
+    void calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2);
+    void saveMesh(std::string nome);
+    void triangulate();
     std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
@@ -164,6 +171,8 @@ private:
     int n_nuvens_instantaneas;
     // Profundidade do filtro obtida da GUI
     float profundidade_max;
+    // Mesh final triangularizada
+    PolygonMesh triangulos;
 };
 
 }

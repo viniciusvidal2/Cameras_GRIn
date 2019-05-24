@@ -2,6 +2,7 @@
 
 <!--lancar astra-->
 <include file="$(find astra_launch)/launch/astra.launch">
+    <param name="color_depth_synchronization" value="true"/>
 </include>
 <!--lancar zed-->
 <include file="$(find zed_wrapper)/launch/zed.launch">

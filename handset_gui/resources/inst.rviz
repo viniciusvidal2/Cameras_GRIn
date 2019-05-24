@@ -104,7 +104,7 @@ Visualization Manager:
         map:
           Value: false
         odom:
-          Value: false
+          Value: true
         zed_camera_center:
           Value: false
         zed_left_camera_frame:
@@ -210,25 +210,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.94895458
+      Distance: 4.42240429
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -1.26333737
-        Y: -0.501550615
-        Z: 0.389753312
+        X: 0.777635396
+        Y: -1.2481544
+        Z: 0.383660853
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.00979761966
+      Pitch: -0.0752025545
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 1.1271553
+      Yaw: 3.12216234
     Saved: ~
 Window Geometry:
   Displays:

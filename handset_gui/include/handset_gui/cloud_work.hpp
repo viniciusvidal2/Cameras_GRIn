@@ -35,9 +35,13 @@
 #include <pcl/io/vtk_lib_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
 #include <pcl/geometry/mesh_io.h>
 #include <pcl/PolygonMesh.h>
 #include <pcl/surface/gp3.h>
+#include <pcl/surface/poisson.h>
+#include <pcl/surface/mls.h>
+#include <pcl/surface/texture_mapping.h>
 
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -121,8 +125,9 @@ private:
     void passthrough(PointCloud<PointT>::Ptr cloud, std::string field, float min, float max);
     void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem, std::string tent);
-    void publica_nuvens();    
+    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem);
+    void salva_nvm_acumulada(std::string nome);
+    void publica_nuvens();
     void calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2);
     void saveMesh(std::string nome);
     void triangulate();
@@ -161,6 +166,8 @@ private:
     int contador_imagens;
     // Matriz de pontos
     Eigen::MatrixXd pontos_nvm;
+    // Vetor com nomes de arquivos - arquivo nuvem acumulada
+    std::vector<std::string> acumulada_imagens;
     /// ARQUIVO NVM - FIM
     // Mutex de acumulacao
     bool mutex_acumulacao;
@@ -172,7 +179,7 @@ private:
     // Profundidade do filtro obtida da GUI
     float profundidade_max;
     // Mesh final triangularizada
-    PolygonMesh triangulos;
+    PolygonMesh mesh_acumulada;
 };
 
 }

@@ -1,5 +1,9 @@
 <launch>
 
+<arg name="online" default="false"/>
+
+<!--se for o processo online, chamamos os drivers das cameras-->
+<group if="$(arg online)">
 <!--lancar astra-->
 <include file="$(find astra_launch)/launch/astra.launch">
     <param name="color_depth_synchronization" value="true"/>
@@ -7,6 +11,7 @@
 <!--lancar zed-->
 <include file="$(find zed_wrapper)/launch/zed.launch">
 </include>
+</group>
 
 <!--transformada estatica tf para relacionar as duas cameras-->
 <arg name="pi/2" value="1.5707963267948966"/>

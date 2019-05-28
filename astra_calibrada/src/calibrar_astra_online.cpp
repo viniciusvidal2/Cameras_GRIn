@@ -61,7 +61,7 @@ typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointClo
 void callback(const sensor_msgs::ImageConstPtr& msg_img,
               const sensor_msgs::PointCloud2ConstPtr& cloud){
     cv_bridge::CvImagePtr cv_ptr_img;
-    cv_ptr_img = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::TYPE_8UC3);
+    cv_ptr_img = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::RGB8);
 
     if(primeira_vez){
 

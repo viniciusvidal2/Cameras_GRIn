@@ -64,7 +64,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 /// Botao de inicio do sistemas de cameras
 void MainWindow::on_pushButton_inicio_clicked(){
-    system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch'");
+    if(ui.checkBox_online->isChecked())
+        system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=true'");
+    else
+        system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=false'");
     ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
 }
 
@@ -94,6 +97,7 @@ void MainWindow::on_pushButton_gravardados_clicked(){
 /// Botao para chamar o RVIZ
 void MainWindow::on_pushButton_visualizar_clicked(){
     system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/inst.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/fonte.rviz'");
 }
 
 /// Botao para salvar tudo referente a acumulada

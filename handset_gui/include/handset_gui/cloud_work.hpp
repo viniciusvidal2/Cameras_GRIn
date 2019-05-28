@@ -150,10 +150,8 @@ private:
     PointCloud<PointT>::Ptr acumulada_parcial;
     PointCloud<PointT>::Ptr acumulada_parcial_anterior;
     PointCloud<PointT>::Ptr temp_nvm;
-    // Matriz de transformacao para a iteracao anterior
-    Eigen::Matrix4f T_anterior;
-    // Listener assincrono para tf entre zed e astra
-    tf::TransformListener *p_listener;
+    // Matriz de transformacao para a aproximacao ICP
+    Eigen::Matrix4f T_icp;
     // Publicadores para nuvem parcial e total;
     ros::Publisher pub_global;
     ros::Publisher pub_parcial;

@@ -168,7 +168,7 @@
           </sizepolicy>
          </property>
          <property name="text">
-          <string>4</string>
+          <string>1</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -186,6 +186,19 @@
         </property>
         <property name="text">
          <string>Reiniciar o sistema</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="checkBox_online">
+        <property name="geometry">
+         <rect>
+          <x>40</x>
+          <y>10</y>
+          <width>131</width>
+          <height>23</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Online</string>
         </property>
        </widget>
       </widget>

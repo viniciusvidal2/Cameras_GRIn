@@ -16,8 +16,6 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
-//#include "../include/handset_gui/mesh.hpp"
-
 namespace handset_gui {
 
 using namespace std;
@@ -128,6 +126,13 @@ void Cloud_Work::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
     grid.filter(*cloud);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size){
+    VoxelGrid<PointXYZ> grid;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    grid.setInputCloud(cloud);
+    grid.filter(*cloud);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::passthrough(PointCloud<PointT>::Ptr cloud, string field, float min, float max){
     PassThrough<PointT> ps;
     ps.setInputCloud(cloud);
@@ -150,17 +155,30 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
     return T;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<PointXYZ>::Ptr out){
+    PointXYZ point;
+    for (int i=0; i<in->size(); i++) {
+        point.x = in->points[i].x;
+        point.y = in->points[i].y;
+        point.z = in->points[i].z;
+        out->push_back(point);
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
                                 const PointCloud<PointT>::Ptr tgt,
                                 Eigen::Matrix4f T){
     ROS_INFO("Entrando no ICP");
     // Reduzindo complexidade das nuvens
-    PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
-    PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
-    PointCloud<PointTN>::Ptr temp_src_normals (new PointCloud<PointTN>());
-    PointCloud<PointTN>::Ptr temp_tgt_normals (new PointCloud<PointTN>());
+    PointCloud<PointXYZ>::Ptr temp_src (new PointCloud<PointXYZ>());
+    PointCloud<PointXYZ>::Ptr temp_tgt (new PointCloud<PointXYZ>());
+    PointCloud<PointNormal>::Ptr temp_src_normals (new PointCloud<PointNormal>());
+    PointCloud<PointNormal>::Ptr temp_tgt_normals (new PointCloud<PointNormal>());
 
-    *temp_src = *src; *temp_tgt = *tgt;
+    // Pega somente os pontos sem cores, tentativa de nao influenciar alinhamento com calibracao de
+    // cores errada nas features
+    removeColorFromPoints(src, temp_src);
+    removeColorFromPoints(tgt, temp_tgt);
 
     float leaf_size = 0.05;
     filter_grid(temp_src, leaf_size);
@@ -168,77 +186,56 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
 
     Eigen::Matrix4f T_icp;
 
-//    int metodo = 1; // 1: ICP com normais; 2: ICP normal
-
     /// ICP COM NORMAIS ///
-        calculateNormalsAndConcatenate(temp_src, temp_src_normals);
-        calculateNormalsAndConcatenate(temp_tgt, temp_tgt_normals);
-        // Cria otimizador ICP
-        pcl::IterativeClosestPointWithNormals<PointTN, PointTN> icp;
-        icp.setUseReciprocalCorrespondences(true);
-        icp.setInputTarget(temp_tgt_normals);
-        icp.setInputSource(temp_src_normals);
-        icp.setMaximumIterations(40); // Chute inicial bom 10-100
-        icp.setTransformationEpsilon(1*1e-10);
-        icp.setEuclideanFitnessEpsilon(1*1e-10);
-        icp.setMaxCorrespondenceDistance(4*leaf_size);
-//        icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-//        icp.setRANSACIterations(500);
+    calculateNormalsAndConcatenate(temp_src, temp_src_normals);
+    calculateNormalsAndConcatenate(temp_tgt, temp_tgt_normals);
+    // Cria otimizador ICP
+    pcl::IterativeClosestPointWithNormals<PointNormal, PointNormal> icp;
+    icp.setUseReciprocalCorrespondences(true);
+    icp.setInputTarget(temp_tgt_normals);
+    icp.setInputSource(temp_src_normals);
+    icp.setMaximumIterations(40); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-10);
+    icp.setEuclideanFitnessEpsilon(1*1e-10);
+    icp.setMaxCorrespondenceDistance(4*leaf_size);
+    //        icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
+    //        icp.setRANSACIterations(500);
 
-        PointCloud<PointTN> final;
-        icp.align(final); // Sem chute inicial
+    PointCloud<PointNormal> final;
+    icp.align(final, T);
 
-//        if(icp.hasConverged()){
-//            ROS_INFO("ICP convergiu: %d   Score: %.4f", icp.hasConverged(), icp.getFitnessScore());
-//            T_icp = icp.getFinalTransformation();
-//        } else {
-//            cout << "\nICP nao convergiu, confiando somente na Odometria." << endl;
-//            T_icp = Eigen::Matrix4f::Identity(); // A nuvem ja foi transformada
-//        }
+    /// ICP COMUM ///
+    // Criando o otimizador de ICP comum
+    pcl::IterativeClosestPoint<PointXYZ, PointXYZ> registration;
+    registration.setUseReciprocalCorrespondences(true);
+    registration.setInputTarget(temp_tgt);
+    registration.setInputSource(temp_src);
+    registration.setMaximumIterations(40); // Chute inicial bom 10-100
+    registration.setTransformationEpsilon(1*1e-10);
+    registration.setEuclideanFitnessEpsilon(1*1e-10);
+    registration.setMaxCorrespondenceDistance(4*leaf_size);
+    //        registration.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
+    //        registration.setRANSACIterations(50);
 
-//    } else if(metodo == 2) { /// ICP COMUM ///
+    PointCloud<PointXYZ> final2;
+    registration.align(final2, T);
 
-        // Criando o otimizador de ICP comum
-        pcl::IterativeClosestPoint<PointT, PointT> registration;
-        registration.setUseReciprocalCorrespondences(true);
-        registration.setInputTarget(temp_tgt);
-        registration.setInputSource(temp_src);
-        registration.setMaximumIterations(40); // Chute inicial bom 10-100
-        registration.setTransformationEpsilon(1*1e-10);
-        registration.setEuclideanFitnessEpsilon(1*1e-10);
-        registration.setMaxCorrespondenceDistance(4*leaf_size);
-//        registration.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-//        registration.setRANSACIterations(50);
+    float score_icpn = 0, score_icp = 0;
+    if(registration.hasConverged())
+        score_icp = registration.getFitnessScore();
+    if(icp.hasConverged())
+        score_icpn = icp.getFitnessScore();
 
-        PointCloud<PointT> final2;
-        registration.align(final2); // Sem chute inicial
+    if(score_icpn > score_icp){
+        ROS_INFO("Acumulando com ICPN com score %.4f", icp.getFitnessScore());
+        T_icp = icp.getFinalTransformation();
+    } else if(score_icp > score_icpn) {
+        ROS_INFO("Acumulando com ICP  com score %.4f", registration.getFitnessScore());
+        T_icp = registration.getFinalTransformation();
+    }
 
-        float score_icpn = 0, score_icp = 0;
-        if(registration.hasConverged())
-            score_icp = registration.getFitnessScore();
-        if(icp.hasConverged())
-            score_icpn = icp.getFitnessScore();
-
-        if(score_icpn > score_icp){
-            ROS_INFO("Acumulando com ICPN com score %.4f", icp.getFitnessScore());
-            T_icp = icp.getFinalTransformation();
-        } else if(score_icp > score_icpn) {
-            ROS_INFO("Acumulando com ICP  com score %.4f", registration.getFitnessScore());
-            T_icp = registration.getFinalTransformation();
-        }
-
-        if(score_icp == 0 && score_icpn == 0)
-            T_icp = Eigen::Matrix4f::Identity(); // A nuvem ja foi transformada
-
-
-//        if(registration.hasConverged()){
-//            ROS_INFO("ICP convergiu: %d   Score: %.4f", registration.hasConverged(), registration.getFitnessScore());
-//            T_icp = registration.getFinalTransformation();
-//        } else {
-//            cout << "\nICP nao convergiu, confiando somente na Odometria." << endl;
-//            T_icp = Eigen::Matrix4f::Identity(); // A nuvem ja foi transformada
-//        }
-//    }
+    if(score_icp == 0 && score_icpn == 0)
+        T_icp = Eigen::Matrix4f::Identity(); // A nuvem ja foi transformada
 
     temp_src->clear(); temp_tgt->clear(); temp_src_normals->clear(); temp_tgt_normals->clear();
 
@@ -260,7 +257,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-            transformPointCloud(*parcial, *parcial, T_atual);
+//            transformPointCloud(*parcial, *parcial, T_atual);
             T_icp = this->icp(parcial, acumulada_global, T_atual);
             transformPointCloud(*parcial, *parcial, T_icp);
             *acumulada_global += *parcial;
@@ -338,7 +335,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Salva os dados na pasta do projeto -> PARCIAIS
 //        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q.inverse(), rot_astra_zed.inverse()*(-offset), msg_image);
-        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q_icp.inverse(), rot_astra_zed.inverse()*(-t_icp), msg_image);
+        this->salva_dados_parciais(acumulada_parcial, q_icp.inverse(), -t_icp, msg_image);
         ROS_INFO("Dados Parciais salvos!");
 
     } // fim do if -> acumular ou nao
@@ -541,6 +538,25 @@ void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, P
     NormalEstimationOMP<PointT, Normal> ne;
     ne.setInputCloud(cloud);
     search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+    ne.setSearchMethod(tree);
+    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+    ne.setKSearch(30);
+    ne.setNumberOfThreads(4);
+
+    ne.compute(*cloud_normals);
+
+    concatenateFields(*cloud, *cloud_normals, *cloud2);
+
+    vector<int> indicesnan;
+    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
+    ROS_INFO("Normais calculadas!");
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2){
+    ROS_INFO("Calculando normais da nuvem, aguarde...");
+    NormalEstimationOMP<PointXYZ, Normal> ne;
+    ne.setInputCloud(cloud);
+    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
     ne.setKSearch(30);

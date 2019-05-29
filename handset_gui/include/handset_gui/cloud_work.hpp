@@ -122,13 +122,16 @@ private:
 
     /// Procedimentos internos ///
     void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
+    void filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size); // Overload da funcao para usar no ICP
     void passthrough(PointCloud<PointT>::Ptr cloud, std::string field, float min, float max);
+    void removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<PointXYZ>::Ptr out);
     void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
     void calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2);
+    void calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2); // Overload da funcao para usar no ICP
     void saveMesh(std::string nome);
     void triangulate();
     std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);

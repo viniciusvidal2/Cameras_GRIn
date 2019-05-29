@@ -23,6 +23,7 @@ find_package(catkin REQUIRED
     pcl_ros
     tf
 #    tf_conversion
+    image_geometry
     cv_bridge)
 
 find_package(OpenCV REQUIRED)

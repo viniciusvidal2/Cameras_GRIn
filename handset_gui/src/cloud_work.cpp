@@ -180,26 +180,28 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     removeColorFromPoints(src, temp_src);
     removeColorFromPoints(tgt, temp_tgt);
 
-    float leaf_size = 0.05;
+    float leaf_size = 0.005;
     filter_grid(temp_src, leaf_size);
     filter_grid(temp_tgt, leaf_size);
+
+    pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_filtrada.ply", *temp_tgt);
 
     Eigen::Matrix4f T_icp;
 
     /// ICP COM NORMAIS ///
-    calculateNormalsAndConcatenate(temp_src, temp_src_normals);
-    calculateNormalsAndConcatenate(temp_tgt, temp_tgt_normals);
+    calculateNormalsAndConcatenate(temp_src, temp_src_normals, 10);
+    calculateNormalsAndConcatenate(temp_tgt, temp_tgt_normals, 10);
     // Cria otimizador ICP
     pcl::IterativeClosestPointWithNormals<PointNormal, PointNormal> icp;
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt_normals);
     icp.setInputSource(temp_src_normals);
-    icp.setMaximumIterations(40); // Chute inicial bom 10-100
-    icp.setTransformationEpsilon(1*1e-10);
+    icp.setMaximumIterations(90); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-9);
     icp.setEuclideanFitnessEpsilon(1*1e-10);
-    icp.setMaxCorrespondenceDistance(4*leaf_size);
+    icp.setMaxCorrespondenceDistance(0.4);
     //        icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-    //        icp.setRANSACIterations(500);
+    icp.setRANSACIterations(300);
 
     PointCloud<PointNormal> final;
     icp.align(final, T);
@@ -210,12 +212,12 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     registration.setUseReciprocalCorrespondences(true);
     registration.setInputTarget(temp_tgt);
     registration.setInputSource(temp_src);
-    registration.setMaximumIterations(40); // Chute inicial bom 10-100
-    registration.setTransformationEpsilon(1*1e-10);
+    registration.setMaximumIterations(90); // Chute inicial bom 10-100
+    registration.setTransformationEpsilon(1*1e-9);
     registration.setEuclideanFitnessEpsilon(1*1e-10);
-    registration.setMaxCorrespondenceDistance(4*leaf_size);
+    registration.setMaxCorrespondenceDistance(0.4);
     //        registration.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-    //        registration.setRANSACIterations(50);
+    registration.setRANSACIterations(300);
 
     PointCloud<PointXYZ> final2;
     registration.align(final2, T);
@@ -235,7 +237,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     }
 
     if(score_icp == 0 && score_icpn == 0)
-        T_icp = Eigen::Matrix4f::Identity(); // A nuvem ja foi transformada
+        T_icp = T; // Mantem a transformacao anterior da ZED
 
     temp_src->clear(); temp_tgt->clear(); temp_src_normals->clear(); temp_tgt_normals->clear();
 
@@ -258,16 +260,20 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
 //            transformPointCloud(*parcial, *parcial, T_atual);
-            T_icp = this->icp(parcial, acumulada_global, T_atual);
+            T_icp = this->icp(parcial, acumulada_parcial_anterior, T_atual);
             transformPointCloud(*parcial, *parcial, T_icp);
             *acumulada_global += *parcial;
+            // Salvar nuvem atual alinhada para proxima iteracao ser referencia
+            *acumulada_parcial_anterior = *parcial;
             // Liberar mutex e ver o resultado da acumulacao no rviz
             mutex_acumulacao = 0;
         }
 
     } else {
+        // Transformar SEMPRE para a referencia dos espaços -> primeira odometria capturada
+        transformPointCloud(*parcial, *parcial, offset, rot);
         // Primeira nuvem
-        *acumulada_global          += *parcial;
+        *acumulada_global           = *parcial;
         *acumulada_parcial_anterior = *parcial;
         // Primeira transformacao vinda da odometria -> converter matriz 4x4
         T_icp = qt2T(rot, offset);
@@ -335,7 +341,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Salva os dados na pasta do projeto -> PARCIAIS
 //        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q.inverse(), rot_astra_zed.inverse()*(-offset), msg_image);
-        this->salva_dados_parciais(acumulada_parcial, q_icp.inverse(), -t_icp, msg_image);
+        this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q_icp, rot_astra_zed.inverse()*t_icp, msg_image);
         ROS_INFO("Dados Parciais salvos!");
 
     } // fim do if -> acumular ou nao
@@ -383,7 +389,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
     // Calcular normais para a nuvem
     pcl::PointCloud<PointTN>::Ptr final_parcial (new pcl::PointCloud<PointTN>);
-    this->calculateNormalsAndConcatenate(cloud, final_parcial);
+    this->calculateNormalsAndConcatenate(cloud, final_parcial, 30);
 
     // Salvar nuvem em arquivo .ply
     if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
@@ -429,7 +435,7 @@ void Cloud_Work::salvar_acumulada(){
     // A principio so salvar a nuvem
     ROS_INFO("Salvando nuvem acumulada.....");
     PointCloud<PointTN>::Ptr acumulada_global_normais (new PointCloud<PointTN>());
-    this->calculateNormalsAndConcatenate(acumulada_global, acumulada_global_normais);
+    this->calculateNormalsAndConcatenate(acumulada_global, acumulada_global_normais, 30);
     pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
     ROS_INFO("Nuvem salva na pasta correta!!");
 
@@ -499,7 +505,7 @@ void Cloud_Work::triangulate(){
         int metodo = 2;
 
         PointCloud<PointTN>::Ptr cloud_normals (new PointCloud<PointTN>());
-        calculateNormalsAndConcatenate(acumulada_global, cloud_normals);
+        calculateNormalsAndConcatenate(acumulada_global, cloud_normals, 30);
 
         if(metodo == 1){
 
@@ -533,14 +539,14 @@ void Cloud_Work::triangulate(){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2){
+void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2, int K){
     ROS_INFO("Calculando normais da nuvem, aguarde...");
     NormalEstimationOMP<PointT, Normal> ne;
     ne.setInputCloud(cloud);
     search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(30);
+    ne.setKSearch(K);
     ne.setNumberOfThreads(4);
 
     ne.compute(*cloud_normals);
@@ -552,14 +558,14 @@ void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, P
     ROS_INFO("Normais calculadas!");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2){
+void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K){
     ROS_INFO("Calculando normais da nuvem, aguarde...");
     NormalEstimationOMP<PointXYZ, Normal> ne;
     ne.setInputCloud(cloud);
     search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(30);
+    ne.setKSearch(K);
     ne.setNumberOfThreads(4);
 
     ne.compute(*cloud_normals);

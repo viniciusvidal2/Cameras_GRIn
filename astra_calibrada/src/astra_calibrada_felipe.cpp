@@ -130,7 +130,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::Poin
 {
     // Obter imagem que veio na mensagem
     cv_bridge::CvImagePtr cv_ptr_rgb;
-    cv_ptr_rgb = cv_bridge::toCvCopy(msg_rgb, sensor_msgs::image_encodings::TYPE_8UC3);
+    cv_ptr_rgb = cv_bridge::toCvCopy(msg_rgb, sensor_msgs::image_encodings::RGB8);
 
     // Corrigir distorcao da imagem com parametros de calibracao?
 
@@ -191,26 +191,26 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::Poin
     nuvem_colorida->header.frame_id = "camera_rgb_optical_frame";
 
     // Mensagem Nuvem
-    toROSMsg(*nuvem_colorida, msg_cor);
-    msg_cor.header.frame_id = nuvem_colorida->header.frame_id;
-    msg_cor.header.stamp = ros::Time::now();
+//    toROSMsg(*nuvem_colorida, msg_cor);
+//    msg_cor.header.frame_id = nuvem_colorida->header.frame_id;
+//    msg_cor.header.stamp = ros::Time::now();
 
-    // Mensagem Odometria
-    Odometry msg_odo2 = *msg_odo;
-    msg_odo2.header.stamp = msg_cor.header.stamp;
+//    // Mensagem Odometria
+//    Odometry msg_odo2 = *msg_odo;
+//    msg_odo2.header.stamp = msg_cor.header.stamp;
 
-    // Mensagem imagem para sincronizar a frente
-    sensor_msgs::Image msg_rgb2 = *msg_rgb;
-    msg_rgb2.header.stamp = msg_cor.header.stamp;
+//    // Mensagem imagem para sincronizar a frente
+//    sensor_msgs::Image msg_rgb2 = *msg_rgb;
+//    msg_rgb2.header.stamp = msg_cor.header.stamp;
 
-    // Publicando tudo junto
-    pub_cloud.publish(msg_odo2);
-    pub.publish(msg_cor);
-    pub_img.publish(msg_rgb2);
+//    // Publicando tudo junto
+//    pub_cloud.publish(msg_odo2);
+//    pub.publish(msg_cor);
+//    pub_img.publish(msg_rgb2);
 
-    //    tempo(t_init, t_fim);
+//    //    tempo(t_init, t_fim);
 
-    nuvem_colorida->clear();
+//    nuvem_colorida->clear();
 }
 
 int main(int argc, char **argv)
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
     pub_img   = nh.advertise<sensor_msgs::Image>("/astra_rgb", 10);
 
     message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw", 10);
-    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/points" , 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> depth_sub(nh, "/camera/depth/points" , 10);
     message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"            , 10);
     Synchronizer<syncPolicy> sync(syncPolicy(10), rgb_sub, depth_sub, subodo);
     sync.registerCallback(boost::bind(&callback, _1, _2, _3));

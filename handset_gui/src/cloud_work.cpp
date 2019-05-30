@@ -184,7 +184,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     // Transformando pela odometria aqui para caso o ICP nao ache soluçao
 //    transformPointCloud(*src, *src, T);
 
-    Eigen::Matrix4f T_icp = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f T_icp = T;
 
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
@@ -200,7 +200,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
 //    icp.setRANSACIterations(300);
 
     PointCloud<PointT> final2;
-    icp.align(final2);
+    icp.align(final2, T);
 
     // Inicia com a transformacao da odometria, se conseguirem vencer toma novo valor
 //    T_icp = T;
@@ -218,15 +218,18 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
 
-        // Transformacao atual em forma matricial
-        Eigen::Matrix4f T_atual = qt2T(rot, offset);
+        // Transformacao atual em forma matricial e calculos relativos da zed
+        T_zed_atual = qt2T(rot, offset);
+        T_zed_rel   = T_zed_anterior.inverse()*T_zed_atual;
+        T_chute_icp = T_corrigida*T_zed_rel;
+        // Acumular com otimizacao do ICP
         if(mutex_acumulacao == 0){
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-            transformPointCloud(*parcial, *parcial, T_atual);
-            T_icp = this->icp(parcial, acumulada_parcial_anterior, T_atual);
-            transformPointCloud(*parcial, *parcial, T_icp);
+//            transformPointCloud(*parcial, *parcial, T_atual);
+            T_corrigida = this->icp(parcial, acumulada_parcial_anterior, T_chute_icp);
+            transformPointCloud(*parcial, *parcial, T_chute_icp);
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
             *acumulada_parcial_anterior = *parcial;
@@ -242,6 +245,11 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
         *acumulada_parcial_anterior = *parcial;
         // Primeira transformacao vinda da odometria -> converter matriz 4x4
         T_icp = qt2T(rot, offset);
+        // Ajustando transformadas para calculo de posicao da nuvem otimizado
+        T_zed_atual = qt2T(rot, offset);
+        T_zed_anterior = T_zed_atual;
+        T_zed_rel = T_zed_anterior.inverse()*T_zed_atual;
+        T_corrigida = T_zed_atual; T_chute_icp = T_zed_atual;
         // Podemos dizer que nao e mais primeira vez, chaveia a variavel
         set_primeira_vez(false);
     }

@@ -44,10 +44,6 @@ void Cloud_Work::init(){
     ros::start();
     ros::NodeHandle nh_;
 
-    // Por garantia iniciar aqui tambem
-    set_inicio_acumulacao(false); realizar_acumulacao = false;
-    set_primeira_vez(true);
-
     // Inicia nuvens globais
     acumulada_parcial              = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
     acumulada_parcial_anterior     = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
@@ -75,6 +71,10 @@ void Cloud_Work::init(){
 
     // Inicio do contador de imagens capturadas
     contador_imagens = 0;
+
+    // Por garantia iniciar aqui tambem
+    set_inicio_acumulacao(false);
+    set_primeira_vez(true);
 
     // Quantas nuvens acumular a cada captura
     n_nuvens_instantaneas = 2; // Inicia aqui, mas vai pegar do GUI
@@ -170,83 +170,45 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
                                 Eigen::Matrix4f T){
     ROS_INFO("Entrando no ICP");
     // Reduzindo complexidade das nuvens
-    PointCloud<PointXYZ>::Ptr temp_src (new PointCloud<PointXYZ>());
-    PointCloud<PointXYZ>::Ptr temp_tgt (new PointCloud<PointXYZ>());
-    PointCloud<PointNormal>::Ptr temp_src_normals (new PointCloud<PointNormal>());
-    PointCloud<PointNormal>::Ptr temp_tgt_normals (new PointCloud<PointNormal>());
+    PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
+    PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
 
-    // Threshold no score do ICP para dizer se foi boa a transformacao
-    double score_thresh = 0.005;
+    *temp_src = *src; *temp_tgt = *tgt;
 
-    // Pega somente os pontos sem cores, tentativa de nao influenciar alinhamento com calibracao de
-    // cores errada nas features
-    removeColorFromPoints(src, temp_src);
-    removeColorFromPoints(tgt, temp_tgt);
-
-    float leaf_size = 0.008;
+    float leaf_size = 0.01;
     filter_grid(temp_src, leaf_size);
     filter_grid(temp_tgt, leaf_size);
 
 //    pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_filtrada.ply", *temp_tgt);
 
-    Eigen::Matrix4f T_icp;
+    // Transformando pela odometria aqui para caso o ICP nao ache soluçao
+//    transformPointCloud(*src, *src, T);
 
-    /// ICP COM NORMAIS ///
-    calculateNormalsAndConcatenate(temp_src, temp_src_normals, 15);
-    calculateNormalsAndConcatenate(temp_tgt, temp_tgt_normals, 15);
-    // Cria otimizador ICP
-    pcl::IterativeClosestPointWithNormals<PointNormal, PointNormal> icp;
-    icp.setUseReciprocalCorrespondences(true);
-    icp.setInputTarget(temp_tgt_normals);
-    icp.setInputSource(temp_src_normals);
-    icp.setMaximumIterations(200); // Chute inicial bom 10-100
-    icp.setTransformationEpsilon(1*1e-9);
-    icp.setEuclideanFitnessEpsilon(1*1e-7);
-    icp.setMaxCorrespondenceDistance(0.1);
-    //        icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-    icp.setRANSACIterations(300);
-
-    PointCloud<PointNormal> final;
-    icp.align(final, T);
+    Eigen::Matrix4f T_icp = Eigen::Matrix4f::Identity();
 
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
-    pcl::IterativeClosestPoint<PointXYZ, PointXYZ> registration;
-    registration.setUseReciprocalCorrespondences(true);
-    registration.setInputTarget(temp_tgt);
-    registration.setInputSource(temp_src);
-    registration.setMaximumIterations(200); // Chute inicial bom 10-100
-    registration.setTransformationEpsilon(1*1e-9);
-    registration.setEuclideanFitnessEpsilon(1*1e-7);
-    registration.setMaxCorrespondenceDistance(0.1);
-    //        registration.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-    registration.setRANSACIterations(300);
+    pcl::IterativeClosestPoint<PointT, PointT> icp;
+    icp.setUseReciprocalCorrespondences(true);
+    icp.setInputTarget(temp_tgt);
+    icp.setInputSource(temp_src);
+    icp.setMaximumIterations(500); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-10);
+    icp.setEuclideanFitnessEpsilon(1*1e-12);
+    icp.setMaxCorrespondenceDistance(0.1);
+//    icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
+//    icp.setRANSACIterations(300);
 
-    PointCloud<PointXYZ> final2;
-    registration.align(final2, T);
-
-    float score_icpn = 0, score_icp = 0;
-    if(registration.hasConverged())
-        score_icp = registration.getFitnessScore();
-    if(icp.hasConverged())
-        score_icpn = icp.getFitnessScore();
+    PointCloud<PointT> final2;
+    icp.align(final2);
 
     // Inicia com a transformacao da odometria, se conseguirem vencer toma novo valor
-    T_icp = T;
-
-    if(score_icpn > score_icp && icp.getFitnessScore() > score_thresh){
-        ROS_INFO("Acumulando com ICPN com score %.4f", icp.getFitnessScore());
+//    T_icp = T;
+//    transformPointCloud(*src, *src, T.inverse()); // Chegou aqui entao pode trazer de volta para ser corrigido por ICP
+    if(icp.hasConverged())
         T_icp = icp.getFinalTransformation();
-    } else if(score_icp > score_icpn && registration.getFitnessScore() > score_thresh) {
-        ROS_INFO("Acumulando com ICP  com score %.4f", registration.getFitnessScore());
-        T_icp = registration.getFinalTransformation();
-    } else if(icp.getFitnessScore() < score_thresh && registration.getFitnessScore() < score_thresh)
-        ROS_INFO("Otimizacao irrelevante, seguindo com dados de odometria originais.");
 
-    if(score_icp == 0 && score_icpn == 0)
-        T_icp = T; // Mantem a transformacao anterior da ZED
-
-    temp_src->clear(); temp_tgt->clear(); temp_src_normals->clear(); temp_tgt_normals->clear();
+    temp_src->clear(); temp_tgt->clear();
 
     return T_icp;
 }
@@ -262,8 +224,8 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-//            transformPointCloud(*parcial, *parcial, T_atual);
-            T_icp = this->icp(parcial, acumulada_global, T_atual);
+            transformPointCloud(*parcial, *parcial, T_atual);
+            T_icp = this->icp(parcial, acumulada_parcial_anterior, T_atual);
             transformPointCloud(*parcial, *parcial, T_icp);
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia

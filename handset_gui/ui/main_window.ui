@@ -34,7 +34,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -78,7 +78,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>1</string>
+          <string>3</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -201,6 +201,11 @@
          <string>Online</string>
         </property>
        </widget>
+      </widget>
+      <widget class="QWidget" name="tab_registra">
+       <attribute name="title">
+        <string>Page</string>
+       </attribute>
       </widget>
      </widget>
     </item>

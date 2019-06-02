@@ -184,7 +184,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     // Transformando pela odometria aqui para caso o ICP nao ache soluçao
 //    transformPointCloud(*src, *src, T);
 
-    Eigen::Matrix4f T_icp = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f T_icp;
 
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
@@ -200,7 +200,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
 //    icp.setRANSACIterations(300);
 
     PointCloud<PointT> final2;
-    icp.align(final2);
+    icp.align(final2, T);
 
     // Inicia com a transformacao da odometria, se conseguirem vencer toma novo valor
 //    T_icp = T;
@@ -218,21 +218,25 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
 
-        // Transformacao atual em forma matricial
-        Eigen::Matrix4f T_atual = qt2T(rot, offset);
+        // Transformacao atual em forma matricial e calculos relativos da zed
+        T_zed_atual = qt2T(rot, offset);
+        T_zed_rel   = T_zed_anterior.inverse()*T_zed_atual;
+        T_chute_icp = T_corrigida*T_zed_rel;
+        // Acumular com otimizacao do ICP
         if(mutex_acumulacao == 0){
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-            transformPointCloud(*parcial, *parcial, T_atual);
-            T_icp = this->icp(parcial, acumulada_parcial_anterior, T_atual);
-            transformPointCloud(*parcial, *parcial, T_icp);
+            // transformPointCloud(*parcial, *parcial, T_atual);
+            T_corrigida = this->icp(parcial, acumulada_parcial_anterior, T_chute_icp);
+            transformPointCloud(*parcial, *parcial, T_corrigida);
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
             *acumulada_parcial_anterior = *parcial;
             // Liberar mutex e ver o resultado da acumulacao no rviz
             mutex_acumulacao = 0;
         }
+        T_zed_anterior = T_zed_atual; // Para a proxima iteracao
 
     } else {
         // Transformar SEMPRE para a referencia dos espaços -> primeira odometria capturada
@@ -242,6 +246,11 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
         *acumulada_parcial_anterior = *parcial;
         // Primeira transformacao vinda da odometria -> converter matriz 4x4
         T_icp = qt2T(rot, offset);
+        // Ajustando transformadas para calculo de posicao da nuvem otimizado
+        T_zed_atual = qt2T(rot, offset);
+        T_zed_anterior = T_zed_atual;
+        T_zed_rel = T_zed_anterior.inverse()*T_zed_atual;
+        T_corrigida = T_zed_atual; T_chute_icp = T_zed_atual;
         // Podemos dizer que nao e mais primeira vez, chaveia a variavel
         set_primeira_vez(false);
     }
@@ -297,13 +306,13 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Quaternion e translaçao que o ICP calculou -> melhor posicao para a camera
         Eigen::Matrix3f rot_icp;
-        Eigen::Matrix4f T_icp_ = T_icp.inverse();
-        rot_icp << T_icp_(0, 0), T_icp_(0, 1), T_icp_(0, 2),
-                   T_icp_(1, 0), T_icp_(1, 1), T_icp_(1, 2),
-                   T_icp_(2, 0), T_icp_(2, 1), T_icp_(2, 2);
+        Eigen::Matrix4f T_corrigida_ = T_corrigida.inverse();
+        rot_icp << T_corrigida_(0, 0), T_corrigida_(0, 1), T_corrigida_(0, 2),
+                   T_corrigida_(1, 0), T_corrigida_(1, 1), T_corrigida_(1, 2),
+                   T_corrigida_(2, 0), T_corrigida_(2, 1), T_corrigida_(2, 2);
         Eigen::Quaternion<float> q_icp(rot_icp);
         Eigen::Vector3f t_icp;
-        t_icp << T_icp_(0, 3), T_icp_(1, 3), T_icp_(2, 3);
+        t_icp << T_corrigida_(0, 3), T_corrigida_(1, 3), T_corrigida_(2, 3);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){

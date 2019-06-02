@@ -38,6 +38,11 @@
 #include <csignal>
 #include <ctime>
 
+#include <vtkRenderWidget.h>
+#include <vtkRenderWindow.h>
+#include <QVTKWidget.h>
+#include <vtkAbstractWidget.h>
+
 /*****************************************************************************
 ** Namespace
 *****************************************************************************/
@@ -76,6 +81,8 @@ private:
     Ui::MainWindowDesign ui;
     QNode qnode;
     Cloud_Work cw;
+
+    QVTKWidget widget;
 
     bool controle_gravacao; // Se esta gravando ou nao para mudar botao e mexer com o processo
 };

@@ -155,6 +155,9 @@ private:
     PointCloud<PointT>::Ptr temp_nvm;
     // Matriz de transformacao para a aproximacao ICP
     Eigen::Matrix4f T_icp;
+    // Transformacoes para calculo de movimento relativo e otimizacao do chute inicial do ICP
+    Eigen::Matrix4f T_zed_anterior, T_zed_atual, T_zed_rel;
+    Eigen::Matrix4f T_corrigida, T_chute_icp;
     // Publicadores para nuvem parcial e total;
     ros::Publisher pub_global;
     ros::Publisher pub_parcial;

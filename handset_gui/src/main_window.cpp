@@ -44,6 +44,9 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
 
+
+    ui.hboxLayout->addWidget(widget);
+
     qnode.init();
 
     // Inicia a classe que trabalha as nuvens, principal do programa

@@ -56,9 +56,15 @@ void RegistraNuvem::init(){
     ros::Rate rate(2);
     while(ros::ok()){
         rate.sleep();
+        publicar_nuvens();
     }
 
     ros::shutdown();
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::criaMatriz(){
+    T << R, t,
+         0, 0, 0, 1;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::publicar_nuvens(){
@@ -102,6 +108,26 @@ void RegistraNuvem::set_nuvem_fonte(string nome){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_translacao(float tx, float ty, float tz){
+    // Recebe em Centimetros, converte pra METROS
+    t << tx/100.0, ty/100.0, tz/100.0;
+    criaMatriz();
 
+    src_temp->clear();
+    transformPointCloudWithNormals(*src, *src_temp, T);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
+    // Recebe em GRAUS, converte pra radianos
+    rx = deg2rad(rx);
+    ry = deg2rad(ry);
+    rz = deg2rad(rz);
+
+    R = Eigen::AngleAxisf(rx, Eigen::Vector3f::UnitX()) *
+        Eigen::AngleAxisf(ry, Eigen::Vector3f::UnitY()) *
+        Eigen::AngleAxisf(rz, Eigen::Vector3f::UnitZ());
+    criaMatriz();
+
+    src_temp->clear();
+    transformPointCloudWithNormals(*src, *src_temp, T);
 }
 } // fim do namespace handset_gui

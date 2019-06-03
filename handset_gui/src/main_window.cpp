@@ -28,14 +28,10 @@ using namespace std;
 *****************************************************************************/
 
 MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
-    : QMainWindow(parent), qnode(argc,argv), cw(argc, argv, &mutex){
+    : QMainWindow(parent), qnode(argc,argv), cw(argc, argv, &mutex), rn(argc, argv){
 
     // Inicia UI
     ui.setupUi(this); // Calling this incidentally connects all ui's triggers to on_...() callbacks in this class.
-
-    // Metodos para conectar QT SIGNALS e SLOTS nas funcoes das classes
-    //    QObject::connect(ui.actionAbout_Qt, SIGNAL(triggered(bool)), qApp, SLOT(aboutQt())); // qApp is a global variable for the application
-    //    QObject::connect(&qnode, SIGNAL(rosShutdown()), this, SLOT(close()));
 
     // Ajustes da UI
     setWindowIcon(QIcon(":/images/icon.png"));
@@ -44,15 +40,37 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
 
-
-    ui.hboxLayout->addWidget(widget);
-
     qnode.init();
 
     // Inicia a classe que trabalha as nuvens, principal do programa
     cw.set_inicio_acumulacao(false);
     cw.set_primeira_vez(true);
     cw.set_inicio_acumulacao(ui.lineEdit_tempo->text().toFloat()); // Tempo default para garantir
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ui.checkBox_icp->setChecked(true); // Checkbox do icp começa a principio valendo
+    // Ajustando Sliders com limites e valores iniciais
+    ui.horizontalSlider_x->setMinimum(-(ui.lineEdit_limitex->text().toFloat()));
+    ui.horizontalSlider_x->setMaximum(ui.lineEdit_limitex->text().toFloat());
+    ui.horizontalSlider_x->setValue(0);
+    ui.horizontalSlider_y->setMinimum(-(ui.lineEdit_limitey->text().toFloat()));
+    ui.horizontalSlider_y->setMaximum(ui.lineEdit_limitey->text().toFloat());
+    ui.horizontalSlider_y->setValue(0);
+    ui.horizontalSlider_z->setMinimum(-(ui.lineEdit_limitez->text().toFloat()));
+    ui.horizontalSlider_z->setMaximum(ui.lineEdit_limitez->text().toFloat());
+    ui.horizontalSlider_z->setValue(0);
+    // Ajustando Dials com limites e valores iniciais -> GRAUS AQUI
+    ui.dial_x->setMinimum(-180);
+    ui.dial_x->setMaximum(180);
+    ui.dial_x->setValue(0);
+    ui.dial_y->setMinimum(-180);
+    ui.dial_y->setMaximum(180);
+    ui.dial_y->setValue(0);
+    ui.dial_z->setMinimum(-180);
+    ui.dial_z->setMaximum(180);
+    ui.dial_z->setValue(0);
+
 }
 
 MainWindow::~MainWindow() {}
@@ -112,6 +130,33 @@ void MainWindow::on_pushButton_encerrar_clicked(){
 void MainWindow::on_pushButton_reiniciar_clicked(){
     cw.reiniciar();
 }
+
+/// Botao para pegar arquivo da nuvem ALVO
+void MainWindow::on_pushButton_nuvemalvo_clicked(){
+    QString nome_alvo;
+    nome_alvo = QFileDialog::getOpenFileName(this, "Nuvem Alvo", "", "PLY Files (*.ply)");
+    ui.lineEdit_nuvemalvo->setText(nome_alvo);
+}
+
+/// Botao para arquivo NVM de cameras da nuvem ALVO
+void MainWindow::on_pushButton_camerasalvo_clicked(){
+    QString cameras_alvo = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Alvo", "", "NVM Files (*.nvm)");
+    ui.lineEdit_camerasalvo->setText(cameras_alvo);
+}
+
+/// Botao para pegar arquivo da nuvem FONTE
+void MainWindow::on_pushButton_nuvemfonte_clicked(){
+    QString nome_fonte;
+    nome_fonte = QFileDialog::getOpenFileName(this, "Nuvem Fonte", "", "PLY Files (*.ply)");
+    ui.lineEdit_nuvemfonte->setText(nome_fonte);
+}
+
+/// Botao para arquivo NVM de cameras da nuvem ALVO
+void MainWindow::on_pushButton_camerasfonte_clicked(){
+    QString cameras_fonte = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Fonte", "", "NVM Files (*.nvm)");
+    ui.lineEdit_camerasfonte->setText(cameras_fonte);
+}
+
 
 }  // namespace handset_gui
 

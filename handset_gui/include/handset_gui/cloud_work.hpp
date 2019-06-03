@@ -102,7 +102,6 @@ public:
     Cloud_Work(int argc, char** argv, QMutex*);
     virtual ~Cloud_Work();
     void init();
-    //  void run_class();
     void set_inicio_acumulacao(bool flag);
     void set_primeira_vez(bool flag);
     void set_n_nuvens_aquisicao(float t);

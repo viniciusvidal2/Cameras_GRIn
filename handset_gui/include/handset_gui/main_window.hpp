@@ -11,6 +11,7 @@
 /*****************************************************************************
 ** Includes
 *****************************************************************************/
+#include "registra_nuvem.hpp"
 #include "cloud_work.hpp"
 #include <QtGui/QMainWindow>
 #include "ui_main_window.h"
@@ -70,6 +71,7 @@ public:
 public Q_SLOTS:
 
 private Q_SLOTS:
+    /// ABA 1 ///
     void on_pushButton_inicio_clicked();
     void on_pushButton_capturar_clicked();
     void on_pushButton_gravardados_clicked();
@@ -77,12 +79,17 @@ private Q_SLOTS:
     void on_pushButton_encerrar_clicked();
     void on_pushButton_reiniciar_clicked();
 
+    /// ABA 2 ///
+    void on_pushButton_nuvemalvo_clicked();
+    void on_pushButton_nuvemfonte_clicked();
+    void on_pushButton_camerasalvo_clicked();
+    void on_pushButton_camerasfonte_clicked();
+
 private:
     Ui::MainWindowDesign ui;
     QNode qnode;
     Cloud_Work cw;
-
-    QVTKWidget widget;
+    RegistraNuvem rn;
 
     bool controle_gravacao; // Se esta gravando ou nao para mudar botao e mexer com o processo
 };

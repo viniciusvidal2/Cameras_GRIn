@@ -1,0 +1,120 @@
+#ifndef REGISTRA_NUVEM_H
+#define REGISTRA_NUVEM_H
+
+#endif // REGISTRA_NUVEM_H
+
+#include <sensor_msgs/PointCloud2.h>
+
+#include <image_transport/image_transport.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include "opencv2/videoio.hpp"
+
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/conditional_removal.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/registration/icp.h>
+#include <pcl/io/ascii_io.h>
+#include <pcl/io/vtk_lib_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/geometry/mesh_io.h>
+#include <pcl/PolygonMesh.h>
+#include <pcl/surface/gp3.h>
+#include <pcl/surface/poisson.h>
+#include <pcl/surface/mls.h>
+#include <pcl/surface/texture_mapping.h>
+
+#include <tf/tf.h>
+#include <tf/transform_listener.h>
+#include <tf_conversions/tf_eigen.h>
+#include <ctime>
+
+#include <string>
+#include <iostream>
+#include <ros/ros.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <vector>
+#include <string>
+#include <fstream>
+#include <sstream>
+#include <stdio.h>
+#include <cstdlib>
+#include <csignal>
+#include <ctime>
+#include <math.h>
+#include <qobject.h>
+#include <QThread>
+#include <QMutex>
+
+#include <Eigen/Geometry>
+#include <Eigen/Dense>
+#include <Eigen/Core>
+
+using namespace pcl;
+using namespace pcl::io;
+using namespace pcl::geometry;
+using namespace cv;
+using namespace std;
+
+namespace handset_gui {
+
+class RegistraNuvem : public QThread
+{
+    Q_OBJECT
+public:
+    /// Definicoes ///
+    typedef PointXYZRGBNormal PointT;
+
+    RegistraNuvem(int argc, char **argv);
+    virtual ~RegistraNuvem();
+    void init();
+
+    void set_nuvem_fonte(std::string nome);
+    void set_nuvem_alvo(std::string nome);
+    void set_arquivo_cameras_fonte(std::string nome);
+    void set_arquivo_cameras_alvo(std::string nome);
+
+    void set_translacao(float tx, float ty, float tz);
+    void set_rotacao(float rx, float ry, float rz);
+
+    void publicar_nuvens();
+
+private:
+    /// Metodos ///
+    void criaMatriz();
+
+    /// Variaveis ///
+    // Inicio da classe
+    int init_argc;
+    char** init_argv;
+    // Nuvens lidas dos arquivos
+    PointCloud<PointT>::Ptr src;
+    PointCloud<PointT>::Ptr src_temp;
+    PointCloud<PointT>::Ptr tgt;
+    PointCloud<PointT>::Ptr acumulada;
+    // Nomes das pastas e arquivos
+    std::string pasta_src;
+    std::string arquivo_src;
+    std::string arquivo_tgt;
+    // Publicadores ROS
+    ros::Publisher pub_srctemp;
+    ros::Publisher pub_tgt;
+    ros::Publisher pub_acumulada;
+    // Transformacao das nuvens
+    Eigen::Matrix4f T;
+    Eigen::Vector3f t;
+    Eigen::Matrix3f R;
+};
+
+}

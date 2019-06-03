@@ -204,8 +204,588 @@
       </widget>
       <widget class="QWidget" name="tab_registra">
        <attribute name="title">
-        <string>Page</string>
+        <string>Registro de nuvens</string>
        </attribute>
+       <widget class="QWidget" name="horizontalLayoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>20</y>
+          <width>891</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <widget class="QPushButton" name="pushButton_nuvemalvo">
+           <property name="text">
+            <string>Nuvem Alvo</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_nuvemalvo">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="horizontalLayoutWidget_2">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>60</y>
+          <width>891</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QPushButton" name="pushButton_camerasalvo">
+           <property name="text">
+            <string>Cameras Alvo</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_camerasalvo">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="horizontalLayoutWidget_3">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>100</y>
+          <width>891</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QPushButton" name="pushButton_nuvemfonte">
+           <property name="text">
+            <string>Nuvem a ajustar</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_nuvemfonte">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="horizontalLayoutWidget_4">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>140</y>
+          <width>891</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <item>
+          <widget class="QPushButton" name="pushButton_camerasfonte">
+           <property name="text">
+            <string>Cameras a ajustar</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit_camerasfonte">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QPushButton" name="pushButton_iniciararquivos">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>190</y>
+          <width>291</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <italic>true</italic>
+         </font>
+        </property>
+        <property name="cursor">
+         <cursorShape>OpenHandCursor</cursorShape>
+        </property>
+        <property name="text">
+         <string>Carregar e comecar o processo!</string>
+        </property>
+        <property name="default">
+         <bool>true</bool>
+        </property>
+        <property name="flat">
+         <bool>false</bool>
+        </property>
+       </widget>
+       <widget class="QGroupBox" name="groupBox">
+        <property name="geometry">
+         <rect>
+          <x>30</x>
+          <y>280</y>
+          <width>691</width>
+          <height>341</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Ajustes Iniciais sobre pose da nuvem FONTE</string>
+        </property>
+        <property name="checkable">
+         <bool>false</bool>
+        </property>
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="geometry">
+          <rect>
+           <x>130</x>
+           <y>30</y>
+           <width>131</width>
+           <height>121</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Rotacao em X</string>
+         </property>
+         <widget class="QDial" name="dial_x">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>131</width>
+            <height>91</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QGroupBox" name="groupBox_5">
+         <property name="geometry">
+          <rect>
+           <x>280</x>
+           <y>30</y>
+           <width>131</width>
+           <height>121</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Rotacao em Y</string>
+         </property>
+         <widget class="QDial" name="dial_y">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>131</width>
+            <height>91</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QGroupBox" name="groupBox_7">
+         <property name="geometry">
+          <rect>
+           <x>430</x>
+           <y>30</y>
+           <width>131</width>
+           <height>121</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Rotacao em Z</string>
+         </property>
+         <widget class="QDial" name="dial_z">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>20</y>
+            <width>131</width>
+            <height>91</height>
+           </rect>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QGroupBox" name="groupBox_4">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>180</y>
+           <width>671</width>
+           <height>161</height>
+          </rect>
+         </property>
+         <property name="title">
+          <string>Translacao em X, Y e Z</string>
+         </property>
+         <property name="flat">
+          <bool>true</bool>
+         </property>
+         <widget class="QSlider" name="horizontalSlider_x">
+          <property name="geometry">
+           <rect>
+            <x>50</x>
+            <y>60</y>
+            <width>561</width>
+            <height>21</height>
+           </rect>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_limitex">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>60</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>2</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_limitey">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>90</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>2</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_limitez">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>120</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>2</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QSlider" name="horizontalSlider_y">
+          <property name="geometry">
+           <rect>
+            <x>50</x>
+            <y>90</y>
+            <width>561</width>
+            <height>21</height>
+           </rect>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+         <widget class="QSlider" name="horizontalSlider_z">
+          <property name="geometry">
+           <rect>
+            <x>50</x>
+            <y>120</y>
+            <width>561</width>
+            <height>21</height>
+           </rect>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_X">
+          <property name="geometry">
+           <rect>
+            <x>610</x>
+            <y>60</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>X</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_Y">
+          <property name="geometry">
+           <rect>
+            <x>610</x>
+            <y>90</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Y</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QLineEdit" name="lineEdit_Z">
+          <property name="geometry">
+           <rect>
+            <x>610</x>
+            <y>120</y>
+            <width>41</width>
+            <height>25</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Z</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label">
+          <property name="geometry">
+           <rect>
+            <x>10</x>
+            <y>30</y>
+            <width>67</width>
+            <height>17</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Limites</string>
+          </property>
+         </widget>
+         <widget class="QLabel" name="label_2">
+          <property name="geometry">
+           <rect>
+            <x>590</x>
+            <y>20</y>
+            <width>81</width>
+            <height>31</height>
+           </rect>
+          </property>
+          <property name="text">
+           <string>Valor Deslocado</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </widget>
+        <widget class="QLineEdit" name="lineEdit_rotacaox">
+         <property name="geometry">
+          <rect>
+           <x>160</x>
+           <y>150</y>
+           <width>71</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="lineEdit_rotacaoy">
+         <property name="geometry">
+          <rect>
+           <x>310</x>
+           <y>150</y>
+           <width>71</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="lineEdit_rotacaoz">
+         <property name="geometry">
+          <rect>
+           <x>460</x>
+           <y>150</y>
+           <width>71</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>0</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_3">
+         <property name="geometry">
+          <rect>
+           <x>230</x>
+           <y>150</y>
+           <width>67</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Graus</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_4">
+         <property name="geometry">
+          <rect>
+           <x>380</x>
+           <y>150</y>
+           <width>67</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Graus</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_5">
+         <property name="geometry">
+          <rect>
+           <x>530</x>
+           <y>150</y>
+           <width>67</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Graus</string>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_2">
+        <property name="geometry">
+         <rect>
+          <x>740</x>
+          <y>280</y>
+          <width>291</width>
+          <height>301</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>Registro final das nuvens</string>
+        </property>
+        <widget class="QCheckBox" name="checkBox_icp">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>30</y>
+           <width>171</width>
+           <height>23</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Usar ICP</string>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_registrar">
+         <property name="geometry">
+          <rect>
+           <x>10</x>
+           <y>60</y>
+           <width>141</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Registrar nuvens</string>
+         </property>
+        </widget>
+        <widget class="QLineEdit" name="lineEdit">
+         <property name="geometry">
+          <rect>
+           <x>30</x>
+           <y>140</y>
+           <width>241</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>alinhamento_final</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+        <widget class="QPushButton" name="pushButton_salvarfinal">
+         <property name="geometry">
+          <rect>
+           <x>30</x>
+           <y>180</y>
+           <width>241</width>
+           <height>25</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Salvar arquivos</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_6">
+         <property name="geometry">
+          <rect>
+           <x>30</x>
+           <y>90</y>
+           <width>241</width>
+           <height>41</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Nome dos arquivos finais a serem salvos na pasta da nuvem fonte:</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
+       <zorder>horizontalLayoutWidget</zorder>
+       <zorder>horizontalLayoutWidget_2</zorder>
+       <zorder>horizontalLayoutWidget_3</zorder>
+       <zorder>horizontalLayoutWidget_4</zorder>
+       <zorder>pushButton_iniciararquivos</zorder>
+       <zorder>groupBox_2</zorder>
+       <zorder>groupBox</zorder>
       </widget>
      </widget>
     </item>

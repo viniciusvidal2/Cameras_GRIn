@@ -131,17 +131,25 @@ void MainWindow::on_pushButton_reiniciar_clicked(){
     cw.reiniciar();
 }
 
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// --------------------------------------------------- ABA2 ----------------------------------------------------------------- ///
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /// Botao para pegar arquivo da nuvem ALVO
 void MainWindow::on_pushButton_nuvemalvo_clicked(){
     QString nome_alvo;
     nome_alvo = QFileDialog::getOpenFileName(this, "Nuvem Alvo", "", "PLY Files (*.ply)");
     ui.lineEdit_nuvemalvo->setText(nome_alvo);
+
+    rn.set_nuvem_alvo(nome_alvo);
 }
 
 /// Botao para arquivo NVM de cameras da nuvem ALVO
 void MainWindow::on_pushButton_camerasalvo_clicked(){
     QString cameras_alvo = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Alvo", "", "NVM Files (*.nvm)");
     ui.lineEdit_camerasalvo->setText(cameras_alvo);
+
+    rn.set_arquivo_cameras_alvo(cameras_alvo);
 }
 
 /// Botao para pegar arquivo da nuvem FONTE
@@ -149,14 +157,82 @@ void MainWindow::on_pushButton_nuvemfonte_clicked(){
     QString nome_fonte;
     nome_fonte = QFileDialog::getOpenFileName(this, "Nuvem Fonte", "", "PLY Files (*.ply)");
     ui.lineEdit_nuvemfonte->setText(nome_fonte);
+
+    rn.set_nuvem_fonte(nome_fonte);
 }
 
 /// Botao para arquivo NVM de cameras da nuvem ALVO
 void MainWindow::on_pushButton_camerasfonte_clicked(){
     QString cameras_fonte = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Fonte", "", "NVM Files (*.nvm)");
     ui.lineEdit_camerasfonte->setText(cameras_fonte);
+
+    rn.set_arquivo_cameras_fonte(cameras_fonte);
 }
 
+/// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada
+void MainWindow::on_pushButton_iniciararquivos_clicked(){
+    rn.set_inicio_processo(true);
+
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/temp_ws/src/handset_gui/resources/tgt_src.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/temp_ws/src/handset_gui/resources/acumulada_ajustada.rviz'");
+}
+
+/// Sliders sao liberados, a nuvem pode ser transformada
+void MainWindow::on_horizontalSlider_x_sliderReleased(){
+    double x = (double)ui.horizontalSlider_x->value();
+    double y = (double)ui.horizontalSlider_y->value();
+    double z = (double)ui.horizontalSlider_z->value();
+
+    ui.lineEdit_X->setText(QString::number(x));
+
+    rn.set_translacao(x, y, z);
+}
+void MainWindow::on_horizontalSlider_y_sliderReleased(){
+    double x = (double)ui.horizontalSlider_x->value();
+    double y = (double)ui.horizontalSlider_y->value();
+    double z = (double)ui.horizontalSlider_z->value();
+
+    ui.lineEdit_Y->setText(QString::number(y));
+
+    rn.set_translacao(x, y, z);
+}
+void MainWindow::on_horizontalSlider_z_sliderReleased(){
+    double x = (double)ui.horizontalSlider_x->value();
+    double y = (double)ui.horizontalSlider_y->value();
+    double z = (double)ui.horizontalSlider_z->value();
+
+    ui.lineEdit_Z->setText(QString::number(z));
+
+    rn.set_translacao(x, y, z);
+}
+
+void MainWindow::on_dial_x_sliderReleased(){
+    double x = (double)ui.dial_x->value();
+    double y = (double)ui.dial_y->value();
+    double z = (double)ui.dial_z->value();
+
+    ui.lineEdit_rotacaox->setText(QString::number(x));
+
+    rn.set_rotacao(x, y, z);
+}
+void MainWindow::on_dial_y_sliderReleased(){
+    double x = (double)ui.dial_x->value();
+    double y = (double)ui.dial_y->value();
+    double z = (double)ui.dial_z->value();
+
+    ui.lineEdit_rotacaoy->setText(QString::number(y));
+
+    rn.set_rotacao(x, y, z);
+}
+void MainWindow::on_dial_z_sliderReleased(){
+    double x = (double)ui.dial_x->value();
+    double y = (double)ui.dial_y->value();
+    double z = (double)ui.dial_z->value();
+
+    ui.lineEdit_rotacaoz->setText(QString::number(z));
+
+    rn.set_rotacao(x, y, z);
+}
 
 }  // namespace handset_gui
 

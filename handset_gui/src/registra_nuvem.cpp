@@ -29,8 +29,8 @@ RegistraNuvem::~RegistraNuvem(){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::init(){
-    ros::init(init_argc,init_argv,"RegistraNuvem");
-    if ( ! ros::master::check() )  {
+    ros::init(init_argc, init_argv, "RegistraNuvem");
+    if ( !ros::master::check() )  {
         cout << "check ros master not good" << endl;
         return;
     }
@@ -49,9 +49,9 @@ void RegistraNuvem::init(){
     t << 0.0, 0.0, 0.0;
 
     // Publicadores (a principio)
-    pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("\nuvem_fonte_temp"    , 1);
-    pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("\nuvem_alvo_temp"     , 1);
-    pub_acumulada = nh_.advertise<sensor_msgs::PointCloud2>("\nuvem_acumulada_temp", 1);
+    pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_fonte_temp"    , 1);
+    pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_alvo_temp"     , 1);
+    pub_acumulada = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_acumulada_temp", 1);
 
     ros::Rate rate(2);
     while(ros::ok()){
@@ -62,6 +62,10 @@ void RegistraNuvem::init(){
     ros::shutdown();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_inicio_processo(bool inicio){
+    processando = inicio;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::criaMatriz(){
     T << R, t,
          0, 0, 0, 1;
@@ -70,41 +74,51 @@ void RegistraNuvem::criaMatriz(){
 void RegistraNuvem::publicar_nuvens(){
     sensor_msgs::PointCloud2 src_temp_msg, tgt_msg, acumulada_msg;
     std::string frame = "registro";
-    if(src_temp->size() > 0){
-        toROSMsg(*src_temp, src_temp_msg);
-        src_temp_msg.header.frame_id = frame;
-        pub_srctemp.publish(src_temp_msg);
-    }
-    if(tgt->size() > 0){
-        toROSMsg(*tgt, tgt_msg);
-        tgt.header.frame_id = frame;
-        pub_tgt.publish(tgt_msg);
-    }
-    if(acumulada_msg->size() > 0){
-        toROSMsg(*acumulada, acumulada_msg);
-        acumulada_msg.header.frame_id = frame;
-        pub_acumulada.publish(acumulada_msg);
+    if(processando){
+        if(src_temp->size() > 0){
+            toROSMsg(*src_temp, src_temp_msg);
+            src_temp_msg.header.frame_id = frame;
+            pub_srctemp.publish(src_temp_msg);
+        }
+        if(tgt->size() > 0){
+            toROSMsg(*tgt, tgt_msg);
+            tgt_msg.header.frame_id = frame;
+            pub_tgt.publish(tgt_msg);
+        }
+        if(acumulada->size() > 0){
+            toROSMsg(*acumulada, acumulada_msg);
+            acumulada_msg.header.frame_id = frame;
+            pub_acumulada.publish(acumulada_msg);
+        }
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void RegistraNuvem::set_nuvem_alvo(string nome){
-    arquivo_tgt = nome;
+void RegistraNuvem::set_nuvem_alvo(QString nome){
+    arquivo_tgt = nome.toStdString();
     loadPLYFile(arquivo_tgt, *tgt);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void RegistraNuvem::set_nuvem_fonte(string nome){
-    arquivo_src = nome;
+void RegistraNuvem::set_arquivo_cameras_alvo(QString nome){
+    arquivo_cameras_alvo = nome.toStdString();
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_nuvem_fonte(QString nome){
+    arquivo_src = nome.toStdString();
     loadPLYFile(arquivo_src, *src);
     // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
-    for(int i=arquivo_src.length(); i>0; i--){
-      if (arquivo_src[i] == '/'){
-        pasta_src = arquivo_src.left(i);
+    for(int i=nome.length(); i>0; i--){
+      if (nome[i] == '/'){
+        pasta_src = nome.left(i).toStdString();
         break;
       }
     }
     cout << "\n\n\nA pasta aqui selecionada: " << pasta_src << "\n\n\n";
     // A principio as nuvens sao iguais, depois havera modificacao
     *src_temp = *src;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_arquivo_cameras_fonte(QString nome){
+    arquivo_cameras_fonte = nome.toStdString();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_translacao(float tx, float ty, float tz){

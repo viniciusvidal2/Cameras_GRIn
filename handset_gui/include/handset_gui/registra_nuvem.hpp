@@ -56,6 +56,7 @@
 #include <qobject.h>
 #include <QThread>
 #include <QMutex>
+#include <QString>
 
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
@@ -80,10 +81,12 @@ public:
     virtual ~RegistraNuvem();
     void init();
 
-    void set_nuvem_fonte(std::string nome);
-    void set_nuvem_alvo(std::string nome);
-    void set_arquivo_cameras_fonte(std::string nome);
-    void set_arquivo_cameras_alvo(std::string nome);
+    void set_inicio_processo(bool inicio);
+
+    void set_nuvem_fonte(QString nome);
+    void set_nuvem_alvo(QString nome);
+    void set_arquivo_cameras_fonte(QString nome);
+    void set_arquivo_cameras_alvo(QString nome);
 
     void set_translacao(float tx, float ty, float tz);
     void set_rotacao(float rx, float ry, float rz);
@@ -98,6 +101,8 @@ private:
     // Inicio da classe
     int init_argc;
     char** init_argv;
+    // Flag para comecar a carregar nuvens e processar
+    bool processando;
     // Nuvens lidas dos arquivos
     PointCloud<PointT>::Ptr src;
     PointCloud<PointT>::Ptr src_temp;
@@ -107,6 +112,8 @@ private:
     std::string pasta_src;
     std::string arquivo_src;
     std::string arquivo_tgt;
+    std::string arquivo_cameras_alvo;
+    std::string arquivo_cameras_fonte;
     // Publicadores ROS
     ros::Publisher pub_srctemp;
     ros::Publisher pub_tgt;

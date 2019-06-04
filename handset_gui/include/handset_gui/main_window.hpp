@@ -39,11 +39,6 @@
 #include <csignal>
 #include <ctime>
 
-#include <vtkRenderWidget.h>
-#include <vtkRenderWindow.h>
-#include <QVTKWidget.h>
-#include <vtkAbstractWidget.h>
-
 /*****************************************************************************
 ** Namespace
 *****************************************************************************/
@@ -84,6 +79,14 @@ private Q_SLOTS:
     void on_pushButton_nuvemfonte_clicked();
     void on_pushButton_camerasalvo_clicked();
     void on_pushButton_camerasfonte_clicked();
+    void on_pushButton_iniciararquivos_clicked();
+
+    void on_horizontalSlider_x_sliderReleased();
+    void on_horizontalSlider_y_sliderReleased();
+    void on_horizontalSlider_z_sliderReleased();
+    void on_dial_x_sliderReleased();
+    void on_dial_y_sliderReleased();
+    void on_dial_z_sliderReleased();
 
 private:
     Ui::MainWindowDesign ui;

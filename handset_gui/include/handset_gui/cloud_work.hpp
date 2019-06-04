@@ -9,6 +9,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/CameraInfo.h>
 
 #include <image_transport/image_transport.h>
@@ -115,7 +116,7 @@ public:
 
 private:
     /// Definicoes ///
-    typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2, Odometry> syncPolicy;
+    typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::PointCloud2, Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
     boost::shared_ptr<Sync> sync;
 
@@ -124,9 +125,9 @@ private:
     void filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size); // Overload da funcao para usar no ICP
     void passthrough(PointCloud<PointT>::Ptr cloud, std::string field, float min, float max);
     void removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<PointXYZ>::Ptr out);
-    void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
+    void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image, const sensor_msgs::ImageConstPtr &msg_zed_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem);
+    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem, const sensor_msgs::ImageConstPtr &imagem_zed);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
     void calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2, int K);

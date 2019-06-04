@@ -459,7 +459,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>2</string>
+           <string>200</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -475,7 +475,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>2</string>
+           <string>200</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -491,7 +491,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>2</string>
+           <string>200</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -533,7 +533,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>X</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -549,7 +549,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>Y</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -565,7 +565,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>Z</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -576,12 +576,12 @@
            <rect>
             <x>10</x>
             <y>30</y>
-            <width>67</width>
+            <width>81</width>
             <height>17</height>
            </rect>
           </property>
           <property name="text">
-           <string>Limites</string>
+           <string>Limites (cm)</string>
           </property>
          </widget>
          <widget class="QLabel" name="label_2">

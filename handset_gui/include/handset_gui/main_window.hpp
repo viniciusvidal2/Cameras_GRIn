@@ -88,6 +88,16 @@ private Q_SLOTS:
     void on_dial_y_sliderReleased();
     void on_dial_z_sliderReleased();
 
+    void on_lineEdit_limitex_textEdited(QString s);
+    void on_lineEdit_limitey_textEdited(QString s);
+    void on_lineEdit_limitez_textEdited(QString s);
+    void on_lineEdit_X_textEdited(QString s);
+    void on_lineEdit_Y_textEdited(QString s);
+    void on_lineEdit_Z_textEdited(QString s);
+    void on_lineEdit_rotacaox_textEdited(QString s);
+    void on_lineEdit_rotacaoy_textEdited(QString s);
+    void on_lineEdit_rotacaoz_textEdited(QString s);
+
 private:
     Ui::MainWindowDesign ui;
     QNode qnode;

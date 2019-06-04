@@ -173,8 +173,8 @@ void MainWindow::on_pushButton_camerasfonte_clicked(){
 void MainWindow::on_pushButton_iniciararquivos_clicked(){
     rn.set_inicio_processo(true);
 
-    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/temp_ws/src/handset_gui/resources/tgt_src.rviz'");
-    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/temp_ws/src/handset_gui/resources/acumulada_ajustada.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
 }
 
 /// Sliders sao liberados, a nuvem pode ser transformada
@@ -232,6 +232,96 @@ void MainWindow::on_dial_z_sliderReleased(){
     ui.lineEdit_rotacaoz->setText(QString::number(z));
 
     rn.set_rotacao(x, y, z);
+}
+
+/// Ajustes sobre os limites de translação a partir dos linedits
+void MainWindow::on_lineEdit_limitex_textEdited(QString s){
+    ui.horizontalSlider_x->setMaximum( s.toInt());
+    ui.horizontalSlider_x->setMinimum(-s.toInt());
+}
+void MainWindow::on_lineEdit_limitey_textEdited(QString s){
+    ui.horizontalSlider_y->setMaximum( s.toInt());
+    ui.horizontalSlider_y->setMinimum(-s.toInt());
+}
+void MainWindow::on_lineEdit_limitez_textEdited(QString s){
+    ui.horizontalSlider_z->setMaximum( s.toInt());
+    ui.horizontalSlider_z->setMinimum(-s.toInt());
+}
+
+/// Refinando o valor a partir dos linedits do lado direito
+void MainWindow::on_lineEdit_X_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.horizontalSlider_x->minimum() && valor <= ui.horizontalSlider_x->maximum()){
+        ui.horizontalSlider_x->setValue(valor);
+
+        double x = (double)ui.horizontalSlider_x->value();
+        double y = (double)ui.horizontalSlider_y->value();
+        double z = (double)ui.horizontalSlider_z->value();
+
+        rn.set_translacao(x, y, z);
+    }
+}
+void MainWindow::on_lineEdit_Y_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.horizontalSlider_y->minimum() && valor <= ui.horizontalSlider_y->maximum()){
+        ui.horizontalSlider_y->setValue(valor);
+
+        double x = (double)ui.horizontalSlider_x->value();
+        double y = (double)ui.horizontalSlider_y->value();
+        double z = (double)ui.horizontalSlider_z->value();
+
+        rn.set_translacao(x, y, z);
+    }
+}
+void MainWindow::on_lineEdit_Z_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.horizontalSlider_z->minimum() && valor <= ui.horizontalSlider_z->maximum()){
+        ui.horizontalSlider_z->setValue(valor);
+
+        double x = (double)ui.horizontalSlider_x->value();
+        double y = (double)ui.horizontalSlider_y->value();
+        double z = (double)ui.horizontalSlider_z->value();
+
+        rn.set_translacao(x, y, z);
+    }
+}
+
+/// Refinando o valor a partir dos linedits de rotacao
+void MainWindow::on_lineEdit_rotacaox_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.dial_x->minimum() && valor <= ui.dial_x->maximum()){
+        ui.dial_x->setValue(valor);
+
+        double x = (double)ui.dial_x->value();
+        double y = (double)ui.dial_y->value();
+        double z = (double)ui.dial_z->value();
+
+        rn.set_rotacao(x, y, z);
+    }
+}
+void MainWindow::on_lineEdit_rotacaoy_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.dial_y->minimum() && valor <= ui.dial_y->maximum()){
+        ui.dial_y->setValue(valor);
+
+        double x = (double)ui.dial_x->value();
+        double y = (double)ui.dial_y->value();
+        double z = (double)ui.dial_z->value();
+
+        rn.set_rotacao(x, y, z);
+    }
+}
+void MainWindow::on_lineEdit_rotacaoz_textEdited(QString s){
+    int valor = s.toInt();
+    if(valor >= ui.dial_z->minimum() && valor <= ui.dial_z->maximum()){
+        ui.dial_z->setValue(valor);
+
+        double x = (double)ui.dial_x->value();
+        double y = (double)ui.dial_y->value();
+        double z = (double)ui.dial_z->value();
+
+        rn.set_rotacao(x, y, z);
+    }
 }
 
 }  // namespace handset_gui

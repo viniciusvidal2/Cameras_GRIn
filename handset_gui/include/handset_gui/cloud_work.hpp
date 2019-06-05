@@ -109,6 +109,7 @@ public:
     void salvar_acumulada();
     void set_profundidade_max(float d);
     void reiniciar();
+    Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
 
     QMutex* mutex;
 
@@ -135,7 +136,6 @@ private:
     void saveMesh(std::string nome);
     void triangulate();
     std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
-    Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
 

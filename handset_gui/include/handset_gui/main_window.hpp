@@ -97,6 +97,8 @@ private Q_SLOTS:
     void on_lineEdit_rotacaox_textEdited(QString s);
     void on_lineEdit_rotacaoy_textEdited(QString s);
     void on_lineEdit_rotacaoz_textEdited(QString s);
+    
+    void on_pushButton_registrar_clicked();
 
 private:
     Ui::MainWindowDesign ui;

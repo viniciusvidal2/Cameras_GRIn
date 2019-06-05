@@ -324,5 +324,9 @@ void MainWindow::on_lineEdit_rotacaoz_textEdited(QString s){
     }
 }
 
+/// Botao para registrar as nuvens
+void MainWindow::on_pushButton_registrar_clicked(){
+    rn.registrar_nuvens(ui.checkBox_icp->isChecked());
+}
 }  // namespace handset_gui
 

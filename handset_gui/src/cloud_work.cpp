@@ -383,8 +383,10 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
+    float fzed = 1406.762451171875;
     // Adicionar foco
-    linha = linha + " " + to_string(astra_model.fx());
+//    linha = linha + " " + to_string(astra_model.fx());
+    linha = linha + " " + std::to_string(fzed);
     // Adicionar quaternion
     linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());
     // Adicionar centro da camera

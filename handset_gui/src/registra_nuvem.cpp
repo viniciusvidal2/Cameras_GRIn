@@ -144,4 +144,69 @@ void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
     src_temp->clear();
     transformPointCloudWithNormals(*src, *src_temp, T);
 }
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::registrar_nuvens(bool icp_flag){
+    // Se vamos usar o ICP ou nao, decide aqui
+    if(icp_flag){
+
+        // Recebe a matriz de transformacao final do ICP
+        Eigen::Matrix4f Ticp = icp(src, tgt, T);
+        // Transforma de forma fina para a src_temp, para nao perder a src
+        transformPointCloud(*src, *src_temp, Ticp);
+        *acumulada = *tgt + *src_temp;
+        // Guarda para escrever no arquivo de cameras
+        T = Ticp;
+
+    } else {
+
+        *acumulada = *tgt + *src_temp;
+
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
+    VoxelGrid<PointT> grid;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    grid.setInputCloud(cloud);
+    grid.filter(*cloud);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
+                                   const PointCloud<PointT>::Ptr tgt,
+                                   Eigen::Matrix4f T){
+    ROS_INFO("Entrando no ICP");
+    // Reduzindo complexidade das nuvens
+    PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
+    PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
+
+    *temp_src = *src; *temp_tgt = *tgt;
+
+    float leaf_size = 0.01;
+    filter_grid(temp_src, leaf_size);
+    filter_grid(temp_tgt, leaf_size);
+
+    Eigen::Matrix4f T_icp = T;
+
+    /// ICP COMUM ///
+    // Criando o otimizador de ICP comum
+    pcl::IterativeClosestPoint<PointT, PointT> icp;
+    icp.setUseReciprocalCorrespondences(true);
+    icp.setInputTarget(temp_tgt);
+    icp.setInputSource(temp_src);
+    icp.setMaximumIterations(500); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-10);
+    icp.setEuclideanFitnessEpsilon(1*1e-12);
+    icp.setMaxCorrespondenceDistance(0.1);
+
+    PointCloud<PointT> final2;
+    icp.align(final2, T);
+
+    if(icp.hasConverged())
+        T_icp = icp.getFinalTransformation();
+
+    temp_src->clear(); temp_tgt->clear();
+
+    return T_icp;
+}
+
 } // fim do namespace handset_gui

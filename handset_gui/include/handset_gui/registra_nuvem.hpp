@@ -91,11 +91,14 @@ public:
     void set_translacao(float tx, float ty, float tz);
     void set_rotacao(float rx, float ry, float rz);
 
-    void publicar_nuvens();
+    void publicar_nuvens();    
+    void registrar_nuvens(bool icp_flag);
 
 private:
     /// Metodos ///
     void criaMatriz();
+    void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
+    Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
 
     /// Variaveis ///
     // Inicio da classe

@@ -83,13 +83,17 @@ void Cloud_Work::init(){
     // Inicio do mutex de acumulacao - verdadeiro se estamos acumulando
     mutex_acumulacao = false;
 
-    // Definicao de rotacao fixa entre frame da ASTRA e da ZED
+    // Definicao de rotacao fixa entre frame da ASTRA e da ZED -> de ASTRA->ZED A PRINCIPIO
     Eigen::Matrix3f matrix;
     matrix = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
     Eigen::Quaternion<float> rot_temp(matrix);
-    rot_astra_zed = rot_temp.inverse();
+    rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 //    offset_astra_zed << -0.001, -0.090, -0.025;
-    offset_astra_zed << 0, 0, 0;
+//    offset_astra_zed << 0, 0.048, 0.03; // No frame da ZED, apos rotaçao de ASTRA->ZED
+    offset_astra_zed << 0.048, 0.03, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+    // Matriz que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
+    T_astra_zed << matrix, offset_astra_zed,
+                   0, 0, 0, 1;
 
     // Rodar o no
     ros::Rate rate(2);
@@ -307,19 +311,29 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         registra_global_icp(acumulada_parcial, q, offset);
 
         // Quaternion e translaçao que o ICP calculou -> melhor posicao para a camera
-        Eigen::Matrix3f rot_icp;
-        Eigen::Matrix4f T_corrigida_ = T_corrigida.inverse();
-        rot_icp << T_corrigida_(0, 0), T_corrigida_(0, 1), T_corrigida_(0, 2),
-                   T_corrigida_(1, 0), T_corrigida_(1, 1), T_corrigida_(1, 2),
-                   T_corrigida_(2, 0), T_corrigida_(2, 1), T_corrigida_(2, 2);
-        Eigen::Quaternion<float> q_icp(rot_icp);
-        Eigen::Vector3f t_icp;
-        t_icp << T_corrigida_(0, 3), T_corrigida_(1, 3), T_corrigida_(2, 3);
+//        Eigen::Matrix3f rot_icp;
+//        Eigen::Matrix4f T_corrigida_ = T_corrigida.inverse(); // ZED->ODOM
+//        rot_icp << T_corrigida_(0, 0), T_corrigida_(0, 1), T_corrigida_(0, 2),
+//                   T_corrigida_(1, 0), T_corrigida_(1, 1), T_corrigida_(1, 2),
+//                   T_corrigida_(2, 0), T_corrigida_(2, 1), T_corrigida_(2, 2);
+//        Eigen::Quaternion<float> q_icp(rot_icp);
+//        Eigen::Vector3f t_icp;
+//        t_icp << T_corrigida_(0, 3), T_corrigida_(1, 3), T_corrigida_(2, 3);
+
+        // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
+        // REFERENCIA : ASTRA->ZED->ODOM
+        Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+        Eigen::Matrix3f rot_azo;
+        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+                   Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+                   Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+        Eigen::Quaternion<float>q_azo(rot_azo);
+        Eigen::Vector3f t_azo;
+        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-            transformPointCloud(*acumulada_parcial, *acumulada_parcial, T_corrigida); // guardar na posiçao correta do mundo
-            this->salva_dados_parciais(acumulada_parcial, rot_astra_zed.inverse()*q_icp, rot_astra_zed.inverse()*t_icp, msg_image, msg_zed_image);
+            this->salva_dados_parciais(acumulada_parcial, q_azo, t_azo, msg_image, msg_zed_image);
             ROS_INFO("Dados Parciais salvos!");
         }
 
@@ -383,7 +397,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-    float fzed = 1406.762451171875;
+    float fzed = 1412.5361328125;
     // Adicionar foco
 //    linha = linha + " " + to_string(astra_model.fx());
     linha = linha + " " + std::to_string(fzed);
@@ -405,7 +419,6 @@ Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Ei
     t = offset;
     C = -R.transpose()*t;
 
-//    cout << "\nCentro da camera:\n" << C << endl;
     return C;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

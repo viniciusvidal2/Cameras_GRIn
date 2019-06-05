@@ -178,6 +178,7 @@ private:
     // Transformacao fixa entre o frame da astra e da zed
     Eigen::Vector3f offset_astra_zed;
     Eigen::Quaternion<float> rot_astra_zed;
+    Eigen::Matrix4f T_astra_zed;
     // Contador de nuvens repetidas capturadas
     int n_nuvens_instantaneas;
     // Profundidade do filtro obtida da GUI

@@ -208,5 +208,36 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
 
     return T_icp;
 }
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::salvar_dados_finais(QString pasta){
+    // Nova pasta no Desktop
+    char* home;
+    home = getenv("HOME");
+    std::string pasta_final = std::string(home)+"/Desktop/"+pasta.toStdString();
+
+    // Ler os arquivos
+    ifstream nvm_src, nvm_tgt;
+    std::string linha_atual;
+    int conta_linha = 0;
+
+    nvm_src.open(arquivo_cameras_fonte);
+    if(nvm_src.is_open()){
+        // For ao longo das linhas, ler as poses
+        while(getline(nvm_src, linha_atual)){
+            conta_linha++; // atualiza aqui para pegar o numero 1 na primeira e assim por diante
+            if(conta_linha >= 4){ // A partir daqui tem cameras
+                Eigen::Quaternion<float> qantes;
+                Eigen::Vector3f Cantes, tantes;
+            }
+        }
+        // Calcular nova pose, guardar e adicionar no vetor de cameras
+
+        // Mover cada imagem para a nova pasta
+
+    }
+    // Escrever o novo arquivo
+
+
+}
 
 } // fim do namespace handset_gui

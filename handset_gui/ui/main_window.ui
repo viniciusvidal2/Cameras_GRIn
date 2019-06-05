@@ -78,7 +78,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>3</string>
+          <string>1</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -730,7 +730,7 @@
           <string>Registrar nuvens</string>
          </property>
         </widget>
-        <widget class="QLineEdit" name="lineEdit">
+        <widget class="QLineEdit" name="lineEdit_pastafinal">
          <property name="geometry">
           <rect>
            <x>30</x>

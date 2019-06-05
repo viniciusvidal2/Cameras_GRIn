@@ -328,5 +328,11 @@ void MainWindow::on_lineEdit_rotacaoz_textEdited(QString s){
 void MainWindow::on_pushButton_registrar_clicked(){
     rn.registrar_nuvens(ui.checkBox_icp->isChecked());
 }
+
+/// Botao para salvar ler os arquivos nvm, criar os objetos de cameras e escrever o novo arquivo no lugar certo
+void MainWindow::on_pushButton_salvarfinal_clicked(){
+    rn.salvar_dados_finais(ui.lineEdit_pastafinal->text());
+}
+
 }  // namespace handset_gui
 

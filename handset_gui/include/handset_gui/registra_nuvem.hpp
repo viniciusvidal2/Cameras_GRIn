@@ -39,6 +39,8 @@
 
 #include <string>
 #include <iostream>
+#include <istream>
+#include <ostream>
 #include <ros/ros.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -93,6 +95,7 @@ public:
 
     void publicar_nuvens();    
     void registrar_nuvens(bool icp_flag);
+    void salvar_dados_finais(QString pasta);
 
 private:
     /// Metodos ///
@@ -125,6 +128,16 @@ private:
     Eigen::Matrix4f T;
     Eigen::Vector3f t;
     Eigen::Matrix3f R;
+    // Camera com cada caracteristica necessaria para armazenar e escrever no novo arquivo
+    struct camera{
+        std::string linha{"teste"};
+        Eigen::Quaternion<float> q{};
+        Eigen::Vector3f C{};
+        float foco_zed{};
+//        ~camera();
+        camera() = default;
+    };
+    std::vector<camera> cameras_src, cameras_tgt;
 };
 
 }

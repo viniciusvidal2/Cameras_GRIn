@@ -102,6 +102,7 @@ private:
     void criaMatriz();
     void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
     Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
+    std::string escreve_linha_imagem(std::string pasta, camera c);
 
     /// Variaveis ///
     // Inicio da classe
@@ -125,15 +126,20 @@ private:
     ros::Publisher pub_tgt;
     ros::Publisher pub_acumulada;
     // Transformacao das nuvens
-    Eigen::Matrix4f T;
-    Eigen::Vector3f t;
-    Eigen::Matrix3f R;
+    Eigen::Matrix4f T_fim;
+    Eigen::Vector3f t_fim;
+    Eigen::Matrix3f R_fim;
     // Camera com cada caracteristica necessaria para armazenar e escrever no novo arquivo
     struct camera{
         std::string linha{"teste"};
-        Eigen::Quaternion<float> q{};
-        Eigen::Vector3f C{};
-        float foco_zed{};
+        std::string caminho_original;
+        std::string nome_imagem;
+        std::string nome_imagem_anterior;
+        Eigen::Quaternion<float> q_original;
+        Eigen::Quaternion<float> q_modificado;
+        Eigen::Vector3f C_original;
+        Eigen::Vector3f C_modificado;
+        float foco;
 //        ~camera();
         camera() = default;
     };

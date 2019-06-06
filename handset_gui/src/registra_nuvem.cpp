@@ -44,9 +44,9 @@ void RegistraNuvem::init(){
     acumulada = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
 
     // Inicia a transformaçao
-    T = Eigen::Matrix4f::Identity();
-    R = Eigen::Matrix3f::Identity();
-    t << 0.0, 0.0, 0.0;
+    T_fim = Eigen::Matrix4f::Identity();
+    R_fim = Eigen::Matrix3f::Identity();
+    t_fim << 0.0, 0.0, 0.0;
 
     // Publicadores (a principio)
     pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_fonte_temp"    , 1);
@@ -67,8 +67,8 @@ void RegistraNuvem::set_inicio_processo(bool inicio){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::criaMatriz(){
-    T << R, t,
-         0, 0, 0, 1;
+    T_fim << R_fim, t_fim,
+             0, 0, 0, 1;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::publicar_nuvens(){
@@ -123,11 +123,11 @@ void RegistraNuvem::set_arquivo_cameras_fonte(QString nome){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_translacao(float tx, float ty, float tz){
     // Recebe em Centimetros, converte pra METROS
-    t << tx/100.0, ty/100.0, tz/100.0;
+    t_fim << tx/100.0, ty/100.0, tz/100.0;
     criaMatriz();
 
     src_temp->clear();
-    transformPointCloudWithNormals(*src, *src_temp, T);
+    transformPointCloudWithNormals(*src, *src_temp, T_fim);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
@@ -136,13 +136,13 @@ void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
     ry = deg2rad(ry);
     rz = deg2rad(rz);
 
-    R = Eigen::AngleAxisf(rx, Eigen::Vector3f::UnitX()) *
-        Eigen::AngleAxisf(ry, Eigen::Vector3f::UnitY()) *
-        Eigen::AngleAxisf(rz, Eigen::Vector3f::UnitZ());
+    R_fim = Eigen::AngleAxisf(rx, Eigen::Vector3f::UnitX()) *
+            Eigen::AngleAxisf(ry, Eigen::Vector3f::UnitY()) *
+            Eigen::AngleAxisf(rz, Eigen::Vector3f::UnitZ());
     criaMatriz();
 
     src_temp->clear();
-    transformPointCloudWithNormals(*src, *src_temp, T);
+    transformPointCloudWithNormals(*src, *src_temp, T_fim);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::registrar_nuvens(bool icp_flag){
@@ -150,12 +150,12 @@ void RegistraNuvem::registrar_nuvens(bool icp_flag){
     if(icp_flag){
 
         // Recebe a matriz de transformacao final do ICP
-        Eigen::Matrix4f Ticp = icp(src, tgt, T);
+        Eigen::Matrix4f Ticp = icp(src, tgt, T_fim);
         // Transforma de forma fina para a src_temp, para nao perder a src
         transformPointCloud(*src, *src_temp, Ticp);
         *acumulada = *tgt + *src_temp;
         // Guarda para escrever no arquivo de cameras
-        T = Ticp;
+        T_fim = Ticp;
 
     } else {
 
@@ -210,6 +210,9 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::salvar_dados_finais(QString pasta){
+    // Reiniciando vetores de dados de cameras
+    cameras_src.clear(); cameras_tgt.clear();
+
     // Nova pasta no Desktop
     char* home;
     home = getenv("HOME");
@@ -224,20 +227,185 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     if(nvm_src.is_open()){
         // For ao longo das linhas, ler as poses
         while(getline(nvm_src, linha_atual)){
+
             conta_linha++; // atualiza aqui para pegar o numero 1 na primeira e assim por diante
+
             if(conta_linha >= 4){ // A partir daqui tem cameras
+                // Elemento da estrutura da camera atual
+                camera cam;
+                // Elementos divididos por espaços
+                std::istringstream iss(linha_atual);
+                std::vector<std::string> results((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+
+                std::string path;
+                float foco;
                 Eigen::Quaternion<float> qantes;
-                Eigen::Vector3f Cantes, tantes;
+                Eigen::Matrix3f rotantes, Rzo;
+                Eigen::Vector3f Cantes, tantes, Catual, tatual;
+                Eigen::Matrix4f Tzo, Toz;
+
+                // Caminho original do arquivo
+                path = results.at(0);
+                // Foco da camera
+                foco = stof(results.at(1));
+                // Quaternion antigo
+                qantes.w() = stof(results.at(2)); qantes.x() = stof(results.at(3));
+                qantes.y() = stof(results.at(4)); qantes.z() = stof(results.at(5));
+                rotantes = qantes.matrix();
+                // Centro da camera antigo
+                Cantes(0) = stof(results.at(6)); Cantes(1) = stof(results.at(7)); Cantes(2) = stof(results.at(8));
+                // Vetor de translaçao anterior
+                tantes = -rotantes.inverse()*Cantes;
+                // Calculo de T entre frames ODOM->ZED anterior
+                Tzo << rotantes, tantes,
+                       0, 0, 0, 1;
+                Toz = Tzo.inverse();
+                // Nova matriz de transformaçao ODOM->ZED após a correçao do algoritmo
+                Toz = Toz*T_fim;
+                // Matriz inversa (ZED->ODOM) para calculo da nova pose da camera
+                Tzo = Toz.inverse();
+                Rzo << Tzo(0, 0), Tzo(0, 1), Tzo(0, 2),
+                       Tzo(1, 0), Tzo(1, 1), Tzo(1, 2),
+                       Tzo(2, 0), Tzo(2, 1), Tzo(2, 2);
+                Eigen::Quaternion<float> qzo(Rzo); // Novo quaternion
+                tatual << Tzo(0, 3), Tzo(1, 3), Tzo(2, 3);
+                Catual = -Rzo*tatual; // Novo centro da camera
+
+                // Nome da imagem
+                QString path2 = QString::fromStdString(path);
+                std::string nome_imagem;
+                for(int i=path2.length(); i > 0; i--){
+                    if(path2[i] == '/'){
+                        nome_imagem = "src"+path2.right(path2.length()-i-1).toStdString();
+                        cout << "\n\nNome da imagem: " << nome_imagem << endl;
+                        break;
+                    }
+                }
+
+                // Preenchendo a estrutura da camera atual
+                cam.linha = linha_atual;
+                cam.caminho_original = path;
+                cam.foco = foco;
+                cam.q_original = qantes;
+                cam.q_modificado = qzo;
+                cam.C_original = Cantes;
+                cam.C_modificado = Catual;
+                cam.nome_imagem = nome_imagem;
+
+                // Salvando a estrutura no vetor de cameras source
+                cameras_src.push_back(cam);
+
+            } // Fim do if para iteracao de linhas
+        } // Fim do while linhas
+
+    } // Fim do if open para arquivo src
+    nvm_src.close();
+
+    conta_linha = 0; // Reiniciando a leitura de arquivo
+
+    nvm_tgt.open(arquivo_cameras_alvo);
+    if(nvm_tgt.is_open()){
+
+        // For ao longo das linhas, ler as poses
+        while(getline(nvm_tgt, linha_atual)){
+            conta_linha++; // atualiza aqui para pegar o numero 1 na primeira e assim por diante
+
+            if(conta_linha >= 4){ // A partir daqui tem cameras
+                // Elemento da estrutura da camera atual
+                camera cam;
+                // Elementos divididos por espaços
+                std::istringstream iss(linha_atual);
+                std::vector<std::string> results((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+
+                std::string path;
+                float foco;
+                Eigen::Quaternion<float> qantes;
+                Eigen::Matrix3f rotantes;
+                Eigen::Vector3f Cantes;
+
+                // Caminho original do arquivo
+                path = results.at(0);
+                // Foco da camera
+                foco = stof(results.at(1));
+                // Quaternion antigo
+                qantes.w() = stof(results.at(2)); qantes.x() = stof(results.at(3));
+                qantes.y() = stof(results.at(4)); qantes.z() = stof(results.at(5));
+                rotantes = qantes.matrix();
+                // Centro da camera antigo
+                Cantes(0) = stof(results.at(6)); Cantes(1) = stof(results.at(7)); Cantes(2) = stof(results.at(8));
+
+                // Nome da imagem
+                QString path2 = QString::fromStdString(path);
+                for(int i=path2.length(); i > 0; i--){
+                    if(path2[i] == '/'){
+                        cam.nome_imagem_anterior = path2.right(path2.length()-i-1).toStdString();
+                        cam.nome_imagem = "tgt"+path2.right(path2.length()-i-1).toStdString();
+                        break;
+                    }
+                }
+
+                // Preenchendo a estrutura da camera atual
+                cam.linha = linha_atual;
+                cam.caminho_original = path;
+                cam.foco = foco;
+                cam.q_original = qantes;
+                cam.q_modificado = qantes;
+                cam.C_original = Cantes;
+                cam.C_modificado = Cantes;
+
+                // Salvando a estrutura no vetor de cameras source
+                cameras_tgt.push_back(cam);
+
+            } // Fim do if para iteracao de linhas
+        } // Fim do while linhas
+
+    } // Fim do if open para arquivo tgt
+    nvm_tgt.close();
+
+    // Criar nova pasta na area de trabalho
+    if( !(mkdir(pasta_final, 0777) == -1) ){
+        // Escrever o novo arquivo
+        ROS_INFO("Salvando arquivo NVM final.");
+        std::string arquivo_final = pasta_final+"/nuvem_final.nvm";
+        ofstream nvm_final(arquivo_final);
+        if(nvm_final.is_open()){
+
+            nvm_final << "NVM_V3\n\n";
+            nvm_final << std::to_string(cameras_src.size()+cameras_tgt.size())+"\n"; // Quantas imagens total
+            // Escreve as linhas para nuvem src
+            for(int i=0; i < cameras_src.size(); i++){
+                std::string linha_imagem = this->escreve_linha_imagem(pasta_final, cameras_src(i)); // Imagem com detalhes de camera
+                nvm_final << linha_imagem;
             }
-        }
-        // Calcular nova pose, guardar e adicionar no vetor de cameras
+            // Escreve as linhas para nuvem tgt
+            for(int i=0; i < cameras_tgt.size(); i++){
+                std::string linha_imagem = this->escreve_linha_imagem(pasta_final, cameras_tgt(i)); // Imagem com detalhes de camera
+                nvm_final << linha_imagem;
+            }
 
-        // Mover cada imagem para a nova pasta
+        } // Fim do if arquivo is open
+        nvm_final.close();
+    } // Fim do if para mkdir
 
-    }
-    // Escrever o novo arquivo
+
+    // Mover cada imagem para a nova pasta
 
 
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+std::string RegistraNuvem::escreve_linha_imagem(std::string pasta, camera c){
+    std::string linha = pasta+"/"+c.nome_imagem;
+    // Adicionar foco
+    linha = linha + " " + std::to_string(c.foco);
+    // Adicionar quaternion
+    linha = linha + " " + std::to_string(c.q_modificado.w()) + " " + std::to_string(c.q_modificado.x()) + " " + std::to_string(c.q_modificado.y()) + " " + std::to_string(c.q_modificado.z());
+    // Adicionar centro da camera
+    linha = linha + " " + std::to_string(c.C_modificado(0, 0)) + " " + std::to_string(c.C_modificado(1, 0)) + " " + std::to_string(c.C_modificado(2, 0));
+    // Adicionar distorcao radial (crendo 0) e 0 final
+    linha = linha + " 0 0\n"; // IMPORTANTE pular linha aqui, o MeshRecon precisa disso no MART
+    // Muda as virgulas por pontos no arquivo
+    std::replace(linha.begin(), linha.end(), ',', '.');
+    return linha;
 }
 
 } // fim do namespace handset_gui

@@ -90,8 +90,9 @@ void Cloud_Work::init(){
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 //    offset_astra_zed << -0.001, -0.090, -0.025;
 //    offset_astra_zed << 0, 0.048, 0.03; // No frame da ZED, apos rotaçao de ASTRA->ZED
-    offset_astra_zed << 0.048, 0.03, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-    // Matriz que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
+//    offset_astra_zed << 0.048, 0.03, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+    offset_astra_zed << 0.06, 0, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+    // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
 
@@ -149,13 +150,11 @@ void Cloud_Work::passthrough(PointCloud<PointT>::Ptr cloud, string field, float 
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset){
     Eigen::Matrix4f T;
-    Eigen::Matrix3f R = rot.matrix();//cout << "R " << R << endl;
+    Eigen::Matrix3f R = rot.matrix();
     Eigen::MatrixXf t(3,1);
-    t = offset;//cout << "T " << T << endl;
+    t = offset;
     T << R,t,
          0,0,0,1;
-//    cout << "\n\n Tira teima se esta funcionando transformacao:\n";
-//    cout << "RT " << T << endl;
 
     return T;
 }
@@ -186,10 +185,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
 
 //    pcl::io::savePLYFileASCII("/home/grin/Desktop/nuvem_filtrada.ply", *temp_tgt);
 
-    // Transformando pela odometria aqui para caso o ICP nao ache soluçao
-//    transformPointCloud(*src, *src, T);
-
-    Eigen::Matrix4f T_icp;
+    Eigen::Matrix4f T_icp = T;
 
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
@@ -201,15 +197,10 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     icp.setTransformationEpsilon(1*1e-10);
     icp.setEuclideanFitnessEpsilon(1*1e-12);
     icp.setMaxCorrespondenceDistance(0.1);
-//    icp.setRANSACOutlierRejectionThreshold(0.1*leaf_size);
-//    icp.setRANSACIterations(300);
 
     PointCloud<PointT> final2;
     icp.align(final2, T);
 
-    // Inicia com a transformacao da odometria, se conseguirem vencer toma novo valor
-//    T_icp = T;
-//    transformPointCloud(*src, *src, T.inverse()); // Chegou aqui entao pode trazer de volta para ser corrigido por ICP
     if(icp.hasConverged())
         T_icp = icp.getFinalTransformation();
 
@@ -244,6 +235,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
         T_zed_anterior = T_zed_atual; // Para a proxima iteracao
 
     } else {
+
         // Transformar SEMPRE para a referencia dos espaços -> primeira odometria capturada
         transformPointCloud(*parcial, *parcial, offset, rot);
         // Primeira nuvem
@@ -258,6 +250,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
         T_corrigida = T_zed_atual; T_chute_icp = T_zed_atual;
         // Podemos dizer que nao e mais primeira vez, chaveia a variavel
         set_primeira_vez(false);
+
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -321,7 +314,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 //        t_icp << T_corrigida_(0, 3), T_corrigida_(1, 3), T_corrigida_(2, 3);
 
         // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
-        // REFERENCIA : ASTRA->ZED->ODOM
+        // REFERENCIA : left_zed->ASTRA->ZED->ODOM
         Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
         Eigen::Matrix3f rot_azo;
         rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),

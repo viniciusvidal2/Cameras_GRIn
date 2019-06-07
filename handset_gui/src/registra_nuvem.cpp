@@ -96,6 +96,13 @@ void RegistraNuvem::publicar_nuvens(){
 void RegistraNuvem::set_nuvem_alvo(QString nome){
     arquivo_tgt = nome.toStdString();
     loadPLYFile(arquivo_tgt, *tgt);
+    // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
+    for(int i=nome.length(); i>0; i--){
+      if (nome[i] == '/'){
+        pasta_tgt = nome.left(i).toStdString();
+        break;
+      }
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_arquivo_cameras_alvo(QString nome){
@@ -112,7 +119,6 @@ void RegistraNuvem::set_nuvem_fonte(QString nome){
         break;
       }
     }
-    cout << "\n\n\nA pasta aqui selecionada: " << pasta_src << "\n\n\n";
     // A principio as nuvens sao iguais, depois havera modificacao
     *src_temp = *src;
 }
@@ -206,6 +212,8 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
 
     temp_src->clear(); temp_tgt->clear();
 
+    ROS_INFO("ICP realizado.");
+
     return T_icp;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -233,27 +241,29 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
             if(conta_linha >= 4){ // A partir daqui tem cameras
                 // Elemento da estrutura da camera atual
                 camera cam;
+                // Separando a string de entrada em nome e dados numericos
+                int pos = linha_atual.find_first_of(' ');
+                std::string path = linha_atual.substr(0, pos);
+                std::string numericos = linha_atual.substr(pos+1);
+                std::replace(numericos.begin(), numericos.end(), '.', ',');
                 // Elementos divididos por espaços
-                std::istringstream iss(linha_atual);
-                std::vector<std::string> results((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+                std::istringstream ss(numericos);
+                std::vector<std::string> results((std::istream_iterator<std::string>(ss)), std::istream_iterator<std::string>());
 
-                std::string path;
                 float foco;
                 Eigen::Quaternion<float> qantes;
                 Eigen::Matrix3f rotantes, Rzo;
                 Eigen::Vector3f Cantes, tantes, Catual, tatual;
                 Eigen::Matrix4f Tzo, Toz;
 
-                // Caminho original do arquivo
-                path = results.at(0);
                 // Foco da camera
-                foco = stof(results.at(1));
+                foco = stod(results.at(0));
                 // Quaternion antigo
-                qantes.w() = stof(results.at(2)); qantes.x() = stof(results.at(3));
-                qantes.y() = stof(results.at(4)); qantes.z() = stof(results.at(5));
+                qantes.w() = stod(results.at(1)); qantes.x() = stod(results.at(2));
+                qantes.y() = stod(results.at(3)); qantes.z() = stod(results.at(4));
                 rotantes = qantes.matrix();
                 // Centro da camera antigo
-                Cantes(0) = stof(results.at(6)); Cantes(1) = stof(results.at(7)); Cantes(2) = stof(results.at(8));
+                Cantes(0) = stod(results.at(5)); Cantes(1) = stod(results.at(6)); Cantes(2) = stod(results.at(7));
                 // Vetor de translaçao anterior
                 tantes = -rotantes.inverse()*Cantes;
                 // Calculo de T entre frames ODOM->ZED anterior
@@ -273,11 +283,10 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
 
                 // Nome da imagem
                 QString path2 = QString::fromStdString(path);
-                std::string nome_imagem;
                 for(int i=path2.length(); i > 0; i--){
                     if(path2[i] == '/'){
-                        nome_imagem = "src"+path2.right(path2.length()-i-1).toStdString();
-                        cout << "\n\nNome da imagem: " << nome_imagem << endl;
+                        cam.nome_imagem_anterior = path2.right(path2.length()-i-1).toStdString();
+                        cam.nome_imagem = "src"+path2.right(path2.length()-i-1).toStdString();
                         break;
                     }
                 }
@@ -290,7 +299,6 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 cam.q_modificado = qzo;
                 cam.C_original = Cantes;
                 cam.C_modificado = Catual;
-                cam.nome_imagem = nome_imagem;
 
                 // Salvando a estrutura no vetor de cameras source
                 cameras_src.push_back(cam);
@@ -303,6 +311,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
 
     conta_linha = 0; // Reiniciando a leitura de arquivo
 
+    cout << "arquivo cameras alvo: " << arquivo_cameras_alvo << endl;
+
     nvm_tgt.open(arquivo_cameras_alvo);
     if(nvm_tgt.is_open()){
 
@@ -313,26 +323,26 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
             if(conta_linha >= 4){ // A partir daqui tem cameras
                 // Elemento da estrutura da camera atual
                 camera cam;
+                // Separando a string de entrada em nome e dados numericos
+                int pos = linha_atual.find_first_of(' ');
+                std::string path = linha_atual.substr(0, pos);
+                std::string numericos = linha_atual.substr(pos+1);
+                std::replace(numericos.begin(), numericos.end(), '.', ',');
                 // Elementos divididos por espaços
-                std::istringstream iss(linha_atual);
+                std::istringstream iss(numericos);
                 std::vector<std::string> results((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
 
-                std::string path;
                 float foco;
                 Eigen::Quaternion<float> qantes;
-                Eigen::Matrix3f rotantes;
                 Eigen::Vector3f Cantes;
 
-                // Caminho original do arquivo
-                path = results.at(0);
                 // Foco da camera
-                foco = stof(results.at(1));
+                foco = stod(results.at(0));
                 // Quaternion antigo
-                qantes.w() = stof(results.at(2)); qantes.x() = stof(results.at(3));
-                qantes.y() = stof(results.at(4)); qantes.z() = stof(results.at(5));
-                rotantes = qantes.matrix();
+                qantes.w() = stod(results.at(1)); qantes.x() = stod(results.at(2));
+                qantes.y() = stod(results.at(3)); qantes.z() = stod(results.at(4).data());
                 // Centro da camera antigo
-                Cantes(0) = stof(results.at(6)); Cantes(1) = stof(results.at(7)); Cantes(2) = stof(results.at(8));
+                Cantes(0) = stof(results.at(5)); Cantes(1) = stof(results.at(6)); Cantes(2) = stof(results.at(7));
 
                 // Nome da imagem
                 QString path2 = QString::fromStdString(path);
@@ -353,7 +363,7 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 cam.C_original = Cantes;
                 cam.C_modificado = Cantes;
 
-                // Salvando a estrutura no vetor de cameras source
+                // Salvando a estrutura no vetor de cameras target
                 cameras_tgt.push_back(cam);
 
             } // Fim do if para iteracao de linhas
@@ -363,7 +373,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     nvm_tgt.close();
 
     // Criar nova pasta na area de trabalho
-    if( !(mkdir(pasta_final, 0777) == -1) ){
+    const int dir_err = mkdir(pasta_final.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    if( !(dir_err == -1) ){ // Nao houve erro na criacao do diretorio
         // Escrever o novo arquivo
         ROS_INFO("Salvando arquivo NVM final.");
         std::string arquivo_final = pasta_final+"/nuvem_final.nvm";
@@ -374,22 +385,36 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
             nvm_final << std::to_string(cameras_src.size()+cameras_tgt.size())+"\n"; // Quantas imagens total
             // Escreve as linhas para nuvem src
             for(int i=0; i < cameras_src.size(); i++){
-                std::string linha_imagem = this->escreve_linha_imagem(pasta_final, cameras_src(i)); // Imagem com detalhes de camera
+                std::string linha_imagem = escreve_linha_imagem(pasta_final, cameras_src.at(i)); // Imagem com detalhes de camera
                 nvm_final << linha_imagem;
             }
             // Escreve as linhas para nuvem tgt
             for(int i=0; i < cameras_tgt.size(); i++){
-                std::string linha_imagem = this->escreve_linha_imagem(pasta_final, cameras_tgt(i)); // Imagem com detalhes de camera
+                std::string linha_imagem = escreve_linha_imagem(pasta_final, cameras_tgt.at(i)); // Imagem com detalhes de camera
                 nvm_final << linha_imagem;
             }
 
         } // Fim do if arquivo is open
         nvm_final.close();
+
+
+        // Mover cada imagem para a nova pasta
+        for(int i=0; i < cameras_src.size(); i++){
+            std::string caminho_saida = pasta_src+"/"+cameras_src.at(i).nome_imagem_anterior;
+            std::string caminho_final = pasta_final+"/"+cameras_src.at(i).nome_imagem;
+            boost::filesystem::copy_file(caminho_saida.c_str(), caminho_final.c_str(), boost::filesystem::copy_option::overwrite_if_exists);
+        }
+        for(int i=0; i < cameras_tgt.size(); i++){
+            std::string caminho_saida = pasta_tgt+"/"+cameras_tgt.at(i).nome_imagem_anterior;
+            std::string caminho_final = pasta_final+"/"+cameras_tgt.at(i).nome_imagem;
+            boost::filesystem::copy_file(caminho_saida.c_str(), caminho_final.c_str(), boost::filesystem::copy_option::overwrite_if_exists);
+        }
+
+        // Gravar a nuvem registrada no diretorio final
+        std::string arquivo_nuvem_final = pasta_final + "/nuvem_final.ply";
+        savePLYFileASCII(arquivo_nuvem_final, *acumulada);
+
     } // Fim do if para mkdir
-
-
-    // Mover cada imagem para a nova pasta
-
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

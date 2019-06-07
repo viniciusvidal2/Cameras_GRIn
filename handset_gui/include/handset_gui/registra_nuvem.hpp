@@ -59,6 +59,7 @@
 #include <QThread>
 #include <QMutex>
 #include <QString>
+#include <boost/filesystem.hpp>
 
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
@@ -98,12 +99,6 @@ public:
     void salvar_dados_finais(QString pasta);
 
 private:
-    /// Metodos ///
-    void criaMatriz();
-    void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
-    Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
-    std::string escreve_linha_imagem(std::string pasta, camera c);
-
     /// Variaveis ///
     // Inicio da classe
     int init_argc;
@@ -116,7 +111,7 @@ private:
     PointCloud<PointT>::Ptr tgt;
     PointCloud<PointT>::Ptr acumulada;
     // Nomes das pastas e arquivos
-    std::string pasta_src;
+    std::string pasta_src, pasta_tgt;
     std::string arquivo_src;
     std::string arquivo_tgt;
     std::string arquivo_cameras_alvo;
@@ -144,6 +139,13 @@ private:
         camera() = default;
     };
     std::vector<camera> cameras_src, cameras_tgt;
+
+    /// Metodos ///
+    void criaMatriz();
+    void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
+    Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
+    std::string escreve_linha_imagem(std::string pasta, camera c);
+
 };
 
 }

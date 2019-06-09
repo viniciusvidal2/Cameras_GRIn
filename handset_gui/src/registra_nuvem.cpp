@@ -48,6 +48,16 @@ void RegistraNuvem::init(){
     R_fim = Eigen::Matrix3f::Identity();
     t_fim << 0.0, 0.0, 0.0;
 
+    // Definicao de rotacao fixa entre frame da ASTRA e da ZED -> de ASTRA->ZED A PRINCIPIO
+    Eigen::Matrix3f matrix;
+    matrix = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
+    Eigen::Quaternion<float> rot_temp(matrix);
+    rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
+    offset_astra_zed << 0.06, 0, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+    // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
+    T_astra_zed << matrix, offset_astra_zed,
+                   0, 0, 0, 1;
+
     // Publicadores (a principio)
     pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_fonte_temp"    , 1);
     pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_alvo_temp"     , 1);
@@ -254,7 +264,7 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 Eigen::Quaternion<float> qantes;
                 Eigen::Matrix3f rotantes, Rzo;
                 Eigen::Vector3f Cantes, tantes, Catual, tatual;
-                Eigen::Matrix4f Tzo, Toz;
+                Eigen::Matrix4f Tpose, Tzo, Toz;
 
                 // Foco da camera
                 foco = stod(results.at(0));
@@ -265,21 +275,22 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 // Centro da camera antigo
                 Cantes(0) = stod(results.at(5)); Cantes(1) = stod(results.at(6)); Cantes(2) = stod(results.at(7));
                 // Vetor de translaçao anterior
-                tantes = -rotantes.inverse()*Cantes;
-                // Calculo de T entre frames ODOM->ZED anterior
-                Tzo << rotantes, tantes,
+                tantes = -rotantes.transpose().inverse()*Cantes; // t = -(R')^-1*C = -R*C
+                // Calculo de da POSE da camera anterior em matriz homogenea
+                Tpose << rotantes, tantes,
                        0, 0, 0, 1;
-                Toz = Tzo.inverse();
-                // Nova matriz de transformaçao ODOM->ZED após a correçao do algoritmo
-                Toz = Toz*T_fim;
-                // Matriz inversa (ZED->ODOM) para calculo da nova pose da camera
-                Tzo = Toz.inverse();
+                // Separando a parte da odometria, no sentido ZED->ODOM
+                Tzo = T_astra_zed.inverse()*Tpose;
+                // Multiplicadno pela correcao obtida, no sentido ZED->ODOM
+                Tzo = Tzo*T_fim.inverse();
+                // Matriz de transformacao de ASTRA-> ZED com a matriz ZED->ODOM para calculo da nova pose da camera
+                Tzo = T_astra_zed*Tzo;
                 Rzo << Tzo(0, 0), Tzo(0, 1), Tzo(0, 2),
                        Tzo(1, 0), Tzo(1, 1), Tzo(1, 2),
                        Tzo(2, 0), Tzo(2, 1), Tzo(2, 2);
                 Eigen::Quaternion<float> qzo(Rzo); // Novo quaternion
                 tatual << Tzo(0, 3), Tzo(1, 3), Tzo(2, 3);
-                Catual = -Rzo*tatual; // Novo centro da camera
+                Catual = -Rzo.transpose()*tatual; // Novo centro da camera
 
                 // Nome da imagem
                 QString path2 = QString::fromStdString(path);
@@ -310,8 +321,6 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     nvm_src.close();
 
     conta_linha = 0; // Reiniciando a leitura de arquivo
-
-    cout << "arquivo cameras alvo: " << arquivo_cameras_alvo << endl;
 
     nvm_tgt.open(arquivo_cameras_alvo);
     if(nvm_tgt.is_open()){
@@ -415,6 +424,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
         savePLYFileASCII(arquivo_nuvem_final, *acumulada);
 
     } // Fim do if para mkdir
+
+    ROS_INFO("Arquivo NVM salvo na pasta %s.", pasta_final.c_str());
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////

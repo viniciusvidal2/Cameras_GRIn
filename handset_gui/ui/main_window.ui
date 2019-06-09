@@ -228,6 +228,9 @@
            <property name="enabled">
             <bool>true</bool>
            </property>
+           <property name="text">
+            <string>/media/vinicius/HD/testes_handset/tudo_pra_dar_certo/topo_caixa.ply</string>
+           </property>
           </widget>
          </item>
         </layout>
@@ -253,6 +256,9 @@
           <widget class="QLineEdit" name="lineEdit_camerasalvo">
            <property name="enabled">
             <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>/media/vinicius/HD/testes_handset/tudo_pra_dar_certo/cameras_final.nvm</string>
            </property>
           </widget>
          </item>
@@ -280,6 +286,9 @@
            <property name="enabled">
             <bool>true</bool>
            </property>
+           <property name="text">
+            <string>/media/vinicius/HD/testes_handset/fundocaixa/nuvem_final.ply</string>
+           </property>
           </widget>
          </item>
         </layout>
@@ -305,6 +314,9 @@
           <widget class="QLineEdit" name="lineEdit_camerasfonte">
            <property name="enabled">
             <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>/media/vinicius/HD/testes_handset/fundocaixa/cameras_final.nvm</string>
            </property>
           </widget>
          </item>
@@ -533,7 +545,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>0</string>
+           <string>169</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -549,7 +561,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>0</string>
+           <string>-40</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -565,7 +577,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>0</string>
+           <string>-22</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -614,7 +626,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>0</string>
+          <string>180</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -630,7 +642,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>0</string>
+          <string>-16</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -646,7 +658,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>0</string>
+          <string>-135</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -740,7 +752,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>alinhamento_final</string>
+          <string>caixa</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>

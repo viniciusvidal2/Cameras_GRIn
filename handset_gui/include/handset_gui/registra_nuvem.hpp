@@ -139,6 +139,10 @@ private:
         camera() = default;
     };
     std::vector<camera> cameras_src, cameras_tgt;
+    // Transformacao fixa entre o frame da astra e da zed
+    Eigen::Vector3f offset_astra_zed;
+    Eigen::Quaternion<float> rot_astra_zed;
+    Eigen::Matrix4f T_astra_zed;
 
     /// Metodos ///
     void criaMatriz();

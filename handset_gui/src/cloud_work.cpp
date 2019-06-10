@@ -330,6 +330,12 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
             ROS_INFO("Dados Parciais salvos!");
         }
 
+        // Salva no vetor de nuvens e poses para acumular tudo ao final
+        nuvem_pose n;
+        n.nuvem = acumulada_parcial;
+        n.centro_camera = calcula_centro_camera(q_azo, t_azo);
+        np.push_back(n);
+
     } // fim do if -> acumular ou nao
 
 }
@@ -421,24 +427,52 @@ void Cloud_Work::salvar_acumulada(){
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_nuvem = pasta+"nuvem_final.ply";
-    std::string arquivo_mesh  = pasta+"mesh_final.ply";
     std::string arquivo_nvm   = pasta+"cameras_final.nvm";
 
-    // A principio so salvar a nuvem
+//    // A principio so salvar a nuvem
+//    ROS_INFO("Salvando nuvem acumulada.....");
+//    PointCloud<PointTN>::Ptr acumulada_global_normais (new PointCloud<PointTN>());
+//    this->calculateNormalsAndConcatenate(acumulada_global, acumulada_global_normais, 30);
+//    pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
+//    ROS_INFO("Nuvem salva na pasta correta!!");
     ROS_INFO("Salvando nuvem acumulada.....");
-    PointCloud<PointTN>::Ptr acumulada_global_normais (new PointCloud<PointTN>());
-    this->calculateNormalsAndConcatenate(acumulada_global, acumulada_global_normais, 30);
+    // Acumulada global com normais
+    PointCloud<PointTN>::Ptr acumulada_global_normais      (new PointCloud<PointTN>());
+    PointCloud<PointTN>::Ptr acumulada_global_normais_temp (new PointCloud<PointTN>());
+    for(int i=0; i < np.size(); i++){
+        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i, np.size());
+        // Acumula para cada nuvem calculando as normais no sentido correto
+        calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
+        *acumulada_global_normais += *acumulada_global_normais_temp;
+        acumulada_global_normais_temp->clear();
+    }
     pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
     ROS_INFO("Nuvem salva na pasta correta!!");
-
-    // Salvar o MESH resultante
-//    ROS_INFO("Processando a MESH, aguarde......");
-//    this->triangulate();
-//    this->saveMesh(arquivo_mesh);
 
     // Salvar o arquivo NVM para a acumulada
     this->salva_nvm_acumulada(arquivo_nvm);
 
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT>::Ptr cloud, Eigen::MatrixXf C, int K){
+    // Calcula centro da camera aqui
+    Eigen::Vector3f p = C;
+    // Estima normais viradas para o centro da camera
+    NormalEstimationOMP<PointT, Normal> ne;
+    ne.setInputCloud(cloud);
+    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+    ne.setSearchMethod(tree);
+    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+    ne.setKSearch(K);
+    ne.setNumberOfThreads(4);
+    ne.setViewPoint(p(0), p(1), p(2));
+
+    ne.compute(*cloud_normals);
+
+    concatenateFields(*cloud, *cloud_normals, *acc_temp);
+
+    vector<int> indicesnan;
+    removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salva_nvm_acumulada(std::string nome){

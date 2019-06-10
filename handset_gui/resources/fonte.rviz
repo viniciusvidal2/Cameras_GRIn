@@ -82,7 +82,7 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/Image
-      Enabled: true
+      Enabled: false
       Image Topic: /astra_rgb
       Max Value: 1
       Median window: 5
@@ -92,9 +92,9 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/Image
-      Enabled: false
+      Enabled: true
       Image Topic: /zed2
       Max Value: 1
       Median window: 5
@@ -104,7 +104,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -168,5 +168,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1051
-  X: 545
-  Y: 205
+  X: 869
+  Y: 174

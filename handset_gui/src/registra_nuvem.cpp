@@ -63,6 +63,9 @@ void RegistraNuvem::init(){
     pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_alvo_temp"     , 1);
     pub_acumulada = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_acumulada_temp", 1);
 
+    // Mutex de publicacao
+    mutex_publicar = true;
+
     ros::Rate rate(2);
     while(ros::ok()){
         rate.sleep();
@@ -84,7 +87,7 @@ void RegistraNuvem::criaMatriz(){
 void RegistraNuvem::publicar_nuvens(){
     sensor_msgs::PointCloud2 src_temp_msg, tgt_msg, acumulada_msg;
     std::string frame = "registro";
-    if(processando){
+    if(processando && mutex_publicar){
         if(src_temp->size() > 0){
             toROSMsg(*src_temp, src_temp_msg);
             src_temp_msg.header.frame_id = frame;
@@ -104,6 +107,7 @@ void RegistraNuvem::publicar_nuvens(){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_nuvem_alvo(QString nome){
+    mutex_publicar = false;
     arquivo_tgt = nome.toStdString();
     loadPLYFile(arquivo_tgt, *tgt);
     // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
@@ -113,6 +117,12 @@ void RegistraNuvem::set_nuvem_alvo(QString nome){
         break;
       }
     }
+    // Calcular centroide para deslocar nuvem
+    ROS_INFO("Deslocando nuvem alvo para o centro do frame...");
+    centroide_tgt = this->calcula_centroide(tgt);
+    transformPointCloud(*tgt, *tgt,  -centroide_tgt, Eigen::Quaternion<float>::Identity());
+    ROS_INFO("Nuvem alvo deslocada.");
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_arquivo_cameras_alvo(QString nome){
@@ -120,6 +130,7 @@ void RegistraNuvem::set_arquivo_cameras_alvo(QString nome){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_nuvem_fonte(QString nome){
+    mutex_publicar = false;
     arquivo_src = nome.toStdString();
     loadPLYFile(arquivo_src, *src);
     // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
@@ -129,8 +140,14 @@ void RegistraNuvem::set_nuvem_fonte(QString nome){
         break;
       }
     }
+    // Calcular centroide para deslocar nuvem
+    ROS_INFO("Deslocando nuvem fonte para o centro do frame...");
+    centroide_src = this->calcula_centroide(src);
+    transformPointCloud(*src, *src,  -centroide_src, Eigen::Quaternion<float>::Identity());
+    ROS_INFO("Nuvem fonte deslocada.");
     // A principio as nuvens sao iguais, depois havera modificacao
     *src_temp = *src;
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_arquivo_cameras_fonte(QString nome){
@@ -138,15 +155,18 @@ void RegistraNuvem::set_arquivo_cameras_fonte(QString nome){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_translacao(float tx, float ty, float tz){
+    mutex_publicar = false;
     // Recebe em Centimetros, converte pra METROS
     t_fim << tx/100.0, ty/100.0, tz/100.0;
     criaMatriz();
 
     src_temp->clear();
     transformPointCloudWithNormals(*src, *src_temp, T_fim);
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
+    mutex_publicar = false;
     // Recebe em GRAUS, converte pra radianos
     rx = deg2rad(rx);
     ry = deg2rad(ry);
@@ -159,9 +179,11 @@ void RegistraNuvem::set_rotacao(float rx, float ry, float rz){
 
     src_temp->clear();
     transformPointCloudWithNormals(*src, *src_temp, T_fim);
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::registrar_nuvens(bool icp_flag){
+    mutex_publicar = false;
     // Se vamos usar o ICP ou nao, decide aqui
     if(icp_flag){
 
@@ -178,6 +200,7 @@ void RegistraNuvem::registrar_nuvens(bool icp_flag){
         *acumulada = *tgt + *src_temp;
 
     }
+    mutex_publicar = true;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
@@ -274,6 +297,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 rotantes = qantes.matrix();
                 // Centro da camera antigo
                 Cantes(0) = stod(results.at(5)); Cantes(1) = stod(results.at(6)); Cantes(2) = stod(results.at(7));
+                // Alterando devido ao novo centroide da nuvem
+                Cantes = Cantes - centroide_src;
                 // Vetor de translaçao anterior
                 tantes = -rotantes.transpose().inverse()*Cantes; // t = -(R')^-1*C = -R*C
                 // Calculo de da POSE da camera anterior em matriz homogenea
@@ -352,7 +377,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 qantes.y() = stod(results.at(3)); qantes.z() = stod(results.at(4).data());
                 // Centro da camera antigo
                 Cantes(0) = stof(results.at(5)); Cantes(1) = stof(results.at(6)); Cantes(2) = stof(results.at(7));
-
+                // Alterando devido ao novo centroide da nuvem
+                Cantes = Cantes - centroide_tgt;
                 // Nome da imagem
                 QString path2 = QString::fromStdString(path);
                 for(int i=path2.length(); i > 0; i--){
@@ -443,5 +469,17 @@ std::string RegistraNuvem::escreve_linha_imagem(std::string pasta, camera c){
     std::replace(linha.begin(), linha.end(), ',', '.');
     return linha;
 }
-
+///////////////////////////////////////////////////////////////////////////////////////////
+Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){
+    float x = 0, y = 0, z = 0;
+    for(int i=0; i < cloud->size(); i++){
+        x = x + cloud->points[i].x;
+        y = y + cloud->points[i].y;
+        z = z + cloud->points[i].z;
+    }
+    Eigen::Vector3f centroide;
+    centroide << x/(float)cloud->size(), y/(float)cloud->size(), z/(float)cloud->size();
+    // Retorna centro medio dos pontos da nuvem, na transformacao deve ser passado negativo
+    return centroide;
+}
 } // fim do namespace handset_gui

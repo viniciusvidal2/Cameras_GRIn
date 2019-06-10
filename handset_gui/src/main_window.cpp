@@ -53,23 +53,23 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Ajustando Sliders com limites e valores iniciais
     ui.horizontalSlider_x->setMinimum(-(ui.lineEdit_limitex->text().toFloat()));
     ui.horizontalSlider_x->setMaximum(ui.lineEdit_limitex->text().toFloat());
-    ui.horizontalSlider_x->setValue(169);
+    ui.horizontalSlider_x->setValue(0);
     ui.horizontalSlider_y->setMinimum(-(ui.lineEdit_limitey->text().toFloat()));
     ui.horizontalSlider_y->setMaximum(ui.lineEdit_limitey->text().toFloat());
-    ui.horizontalSlider_y->setValue(-40);
+    ui.horizontalSlider_y->setValue(0);
     ui.horizontalSlider_z->setMinimum(-(ui.lineEdit_limitez->text().toFloat()));
     ui.horizontalSlider_z->setMaximum(ui.lineEdit_limitez->text().toFloat());
-    ui.horizontalSlider_z->setValue(-22);
+    ui.horizontalSlider_z->setValue(0);
     // Ajustando Dials com limites e valores iniciais -> GRAUS AQUI
     ui.dial_x->setMinimum(-180);
     ui.dial_x->setMaximum(180);
-    ui.dial_x->setValue(180);
+    ui.dial_x->setValue(0);
     ui.dial_y->setMinimum(-180);
     ui.dial_y->setMaximum(180);
-    ui.dial_y->setValue(-16);
+    ui.dial_y->setValue(0);
     ui.dial_z->setMinimum(-180);
     ui.dial_z->setMaximum(180);
-    ui.dial_z->setValue(-135);
+    ui.dial_z->setValue(0);
 
 }
 
@@ -171,27 +171,27 @@ void MainWindow::on_pushButton_camerasfonte_clicked(){
 
 /// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada
 void MainWindow::on_pushButton_iniciararquivos_clicked(){
-    rn.set_inicio_processo(true);
+//    rn.set_inicio_processo(true);
 
-    rn.set_nuvem_alvo(ui.lineEdit_nuvemalvo->text());
-    rn.set_nuvem_fonte(ui.lineEdit_nuvemfonte->text());
-    rn.set_arquivo_cameras_alvo(ui.lineEdit_camerasalvo->text());
-    rn.set_arquivo_cameras_fonte(ui.lineEdit_camerasfonte->text());
+//    rn.set_nuvem_alvo(ui.lineEdit_nuvemalvo->text());
+//    rn.set_nuvem_fonte(ui.lineEdit_nuvemfonte->text());
+//    rn.set_arquivo_cameras_alvo(ui.lineEdit_camerasalvo->text());
+//    rn.set_arquivo_cameras_fonte(ui.lineEdit_camerasfonte->text());
 
-    double x = (double)ui.horizontalSlider_x->value();
-    double y = (double)ui.horizontalSlider_y->value();
-    double z = (double)ui.horizontalSlider_z->value();
+//    double x = (double)ui.horizontalSlider_x->value();
+//    double y = (double)ui.horizontalSlider_y->value();
+//    double z = (double)ui.horizontalSlider_z->value();
 
-    rn.set_translacao(x, y, z);
+//    rn.set_translacao(x, y, z);
 
-    x = (double)ui.dial_x->value();
-    y = (double)ui.dial_y->value();
-    z = (double)ui.dial_z->value();
+//    x = (double)ui.dial_x->value();
+//    y = (double)ui.dial_y->value();
+//    z = (double)ui.dial_z->value();
 
-    rn.set_rotacao(x, y, z);
+//    rn.set_rotacao(x, y, z);
 
-//    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
-//    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
 }
 
 /// Sliders sao liberados, a nuvem pode ser transformada

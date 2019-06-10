@@ -229,7 +229,7 @@
             <bool>true</bool>
            </property>
            <property name="text">
-            <string>/media/vinicius/HD/testes_handset/tudo_pra_dar_certo/topo_caixa.ply</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -258,7 +258,7 @@
             <bool>true</bool>
            </property>
            <property name="text">
-            <string>/media/vinicius/HD/testes_handset/tudo_pra_dar_certo/cameras_final.nvm</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -287,7 +287,7 @@
             <bool>true</bool>
            </property>
            <property name="text">
-            <string>/media/vinicius/HD/testes_handset/fundocaixa/nuvem_final.ply</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -316,7 +316,7 @@
             <bool>true</bool>
            </property>
            <property name="text">
-            <string>/media/vinicius/HD/testes_handset/fundocaixa/cameras_final.nvm</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -545,7 +545,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>169</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -561,7 +561,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>-40</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -577,7 +577,7 @@
            </rect>
           </property>
           <property name="text">
-           <string>-22</string>
+           <string>0</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -626,7 +626,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>180</string>
+          <string>0</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -642,7 +642,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>-16</string>
+          <string>0</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -658,7 +658,7 @@
           </rect>
          </property>
          <property name="text">
-          <string>-135</string>
+          <string>0</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>

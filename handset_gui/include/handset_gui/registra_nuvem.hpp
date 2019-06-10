@@ -143,12 +143,17 @@ private:
     Eigen::Vector3f offset_astra_zed;
     Eigen::Quaternion<float> rot_astra_zed;
     Eigen::Matrix4f T_astra_zed;
+    // Centroide calculado pelas medias dos pontos das nuvens
+    Eigen::Vector3f centroide_src, centroide_tgt;
+    // MUTEX para nao publicar enquanto nao transformar a nuvem
+    bool mutex_publicar; // True: pode publicar; False: nao pode, esta processando
 
     /// Metodos ///
     void criaMatriz();
     void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
     Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     std::string escreve_linha_imagem(std::string pasta, camera c);
+    Eigen::Vector3f calcula_centroide(PointCloud<PointT>::Ptr cloud);
 
 };
 

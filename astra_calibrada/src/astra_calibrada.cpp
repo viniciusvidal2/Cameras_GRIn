@@ -144,7 +144,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     resolucao = resolucao > 0 ? resolucao : 2;
     for(int v = 0; v < depthHeight; v=v+resolucao){
         for(int u = 0; u < depthWidth; u=u+resolucao){
-            //            cout << "aqui\n";
             z = cv_ptr_d->image.at<short int>(v, u);
             if(z!=0){ // eliminando pontos de prof. zero
                 x = ((u - Cxd)*z)/fxd;

@@ -91,7 +91,12 @@ void Cloud_Work::init(){
 //    offset_astra_zed << -0.001, -0.090, -0.025;
 //    offset_astra_zed << 0, 0.048, 0.03; // No frame da ZED, apos rotaçao de ASTRA->ZED
 //    offset_astra_zed << 0.048, 0.03, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-    offset_astra_zed << 0.06, 0, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+//    offset_astra_zed << 0.06, 0, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+//    offset_astra_zed << 0.022, 0.03, -0.009; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_DEPTH
+//    offset_astra_zed << 0.048, 0.031, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 1
+    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
+//    offset_astra_zed << -0.004, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 3
+//    offset_astra_zed << -0.004, 0.031, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 4
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
@@ -303,16 +308,6 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
         // Acumular com a global, a depender se primeira vez ou nao
         registra_global_icp(acumulada_parcial, q, offset);
 
-        // Quaternion e translaçao que o ICP calculou -> melhor posicao para a camera
-//        Eigen::Matrix3f rot_icp;
-//        Eigen::Matrix4f T_corrigida_ = T_corrigida.inverse(); // ZED->ODOM
-//        rot_icp << T_corrigida_(0, 0), T_corrigida_(0, 1), T_corrigida_(0, 2),
-//                   T_corrigida_(1, 0), T_corrigida_(1, 1), T_corrigida_(1, 2),
-//                   T_corrigida_(2, 0), T_corrigida_(2, 1), T_corrigida_(2, 2);
-//        Eigen::Quaternion<float> q_icp(rot_icp);
-//        Eigen::Vector3f t_icp;
-//        t_icp << T_corrigida_(0, 3), T_corrigida_(1, 3), T_corrigida_(2, 3);
-
         // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
         // REFERENCIA : left_zed->ASTRA->ZED->ODOM
         Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
@@ -332,7 +327,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Salva no vetor de nuvens e poses para acumular tudo ao final
         nuvem_pose n;
-        n.nuvem = acumulada_parcial;
+        n.nuvem = *acumulada_parcial;
         n.centro_camera = calcula_centro_camera(q_azo, t_azo);
         np.push_back(n);
 
@@ -396,7 +391,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-    float fzed = 1412.5361328125;
+    float fzed = 1462.324341;
     // Adicionar foco
 //    linha = linha + " " + to_string(astra_model.fx());
     linha = linha + " " + std::to_string(fzed);
@@ -440,7 +435,7 @@ void Cloud_Work::salvar_acumulada(){
     PointCloud<PointTN>::Ptr acumulada_global_normais      (new PointCloud<PointTN>());
     PointCloud<PointTN>::Ptr acumulada_global_normais_temp (new PointCloud<PointTN>());
     for(int i=0; i < np.size(); i++){
-        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i, np.size());
+        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;
@@ -454,12 +449,14 @@ void Cloud_Work::salvar_acumulada(){
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT>::Ptr cloud, Eigen::MatrixXf C, int K){
+void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K){
     // Calcula centro da camera aqui
     Eigen::Vector3f p = C;
     // Estima normais viradas para o centro da camera
     NormalEstimationOMP<PointT, Normal> ne;
-    ne.setInputCloud(cloud);
+    PointCloud<PointT>::Ptr cloud2 (new PointCloud<PointT>());
+    *cloud2 = cloud;
+    ne.setInputCloud(cloud2);
     search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
@@ -469,7 +466,7 @@ void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_te
 
     ne.compute(*cloud_normals);
 
-    concatenateFields(*cloud, *cloud_normals, *acc_temp);
+    concatenateFields(cloud, *cloud_normals, *acc_temp);
 
     vector<int> indicesnan;
     removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);

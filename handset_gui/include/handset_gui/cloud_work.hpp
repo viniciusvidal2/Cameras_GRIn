@@ -135,7 +135,7 @@ private:
     void calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K); // Overload da funcao para usar no ICP
     void saveMesh(std::string nome);
     void triangulate();
-    void calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc, PointCloud<PointT>::Ptr cloud, Eigen::MatrixXf C, int K);
+    void calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K);
     std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
@@ -188,8 +188,8 @@ private:
     PolygonMesh mesh_acumulada;
     // Struct para guardar cada nuvem com seu ponto de vista respectivo e calcular normais
     struct nuvem_pose{
-        nuvem_pose() {nuvem = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;}
-        PointCloud<PointT>::Ptr nuvem;
+        nuvem_pose() {}
+        PointCloud<PointT> nuvem;
         Eigen::MatrixXf centro_camera; // Centro da camera no espaço
     };
     std::vector<nuvem_pose> np;

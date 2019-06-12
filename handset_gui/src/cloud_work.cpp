@@ -470,6 +470,19 @@ void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_te
 
     vector<int> indicesnan;
     removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);
+
+    // Forcar virar as normais na marra
+    for(int i=0; i < cloud_normals->size(); i++){
+        Eigen::Vector3f normal, cp;
+        normal << acc_temp->points[i].normal_x, acc_temp->points[i].normal_y, acc_temp->points[i].normal_z;
+        cp << p(0)-acc_temp->points[i].x, p(1)-acc_temp->points[i].y, p(2)-acc_temp->points[i].z;
+        float cos_theta = normal.dot(cp)/(normal.norm()*cp.norm());
+        if(cos_theta < 0){ // Esta apontando errado, deve inverter
+            acc_temp->points[i].normal_x = -acc_temp->points[i].normal_x;
+            acc_temp->points[i].normal_y = -acc_temp->points[i].normal_y;
+            acc_temp->points[i].normal_z = -acc_temp->points[i].normal_z;
+        }
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salva_nvm_acumulada(std::string nome){

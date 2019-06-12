@@ -154,6 +154,9 @@ private:
     Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     std::string escreve_linha_imagem(std::string pasta, camera c);
     Eigen::Vector3f calcula_centroide(PointCloud<PointT>::Ptr cloud);
+    void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation);
+    void filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int rmax, int gmin, int gmax, int bmin, int bmax);
+    void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
 
 };
 

@@ -482,4 +482,46 @@ Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){
     // Retorna centro medio dos pontos da nuvem, na transformacao deve ser passado negativo
     return centroide;
 }
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
+    VoxelGrid<PointT> grid;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    grid.setInputCloud(cloud);
+    grid.filter(*cloud);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int rmax, int gmin, int gmax, int bmin, int bmax){
+  int rMax = rmax;
+  int rMin = rmin;
+  int gMax = gmax;
+  int gMin = gmin;
+  int bMax = bmax;
+  int bMin = bmin;
+
+  ConditionAnd<PointT>::Ptr color_cond (new ConditionAnd<PointT> ());
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("r", ComparisonOps::LT, rMax)));
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("r", ComparisonOps::GT, rMin)));
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("g", ComparisonOps::LT, gMax)));
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("g", ComparisonOps::GT, gMin)));
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("b", ComparisonOps::LT, bMax)));
+  color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("b", ComparisonOps::GT, bMin)));
+
+  // build the filter
+  ConditionalRemoval<PointT> condrem (color_cond);
+  condrem.setInputCloud(cloud_in);
+  condrem.setKeepOrganized(true);
+
+  // apply filter
+  condrem.filter (*cloud_in);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
+  StatisticalOutlierRemoval<PointT> sor;
+  sor.setInputCloud(in);
+  sor.setMeanK(mean);
+  sor.setStddevMulThresh(deviation);
+  sor.filter(*in);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+
 } // fim do namespace handset_gui

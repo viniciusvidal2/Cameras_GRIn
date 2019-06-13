@@ -483,13 +483,6 @@ Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){
     return centroide;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
-    VoxelGrid<PointT> grid;
-    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
-    grid.setInputCloud(cloud);
-    grid.filter(*cloud);
-}
-///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int rmax, int gmin, int gmax, int bmin, int bmax){
   int rMax = rmax;
   int rMin = rmin;

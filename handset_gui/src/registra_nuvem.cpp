@@ -42,6 +42,8 @@ void RegistraNuvem::init(){
     src_temp  = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
     tgt       = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
     acumulada = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
+    nuvem_filtrar      = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
+    nuvem_filtrar_temp = (PointCloud<PointT>::Ptr) new PointCloud<PointT>();
 
     // Inicia a transformaçao
     T_fim = Eigen::Matrix4f::Identity();
@@ -62,9 +64,13 @@ void RegistraNuvem::init(){
     pub_srctemp   = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_fonte_temp"    , 1);
     pub_tgt       = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_alvo_temp"     , 1);
     pub_acumulada = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_acumulada_temp", 1);
+    pub_filtrada  = nh_.advertise<sensor_msgs::PointCloud2>("/nuvem_filtrada"      , 1);
 
     // Mutex de publicacao
     mutex_publicar = true;
+
+    // Estamos na aba3?
+    aba3 = false;
 
     ros::Rate rate(2);
     while(ros::ok()){
@@ -87,7 +93,7 @@ void RegistraNuvem::criaMatriz(){
 void RegistraNuvem::publicar_nuvens(){
     sensor_msgs::PointCloud2 src_temp_msg, tgt_msg, acumulada_msg;
     std::string frame = "registro";
-    if(processando && mutex_publicar){
+    if(processando && mutex_publicar && !aba3){
         if(src_temp->size() > 0){
             toROSMsg(*src_temp, src_temp_msg);
             src_temp_msg.header.frame_id = frame;
@@ -102,6 +108,15 @@ void RegistraNuvem::publicar_nuvens(){
             toROSMsg(*acumulada, acumulada_msg);
             acumulada_msg.header.frame_id = frame;
             pub_acumulada.publish(acumulada_msg);
+        }
+    }
+    // Aqui quando publicando na terceira aba de filtragem somente
+    if(mutex_publicar && aba3){
+        if(nuvem_filtrar_temp->size() > 0){
+            sensor_msgs::PointCloud2 filtrada_msg;
+            toROSMsg(*nuvem_filtrar_temp, filtrada_msg);
+            filtrada_msg.header.frame_id = frame;
+            pub_filtrada.publish(filtrada_msg);
         }
     }
 }
@@ -190,7 +205,7 @@ void RegistraNuvem::registrar_nuvens(bool icp_flag){
         // Recebe a matriz de transformacao final do ICP
         Eigen::Matrix4f Ticp = icp(src, tgt, T_fim);
         // Transforma de forma fina para a src_temp, para nao perder a src
-        transformPointCloud(*src, *src_temp, Ticp);
+        transformPointCloudWithNormals(*src, *src_temp, Ticp);
         *acumulada = *tgt + *src_temp;
         // Guarda para escrever no arquivo de cameras
         T_fim = Ticp;
@@ -208,6 +223,13 @@ void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(cloud);
     grid.filter(*cloud);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float leaf_size){
+    VoxelGrid<PointT> grid;
+    grid.setLeafSize(leaf_size, leaf_size, leaf_size);
+    grid.setInputCloud(in);
+    grid.filter(*out);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
@@ -432,6 +454,9 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
         } // Fim do if arquivo is open
         nvm_final.close();
 
+        ROS_INFO("Arquivo NVM salvo na pasta %s.", pasta_final.c_str());
+
+        ROS_INFO("Copiando fotos e criando nuvens na pasta %s...", pasta_final.c_str());
 
         // Mover cada imagem para a nova pasta
         for(int i=0; i < cameras_src.size(); i++){
@@ -445,13 +470,19 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
             boost::filesystem::copy_file(caminho_saida.c_str(), caminho_final.c_str(), boost::filesystem::copy_option::overwrite_if_exists);
         }
 
-        // Gravar a nuvem registrada no diretorio final
+        // Gravar a nuvem registrada no diretorio final, junto com a nuvem fonte e a alvo deslocadas
         std::string arquivo_nuvem_final = pasta_final + "/nuvem_final.ply";
+        std::string arquivo_fonte_final = pasta_final + "/nuvem_fonte.ply";
+        std::string arquivo_alvo_final  = pasta_final + "/nuvem_alvo.ply" ;
+        savePLYFileASCII(arquivo_fonte_final, *src_temp );
+        savePLYFileASCII(arquivo_alvo_final , *tgt      );
         savePLYFileASCII(arquivo_nuvem_final, *acumulada);
+
+        ROS_INFO("Arquivos criados com sucesso.");
 
     } // Fim do if para mkdir
 
-    ROS_INFO("Arquivo NVM salvo na pasta %s.", pasta_final.c_str());
+
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -508,12 +539,55 @@ void RegistraNuvem::filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int
   condrem.filter (*cloud_in);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void RegistraNuvem::remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
+void RegistraNuvem::remove_outlier(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float mean, float deviation){
   StatisticalOutlierRemoval<PointT> sor;
   sor.setInputCloud(in);
   sor.setMeanK(mean);
   sor.setStddevMulThresh(deviation);
-  sor.filter(*in);
+  sor.filter(*out);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_nuvem_filtrar(QString n){
+    aba3 = true; // Vai funcionar e publicar as coisas dessa aba
+
+    loadPLYFile(n.toStdString(), *nuvem_filtrar);
+    // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
+    for(int i=n.length(); i>0; i--){
+      if (n[i] == '/'){
+        pasta_filtrada = n.left(i).toStdString();
+        break;
+      }
+    }
+    *nuvem_filtrar_temp = *nuvem_filtrar;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_new_voxel(float v){
+    mutex_publicar = false;
+    filter_grid(nuvem_filtrar_temp, nuvem_filtrar_temp, v);
+    mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_new_outlier(float k, float stddev){
+    mutex_publicar = false;
+    remove_outlier(nuvem_filtrar_temp, nuvem_filtrar_temp, k, stddev);
+    mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_filter_colors(int rmin, int rmax, int gmin, int gmax, int bmin, int bmax){
+    mutex_publicar = false;
+    filter_color(nuvem_filtrar_temp, rmin, rmax, gmin, gmax, bmin, bmax);
+    mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::salvar_nuvem_filtrada(QString nome){
+    std::string caminho = pasta_filtrada+"/"+nome.toStdString()+".ply";
+    ROS_INFO("Salvando nuvem filtrada como %s...", caminho.c_str());
+    savePLYFileASCII(caminho, *nuvem_filtrar_temp);
+    ROS_INFO("Nuvem filtrada salva.");
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::reseta_filtros(){
+    *nuvem_filtrar_temp = *nuvem_filtrar;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 

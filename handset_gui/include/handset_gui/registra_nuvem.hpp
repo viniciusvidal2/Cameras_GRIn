@@ -98,6 +98,14 @@ public:
     void registrar_nuvens(bool icp_flag);
     void salvar_dados_finais(QString pasta);
 
+    /// Para filtragem da nuvem ///
+    void set_nuvem_filtrar(QString n);
+    void set_new_voxel(float v);
+    void set_new_outlier(float k, float stddev);
+    void salvar_nuvem_filtrada(QString nome);
+    void set_filter_colors(int rmin, int rmax, int gmin, int gmax, int bmin, int bmax);
+    void reseta_filtros();
+
 private:
     /// Variaveis ///
     // Inicio da classe
@@ -135,7 +143,6 @@ private:
         Eigen::Vector3f C_original;
         Eigen::Vector3f C_modificado;
         float foco;
-//        ~camera();
         camera() = default;
     };
     std::vector<camera> cameras_src, cameras_tgt;
@@ -147,14 +154,22 @@ private:
     Eigen::Vector3f centroide_src, centroide_tgt;
     // MUTEX para nao publicar enquanto nao transformar a nuvem
     bool mutex_publicar; // True: pode publicar; False: nao pode, esta processando
+    /// aba3 ///
+    PointCloud<PointT>::Ptr nuvem_filtrar;
+    PointCloud<PointT>::Ptr nuvem_filtrar_temp;
+    ros::Publisher pub_filtrada;
+    std::string pasta_filtrada;
+    std::string nome_nuvem_filtrada;
+    bool aba3;
 
     /// Metodos ///
     void criaMatriz();
     void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
+    void filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float leaf_size);
     Eigen::Matrix4f icp(PointCloud<PointT>::Ptr src, PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
     std::string escreve_linha_imagem(std::string pasta, camera c);
     Eigen::Vector3f calcula_centroide(PointCloud<PointT>::Ptr cloud);
-    void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation);
+    void remove_outlier(PointCloud<PointT>::Ptr in, PointCloud<PointT>::Ptr out, float mean, float deviation);
     void filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int rmax, int gmin, int gmax, int bmin, int bmax);
 
 };

@@ -88,18 +88,33 @@ private Q_SLOTS:
     void on_dial_y_sliderReleased();
     void on_dial_z_sliderReleased();
 
-    void on_lineEdit_limitex_textEdited(QString s);
-    void on_lineEdit_limitey_textEdited(QString s);
-    void on_lineEdit_limitez_textEdited(QString s);
-    void on_lineEdit_X_textEdited(QString s);
-    void on_lineEdit_Y_textEdited(QString s);
-    void on_lineEdit_Z_textEdited(QString s);
-    void on_lineEdit_rotacaox_textEdited(QString s);
-    void on_lineEdit_rotacaoy_textEdited(QString s);
-    void on_lineEdit_rotacaoz_textEdited(QString s);
+    void on_lineEdit_limitex_returnPressed();
+    void on_lineEdit_limitey_returnPressed();
+    void on_lineEdit_limitez_returnPressed();
+    void on_lineEdit_X_returnPressed();
+    void on_lineEdit_Y_returnPressed();
+    void on_lineEdit_Z_returnPressed();
+    void on_lineEdit_rotacaox_returnPressed();
+    void on_lineEdit_rotacaoy_returnPressed();
+    void on_lineEdit_rotacaoz_returnPressed();
     
     void on_pushButton_registrar_clicked();
     void on_pushButton_salvarfinal_clicked();
+
+    /// ABA3 ///
+    void on_pushButton_nuvemacorrigir_clicked();
+    void on_pushButton_visualizarcorrecao_clicked();
+    void on_pushButton_voxel_clicked();
+    void on_pushButton_outliers_clicked();
+    void on_pushButton_salvarnuvemfiltrada_clicked();
+    void on_pushButton_resetafiltro_clicked();
+
+    void on_lineEdit_rmin_returnPressed();
+    void on_lineEdit_rmax_returnPressed();
+    void on_lineEdit_bmin_returnPressed();
+    void on_lineEdit_bmax_returnPressed();
+    void on_lineEdit_gmin_returnPressed();
+    void on_lineEdit_gmax_returnPressed();
 
 private:
     Ui::MainWindowDesign ui;

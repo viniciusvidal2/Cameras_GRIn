@@ -381,7 +381,8 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
     // Calcular normais para a nuvem
     pcl::PointCloud<PointTN>::Ptr final_parcial (new pcl::PointCloud<PointTN>);
-    this->calculateNormalsAndConcatenate(cloud, final_parcial, 30);
+//    this->calculateNormalsAndConcatenate(cloud, final_parcial, 30);
+    calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
     // Salvar nuvem em arquivo .ply
     if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
@@ -424,29 +425,32 @@ void Cloud_Work::salvar_acumulada(){
     std::string arquivo_nuvem = pasta+"nuvem_final.ply";
     std::string arquivo_nvm   = pasta+"cameras_final.nvm";
 
-//    // A principio so salvar a nuvem
-//    ROS_INFO("Salvando nuvem acumulada.....");
-//    PointCloud<PointTN>::Ptr acumulada_global_normais (new PointCloud<PointTN>());
-//    this->calculateNormalsAndConcatenate(acumulada_global, acumulada_global_normais, 30);
-//    pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
-//    ROS_INFO("Nuvem salva na pasta correta!!");
     ROS_INFO("Salvando nuvem acumulada.....");
     // Acumulada global com normais
     PointCloud<PointTN>::Ptr acumulada_global_normais      (new PointCloud<PointTN>());
     PointCloud<PointTN>::Ptr acumulada_global_normais_temp (new PointCloud<PointTN>());
+    PointCloud<PointT>::Ptr cameras_temp (new PointCloud<PointT>());
     for(int i=0; i < np.size(); i++){
         ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;
         acumulada_global_normais_temp->clear();
+        PointT ponto_temp;
+        ponto_temp.x = np.at(i).centro_camera(0);
+        ponto_temp.y = np.at(i).centro_camera(1);
+        ponto_temp.z = np.at(i).centro_camera(2);
+        ponto_temp.r = 250;
+        ponto_temp.g = 0;
+        ponto_temp.b = 0;
+        cameras_temp->push_back(ponto_temp);
     }
+    savePLYFileASCII(pasta+"camerascentro.ply", *cameras_temp);
     pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
     ROS_INFO("Nuvem salva na pasta correta!!");
 
     // Salvar o arquivo NVM para a acumulada
     this->salva_nvm_acumulada(arquivo_nvm);
-
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K){
@@ -462,7 +466,6 @@ void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_te
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
     ne.setKSearch(K);
     ne.setNumberOfThreads(4);
-    ne.setViewPoint(p(0), p(1), p(2));
 
     ne.compute(*cloud_normals);
 
@@ -472,12 +475,12 @@ void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_te
     removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);
 
     // Forcar virar as normais na marra
-    for(int i=0; i < cloud_normals->size(); i++){
+    for(int i=0; i < acc_temp->size(); i++){
         Eigen::Vector3f normal, cp;
         normal << acc_temp->points[i].normal_x, acc_temp->points[i].normal_y, acc_temp->points[i].normal_z;
         cp << p(0)-acc_temp->points[i].x, p(1)-acc_temp->points[i].y, p(2)-acc_temp->points[i].z;
-        float cos_theta = normal.dot(cp)/(normal.norm()*cp.norm());
-        if(cos_theta < 0){ // Esta apontando errado, deve inverter
+        float cos_theta = (normal.dot(cp))/(normal.norm()*cp.norm());
+        if(cos_theta <= 0){ // Esta apontando errado, deve inverter
             acc_temp->points[i].normal_x = -acc_temp->points[i].normal_x;
             acc_temp->points[i].normal_y = -acc_temp->points[i].normal_y;
             acc_temp->points[i].normal_z = -acc_temp->points[i].normal_z;

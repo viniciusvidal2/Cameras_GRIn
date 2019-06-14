@@ -71,6 +71,11 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.dial_z->setMaximum(180);
     ui.dial_z->setValue(0);
 
+    // Desabilitando componentes da aba 3
+    ui.groupBox_filtrosforma->setEnabled(false);
+    ui.groupBox_cores->setEnabled(false);
+    ui.frame_salvar->setEnabled(false);
+
 }
 
 MainWindow::~MainWindow() {}
@@ -102,13 +107,15 @@ void MainWindow::on_pushButton_capturar_clicked(){
 
 /// Botao para gravar a parar gravacao da bag
 void MainWindow::on_pushButton_gravardados_clicked(){
+    std::string bag = ui.lineEdit_nomebag->text().toStdString();
     if(controle_gravacao){ // Estamos gravando, clica para parar, fica verde
         system("rosnode kill /rosbag_record");
         ui.pushButton_gravardados->setText("Gravar Dados");
         ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
         controle_gravacao = false;
     } else { // Nao estamos gravando, clica para comecar, fica vermelho
-        system("gnome-terminal -x sh -c 'roslaunch handset_gui record.launch'");
+        std::string comando = "gnome-terminal -x sh -c 'roslaunch handset_gui record.launch bag:="+bag+"'";
+        system(comando.c_str());
         ui.pushButton_gravardados->setText("Parar gravacao");
         ui.pushButton_gravardados->setStyleSheet("background-color: rgb(200, 0, 0); color: rgb(0, 0, 0)");
         controle_gravacao = true;
@@ -171,25 +178,6 @@ void MainWindow::on_pushButton_camerasfonte_clicked(){
 
 /// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada
 void MainWindow::on_pushButton_iniciararquivos_clicked(){
-//    rn.set_inicio_processo(true);
-
-//    rn.set_nuvem_alvo(ui.lineEdit_nuvemalvo->text());
-//    rn.set_nuvem_fonte(ui.lineEdit_nuvemfonte->text());
-//    rn.set_arquivo_cameras_alvo(ui.lineEdit_camerasalvo->text());
-//    rn.set_arquivo_cameras_fonte(ui.lineEdit_camerasfonte->text());
-
-//    double x = (double)ui.horizontalSlider_x->value();
-//    double y = (double)ui.horizontalSlider_y->value();
-//    double z = (double)ui.horizontalSlider_z->value();
-
-//    rn.set_translacao(x, y, z);
-
-//    x = (double)ui.dial_x->value();
-//    y = (double)ui.dial_y->value();
-//    z = (double)ui.dial_z->value();
-
-//    rn.set_rotacao(x, y, z);
-
     system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
     system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
 }
@@ -252,22 +240,22 @@ void MainWindow::on_dial_z_sliderReleased(){
 }
 
 /// Ajustes sobre os limites de translação a partir dos linedits
-void MainWindow::on_lineEdit_limitex_textEdited(QString s){
-    ui.horizontalSlider_x->setMaximum( s.toInt());
-    ui.horizontalSlider_x->setMinimum(-s.toInt());
+void MainWindow::on_lineEdit_limitex_returnPressed(){
+    ui.horizontalSlider_x->setMaximum( ui.lineEdit_limitex->text().toInt());
+    ui.horizontalSlider_x->setMinimum(-ui.lineEdit_limitex->text().toInt());
 }
-void MainWindow::on_lineEdit_limitey_textEdited(QString s){
-    ui.horizontalSlider_y->setMaximum( s.toInt());
-    ui.horizontalSlider_y->setMinimum(-s.toInt());
+void MainWindow::on_lineEdit_limitey_returnPressed(){
+    ui.horizontalSlider_y->setMaximum( ui.lineEdit_limitey->text().toInt());
+    ui.horizontalSlider_y->setMinimum(-ui.lineEdit_limitey->text().toInt());
 }
-void MainWindow::on_lineEdit_limitez_textEdited(QString s){
-    ui.horizontalSlider_z->setMaximum( s.toInt());
-    ui.horizontalSlider_z->setMinimum(-s.toInt());
+void MainWindow::on_lineEdit_limitez_returnPressed(){
+    ui.horizontalSlider_z->setMaximum( ui.lineEdit_limitez->text().toInt());
+    ui.horizontalSlider_z->setMinimum(-ui.lineEdit_limitez->text().toInt());
 }
 
 /// Refinando o valor a partir dos linedits do lado direito
-void MainWindow::on_lineEdit_X_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_X_returnPressed(){
+    int valor = ui.lineEdit_X->text().toInt();
     if(valor >= ui.horizontalSlider_x->minimum() && valor <= ui.horizontalSlider_x->maximum()){
         ui.horizontalSlider_x->setValue(valor);
 
@@ -278,8 +266,8 @@ void MainWindow::on_lineEdit_X_textEdited(QString s){
         rn.set_translacao(x, y, z);
     }
 }
-void MainWindow::on_lineEdit_Y_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_Y_returnPressed(){
+    int valor = ui.lineEdit_Y->text().toInt();
     if(valor >= ui.horizontalSlider_y->minimum() && valor <= ui.horizontalSlider_y->maximum()){
         ui.horizontalSlider_y->setValue(valor);
 
@@ -290,8 +278,8 @@ void MainWindow::on_lineEdit_Y_textEdited(QString s){
         rn.set_translacao(x, y, z);
     }
 }
-void MainWindow::on_lineEdit_Z_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_Z_returnPressed(){
+    int valor = ui.lineEdit_Z->text().toInt();
     if(valor >= ui.horizontalSlider_z->minimum() && valor <= ui.horizontalSlider_z->maximum()){
         ui.horizontalSlider_z->setValue(valor);
 
@@ -304,8 +292,8 @@ void MainWindow::on_lineEdit_Z_textEdited(QString s){
 }
 
 /// Refinando o valor a partir dos linedits de rotacao
-void MainWindow::on_lineEdit_rotacaox_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_rotacaox_returnPressed(){
+    int valor = ui.lineEdit_rotacaox->text().toInt();
     if(valor >= ui.dial_x->minimum() && valor <= ui.dial_x->maximum()){
         ui.dial_x->setValue(valor);
 
@@ -316,8 +304,8 @@ void MainWindow::on_lineEdit_rotacaox_textEdited(QString s){
         rn.set_rotacao(x, y, z);
     }
 }
-void MainWindow::on_lineEdit_rotacaoy_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_rotacaoy_returnPressed(){
+    int valor = ui.lineEdit_rotacaoy->text().toInt();
     if(valor >= ui.dial_y->minimum() && valor <= ui.dial_y->maximum()){
         ui.dial_y->setValue(valor);
 
@@ -328,8 +316,8 @@ void MainWindow::on_lineEdit_rotacaoy_textEdited(QString s){
         rn.set_rotacao(x, y, z);
     }
 }
-void MainWindow::on_lineEdit_rotacaoz_textEdited(QString s){
-    int valor = s.toInt();
+void MainWindow::on_lineEdit_rotacaoz_returnPressed(){
+    int valor = ui.lineEdit_rotacaoz->text().toInt();
     if(valor >= ui.dial_z->minimum() && valor <= ui.dial_z->maximum()){
         ui.dial_z->setValue(valor);
 
@@ -349,6 +337,117 @@ void MainWindow::on_pushButton_registrar_clicked(){
 /// Botao para salvar ler os arquivos nvm, criar os objetos de cameras e escrever o novo arquivo no lugar certo
 void MainWindow::on_pushButton_salvarfinal_clicked(){
     rn.salvar_dados_finais(ui.lineEdit_pastafinal->text());
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// --------------------------------------------------- ABA3 ----------------------------------------------------------------- ///
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// Botao para carregar arquivo da nuvem que sera filtrada
+void MainWindow::on_pushButton_nuvemacorrigir_clicked(){
+    QString nome_alvo;
+    nome_alvo = QFileDialog::getOpenFileName(this, "Nuvem a Filtrar", "", "PLY Files (*.ply)");
+    ui.lineEdit_nuvemparafiltrar->setText(nome_alvo);
+
+    rn.set_nuvem_filtrar(nome_alvo);
+    // Habilitar o resto da aba
+    ui.groupBox_filtrosforma->setEnabled(true);
+    ui.groupBox_cores->setEnabled(true);
+    ui.frame_salvar->setEnabled(true);
+}
+
+/// Botao para visulizar enquanto a filtragem ocorre
+void MainWindow::on_pushButton_visualizarcorrecao_clicked(){
+    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/filtrando.rviz'");
+}
+
+/// Botao para aplicar o filtro de voxel
+void MainWindow::on_pushButton_voxel_clicked(){
+    float voxel = ui.lineEdit_voxel->text().toFloat(); // aqui em centimetros, tem que mandar em metros
+    ROS_INFO("Tamanho do voxel: %.4f cm", voxel);
+    if(voxel != 0)
+        rn.set_new_voxel(voxel/100.0);
+}
+
+/// Botao para aplicar filtros de outliers
+void MainWindow::on_pushButton_outliers_clicked(){
+    float mean = ui.lineEdit_outliersmean->text().toFloat();
+    float dev  = ui.lineEdit_outliersstd->text().toFloat();
+    ROS_INFO("Media: %.4f    Desvio: %.4f", mean, dev);
+    if(mean != 0 && dev != 0)
+        rn.set_new_outlier(mean, dev);
+}
+
+/// Botao para salvar a nuvem final na mesma pasta que a original
+void MainWindow::on_pushButton_salvarnuvemfiltrada_clicked(){
+    rn.salvar_nuvem_filtrada(ui.lineEdit_nuvemfiltradasalvar->text());
+}
+
+/// Ajuste de cores quando mudar linedits respectivos
+void MainWindow::on_lineEdit_rmin_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+void MainWindow::on_lineEdit_rmax_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+void MainWindow::on_lineEdit_gmin_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+void MainWindow::on_lineEdit_gmax_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+void MainWindow::on_lineEdit_bmin_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+void MainWindow::on_lineEdit_bmax_returnPressed(){
+    int rmin = ui.lineEdit_rmin->text().toInt();
+    int rmax = ui.lineEdit_rmax->text().toInt();
+    int gmin = ui.lineEdit_gmin->text().toInt();
+    int gmax = ui.lineEdit_gmax->text().toInt();
+    int bmin = ui.lineEdit_bmin->text().toInt();
+    int bmax = ui.lineEdit_bmax->text().toInt();
+
+    rn.set_filter_colors(rmin, rmax, gmin, gmax, bmin, bmax);
+}
+
+// Resetar os filtros aplicados
+void MainWindow::on_pushButton_resetafiltro_clicked(){
+    rn.reseta_filtros();
 }
 
 }  // namespace handset_gui

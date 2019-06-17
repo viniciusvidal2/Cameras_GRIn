@@ -446,30 +446,44 @@ void Cloud_Work::salvar_acumulada(){
         cameras_temp->push_back(ponto_temp);
     }
     savePLYFileASCII(pasta+"camerascentro.ply", *cameras_temp);
+
     pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
-    ROS_INFO("Nuvem salva na pasta correta!!");
 
     // Salvar o arquivo NVM para a acumulada
     this->salva_nvm_acumulada(arquivo_nvm);
+    ROS_INFO("Nuvem salva na pasta correta!!");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K){
     // Calcula centro da camera aqui
     Eigen::Vector3f p = C;
-    // Estima normais viradas para o centro da camera
-    NormalEstimationOMP<PointT, Normal> ne;
+//    // Estima normais viradas para o centro da camera
+//    NormalEstimationOMP<PointT, Normal> ne;
+//    PointCloud<PointT>::Ptr cloud2 (new PointCloud<PointT>());
+//    *cloud2 = cloud;
+//    ne.setInputCloud(cloud2);
+//    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+//    ne.setSearchMethod(tree);
+//    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+//    ne.setKSearch(K);
+//    ne.setNumberOfThreads(4);
+
+//    ne.compute(*cloud_normals);
+
+//    concatenateFields(cloud, *cloud_normals, *acc_temp);
+
+    ROS_INFO("Começando a suavizar a nuvem...");
+    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>());
+    MovingLeastSquares<PointT, PointTN> mls;
     PointCloud<PointT>::Ptr cloud2 (new PointCloud<PointT>());
     *cloud2 = cloud;
-    ne.setInputCloud(cloud2);
-    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(K);
-    ne.setNumberOfThreads(4);
-
-    ne.compute(*cloud_normals);
-
-    concatenateFields(cloud, *cloud_normals, *acc_temp);
+    mls.setComputeNormals(true);
+    mls.setSearchRadius(0.1);
+    mls.setInputCloud(cloud2);
+    mls.setSearchMethod(tree);
+    mls.setPolynomialOrder(2);
+    mls.process(*acc_temp);
+    ROS_INFO("Nuvem suavizada!");
 
     vector<int> indicesnan;
     removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);

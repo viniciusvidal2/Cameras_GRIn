@@ -75,6 +75,8 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.groupBox_filtrosforma->setEnabled(false);
     ui.groupBox_cores->setEnabled(false);
     ui.frame_salvar->setEnabled(false);
+    ui.pushButton_resetafiltro->setEnabled(false);
+    ui.groupBox_polinomio->setEnabled(false);
 
 }
 
@@ -354,6 +356,8 @@ void MainWindow::on_pushButton_nuvemacorrigir_clicked(){
     ui.groupBox_filtrosforma->setEnabled(true);
     ui.groupBox_cores->setEnabled(true);
     ui.frame_salvar->setEnabled(true);
+    ui.pushButton_resetafiltro->setEnabled(true);
+    ui.groupBox_polinomio->setEnabled(true);
 }
 
 /// Botao para visulizar enquanto a filtragem ocorre
@@ -448,6 +452,11 @@ void MainWindow::on_lineEdit_bmax_returnPressed(){
 // Resetar os filtros aplicados
 void MainWindow::on_pushButton_resetafiltro_clicked(){
     rn.reseta_filtros();
+}
+
+// Aplicar suavizacao polinomial na nuvem
+void MainWindow::on_pushButton_filtropolinomio_clicked(){
+  rn.aplica_filtro_polinomio(ui.lineEdit_graupolinomio->text().toInt());
 }
 
 }  // namespace handset_gui

@@ -105,6 +105,7 @@ public:
     void salvar_nuvem_filtrada(QString nome);
     void set_filter_colors(int rmin, int rmax, int gmin, int gmax, int bmin, int bmax);
     void reseta_filtros();
+    void aplica_filtro_polinomio(int grau);
 
 private:
     /// Variaveis ///

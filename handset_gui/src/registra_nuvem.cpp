@@ -590,5 +590,37 @@ void RegistraNuvem::reseta_filtros(){
     *nuvem_filtrar_temp = *nuvem_filtrar;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::aplica_filtro_polinomio(int grau){
+  mutex_publicar = false;
 
+  PointCloud<PointXYZRGB>::Ptr temp (new PointCloud<PointXYZRGB>());
+  PointXYZRGB point;
+  for(int i=0; i<nuvem_filtrar_temp->size(); i++){
+    point.x = nuvem_filtrar_temp->points[i].x;
+    point.y = nuvem_filtrar_temp->points[i].y;
+    point.z = nuvem_filtrar_temp->points[i].z;
+    point.r = nuvem_filtrar_temp->points[i].r;
+    point.g = nuvem_filtrar_temp->points[i].g;
+    point.b = nuvem_filtrar_temp->points[i].b;
+    temp->push_back(point);
+  }
+  ROS_INFO("Começando a suavizar a nuvem...");
+  pcl::search::KdTree<PointXYZRGB>::Ptr tree (new pcl::search::KdTree<PointXYZRGB>());
+  MovingLeastSquares<PointXYZRGB, PointXYZRGB> mls;
+  mls.setSearchRadius(0.1);
+  mls.setComputeNormals(false);
+  mls.setSearchMethod(tree);
+  mls.setPolynomialOrder(grau);
+  mls.setInputCloud(temp);
+  mls.process(*temp);
+  ROS_INFO("Nuvem suavizada!");
+  for(int i=0; i<nuvem_filtrar_temp->size(); i++){
+    nuvem_filtrar_temp->points[i].x = temp->points[i].x;
+    nuvem_filtrar_temp->points[i].y = temp->points[i].y;
+    nuvem_filtrar_temp->points[i].z = temp->points[i].z;
+  }
+
+  mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 } // fim do namespace handset_gui

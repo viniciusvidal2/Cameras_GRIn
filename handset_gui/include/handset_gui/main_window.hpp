@@ -108,6 +108,7 @@ private Q_SLOTS:
     void on_pushButton_outliers_clicked();
     void on_pushButton_salvarnuvemfiltrada_clicked();
     void on_pushButton_resetafiltro_clicked();
+    void on_pushButton_filtropolinomio_clicked();
 
     void on_lineEdit_rmin_returnPressed();
     void on_lineEdit_rmax_returnPressed();

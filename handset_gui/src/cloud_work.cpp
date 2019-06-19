@@ -88,15 +88,10 @@ void Cloud_Work::init(){
     matrix = Eigen::AngleAxisf(M_PI/2, Eigen::Vector3f::UnitZ()) * Eigen::AngleAxisf(-M_PI/2, Eigen::Vector3f::UnitY());
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
-//    offset_astra_zed << -0.001, -0.090, -0.025;
-//    offset_astra_zed << 0, 0.048, 0.03; // No frame da ZED, apos rotaçao de ASTRA->ZED
-//    offset_astra_zed << 0.048, 0.03, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-//    offset_astra_zed << 0.06, 0, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-//    offset_astra_zed << 0.022, 0.03, -0.009; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_DEPTH
-//    offset_astra_zed << 0.048, 0.031, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 1
-    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
-//    offset_astra_zed << -0.004, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 3
-//    offset_astra_zed << -0.004, 0.031, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 4
+
+//    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
+    offset_astra_zed << 0.04936, 0.034, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
+
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
@@ -390,9 +385,9 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-    float fzed = 1462.324341;
+//    float fzed = 1462.324341;
+    float fzed = 1380;
     // Adicionar foco
-//    linha = linha + " " + to_string(astra_model.fx());
     linha = linha + " " + std::to_string(fzed);
     // Adicionar quaternion
     linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());

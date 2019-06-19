@@ -95,6 +95,14 @@ target_link_libraries(calibrar_astra_online
   ${roslib_LIBRARIES}
 )
 
+add_executable(calibrar_astra_zed src/calibrar_astra_zed.cpp)
+target_link_libraries(calibrar_astra_zed
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+  ${OpenCV_LIBS}
+  ${roslib_LIBRARIES}
+)
+
 #add_executable(viewer viewer.cpp)
 #target_link_libraries(viewer ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
 

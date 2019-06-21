@@ -503,6 +503,7 @@ void Cloud_Work::reiniciar(){
     // Reinicia tudo que pode ser reiniciado aqui
     acumulada_global->clear(); acumulada_parcial->clear();
     acumulada_parcial_anterior->clear(); acumulada_parcial_frame_camera->clear();
+    np.clear();
 
     system("gnome-terminal -x sh -c 'rosservice call /zed/reset_odometry'");
 

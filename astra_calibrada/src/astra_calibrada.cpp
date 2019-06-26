@@ -47,6 +47,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <nav_msgs/Odometry.h>
 
+// Dynamic Reconfigure
+#include <dynamic_reconfigure/server.h>
+#include <astra_calibrada/calib_params_Config.h>
 
 using namespace pcl;
 using namespace std;
@@ -78,6 +81,8 @@ float fxd, fyd, Cxd, Cyd;// = getIntrinsicsFromK(K, "D");
 Eigen::Matrix3f K2;
 
 float fxrgb, fyrgb, Cxrgb, Cyrgb;// = getIntrinsicsFromK(K, "D");
+float fxzed, fyzed;
+Eigen::Vector3f dzed; // deslocamento entre zed e astra como deve ser
 
 // Calculando Params. Extrisecos
 Eigen::MatrixXf RT(3,4);
@@ -205,12 +210,22 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     nuvem_colorida->clear();
 }
 
+void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_t level){
+  fxzed = params.fx; fyzed = params.fy;
+  dzed << params.dx, params.dy, params.dz;
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "nuvem_astra_calibrada");
 
     ros::NodeHandle nh;
     ros::NodeHandle n_("~");
+
+    // Servidor e callback de parametros de calibracao reconfiguraveis
+    dynamic_reconfigure::Server<astra_calibrada::calib_params_Config> server;
+    dynamic_reconfigure::Server<astra_calibrada::calib_params_Config>::CallbackType f;
+    f = boost::bind(&dyn_reconfig_callback, _1, _2);
 
     // Variáveis
     K1 <<  582.9937,   -2.8599,  308.9297, // CAMERA IR, PROFUNDIDADE

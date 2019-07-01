@@ -24,6 +24,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 
 // PCL
 #include <pcl_conversions/pcl_conversions.h>
@@ -81,18 +82,19 @@ float fxd, fyd, Cxd, Cyd;// = getIntrinsicsFromK(K, "D");
 Eigen::Matrix3f K2;
 
 float fxrgb, fyrgb, Cxrgb, Cyrgb;// = getIntrinsicsFromK(K, "D");
-float fxzed, fyzed;
-Eigen::Vector3f dzed; // deslocamento entre zed e astra como deve ser
 
 // Calculando Params. Extrisecos
-Eigen::MatrixXf RT(3,4);
+Eigen::MatrixXf RT(3, 4);
 
-Eigen::MatrixXf P;
+Eigen::MatrixXf P(3, 4);
 
 Eigen::Matrix3f F;
 
 // Resolucao da nuvem
 int resolucao;
+
+// Mutex para parar a publicacao
+mutex mut;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Filtro para distâncias
@@ -126,7 +128,9 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
     sor.setStddevMulThresh(deviation);
     sor.filter(*in);
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para projecao da nuvem
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
               const sensor_msgs::ImageConstPtr& msg_zed,
               const sensor_msgs::ImageConstPtr& msg_depth,
@@ -165,8 +169,8 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
                 X = X/X(2,0);
 
                 // Adicionando o ponto sem conferencia da matriz fundamental
-                if( floor(X(0,0)) >= 0 && floor(X(0,0)) < depthWidth && floor(X(1,0)) >= 0 && floor(X(1,0)) < depthHeight){
-                    float s = 1000;
+                if(floor(X(0,0)) >= 0 && floor(X(0,0)) < cv_ptr_rgb->image.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < cv_ptr_rgb->image.rows){
+                    float s = 1;
                     current_point.z = z/s;
                     current_point.x = x/s;
                     current_point.y = y/s;
@@ -210,14 +214,37 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     nuvem_colorida->clear();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para parametros reconfiguraveis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_t level){
-  fxzed = params.fx; fyzed = params.fy;
-  dzed << params.dx, params.dy, params.dz;
+  mut.lock();
+  K2 << params.fx,         0,  960,//963.9924, // CAMERA ZED
+                0, params.fy,  540,//588.7955,
+                0,         0,    1.0000;
+  RT << 1, 0, 0, params.dx/1000,
+        0, 1, 0, params.dy/1000,
+        0, 0, 1, params.dz/1000;
+
+//  P = K2*RT;
+  Eigen::Vector3f offsets;
+  offsets << params.dx, params.dy, params.dz;
+//  P.col(P.cols()-1) = offsets;
+  P << K2, offsets;
+  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
+  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
+
+
+  cout << "\nMatriz de Projecao:\n" << P << endl;
+  mut.unlock();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Main
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "nuvem_astra_calibrada");
+    ros::init(argc, argv, "astra_calibrada");
 
     ros::NodeHandle nh;
     ros::NodeHandle n_("~");
@@ -226,6 +253,7 @@ int main(int argc, char **argv)
     dynamic_reconfigure::Server<astra_calibrada::calib_params_Config> server;
     dynamic_reconfigure::Server<astra_calibrada::calib_params_Config>::CallbackType f;
     f = boost::bind(&dyn_reconfig_callback, _1, _2);
+    server.setCallback(f);
 
     // Variáveis
     K1 <<  582.9937,   -2.8599,  308.9297, // CAMERA IR, PROFUNDIDADE
@@ -272,10 +300,10 @@ int main(int argc, char **argv)
     pub_img   = nh.advertise<sensor_msgs::Image>      ("/astra_rgb"      , 10);
     pub_zed   = nh.advertise<sensor_msgs::Image>      ("/zed2"           , 10);
 
-    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw"     , 10);
-    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 10);
-    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 10);
-    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                 , 10);
+    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw"     , 1);
+    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 1);
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 1);
+    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                 , 1);
     Synchronizer<syncPolicy> sync(syncPolicy(10), rgb_sub, zed_sub, depth_sub, subodo);
     sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
 

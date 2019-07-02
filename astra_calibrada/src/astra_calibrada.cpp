@@ -219,8 +219,9 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_t level){
   mut.lock();
-  K2 << params.fx,         0,  960,//963.9924, // CAMERA ZED
-                0, params.fy,  540,//588.7955,
+  float cx = 960, cy = 540;
+  K2 << params.fx,         0,  cx,//963.9924, // CAMERA ZED
+                0, params.fy,  cy,//588.7955,
                 0,         0,    1.0000;
   RT << 1, 0, 0, params.dx/1000,
         0, 1, 0, params.dy/1000,
@@ -228,11 +229,12 @@ void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_
 
 //  P = K2*RT;
   Eigen::Vector3f offsets;
-  offsets << params.dx, params.dy, params.dz;
-//  P.col(P.cols()-1) = offsets;
-  P << K2, offsets;
-  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
-  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
+  offsets << cx*params.dz+params.dx*params.fx,
+             cy*params.dz+params.dy*params.fy,
+             params.dz;
+  P << K2, offsets/1000.0;
+//  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
+//  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
 
 
   cout << "\nMatriz de Projecao:\n" << P << endl;

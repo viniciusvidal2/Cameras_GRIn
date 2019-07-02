@@ -12,9 +12,10 @@
 <include file="$(find zed_wrapper)/launch/zed.launch">
 </include>
 <!--lancar no de projecao calibrada da nuvem da astra-->
-<node name="astra_calibrada_node" pkg="astra_calibrada" type="nuvem_astra_calibrada" output="screen">
+<node name="astra_calibrada_node" pkg="astra_calibrada" type="astra_calibrada" output="screen">
     <param name="resolucao" value="1"/>
 </node>
+
 </group>
 
 </launch>

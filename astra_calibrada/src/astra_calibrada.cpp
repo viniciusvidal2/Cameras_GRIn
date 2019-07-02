@@ -232,7 +232,7 @@ void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_
   offsets << cx*params.dz+params.dx*params.fx,
              cy*params.dz+params.dy*params.fy,
              params.dz;
-  P << K2, offsets/1000.0;
+  P << K2, offsets;
 //  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
 //  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
 

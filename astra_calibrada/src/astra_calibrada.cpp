@@ -76,19 +76,15 @@ ros::Publisher pub_zed;
 // Matriz intrinseca K para Depth cam
 Eigen::Matrix3f K1; //  MATLAB
 
-float fxd, fyd, Cxd, Cyd;// = getIntrinsicsFromK(K, "D");
+float fxd, fyd, Cxd, Cyd;
 
 // Matriz intrinseca K para RGB cam
 Eigen::Matrix3f K2;
-
-float fxrgb, fyrgb, Cxrgb, Cyrgb;// = getIntrinsicsFromK(K, "D");
 
 // Calculando Params. Extrisecos
 Eigen::MatrixXf RT(3, 4);
 
 Eigen::MatrixXf P(3, 4);
-
-Eigen::Matrix3f F;
 
 // Resolucao da nuvem
 int resolucao;
@@ -227,9 +223,6 @@ void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_
              cy*params.dz+params.dy*params.fy,
              params.dz;
   P << K2, offsets;
-//  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
-//  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
-
 
   cout << "\nMatriz de Projecao:\n" << P << endl;
   mut.unlock();
@@ -260,24 +253,6 @@ int main(int argc, char **argv)
     fyd = K1(1,1);
     Cxd = K1(0,2);
     Cyd = K1(1,2);
-
-    K2 <<   1475.0,      0,  963.9924, // CAMERA ZED
-                 0, 1475.2,  588.7955,
-                 0,      0,    1.0000;
-
-    fxrgb = K2(0,0);
-    fyrgb = K2(1,1);
-    Cxrgb = K2(0,2);
-    Cyrgb = K2(1,2);
-
-//    RT <<    0.999812767546507,  -0.013049436148855,  -0.014287829337980, -25.056528502229849, // MATLAB -25.056528502229849
-//            0.012849751269106,   0.999819711122249,  -0.013979597409931, -10.308878899329242, // MATLAB -35.308878899329242
-//            0.014467679265050,   0.013793384922440,   0.999800194433400,  -0.890397736650369;
-    RT <<   0.999812767546507,  -0.008049436148855,  -0.006587829337980, 27.3628, //49.3628
-            0.008149751269106,   0.999819711122249,  -0.002779597409931, 54.0082,
-            0.006567679265050,  -0.002793384922440,   0.999800194433400,  -2.5417;
-
-    P = K2*RT;
 
     nuvem_colorida = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 

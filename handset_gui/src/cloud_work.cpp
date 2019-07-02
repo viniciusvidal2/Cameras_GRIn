@@ -342,7 +342,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     char* home;
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
-    std::string arquivo_imagem = pasta + std::to_string(contador_imagens) + ".jpg";
     std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
     std::string arquivo_nvm    = pasta + std::to_string(contador_imagens) + ".nvm";
@@ -351,7 +350,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     cv_bridge::CvImagePtr imgptr, imgzptr;
     imgptr  = cv_bridge::toCvCopy(imagem    , sensor_msgs::image_encodings::BGR8);
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
-    imwrite(arquivo_imagem, imgptr->image );
     imwrite(arquivo_imzed , imgzptr->image);
 
     // Centro da camera, para escrever no arquivo NVM
@@ -363,7 +361,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
         file << "NVM_V3\n\n";
         file << "1\n"; // Quantas imagens, sempre uma aqui
-//        std::string linha_imagem = escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
         std::string linha_imagem = escreve_linha_imagem(arquivo_imzed, C, rot); // Imagem com detalhes de camera
         file << linha_imagem; // Imagem com detalhes de camera
         // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
@@ -385,8 +382,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-//    float fzed = 1462.324341;
-    float fzed = 1380;
+    float fzed = 1462.32;
     // Adicionar foco
     linha = linha + " " + std::to_string(fzed);
     // Adicionar quaternion

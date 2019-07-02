@@ -39,6 +39,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     controle_gravacao = false; // Nao estamos gravando ainda
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
+    ui.checkBox_online->setChecked(false);
 
     qnode.init();
 

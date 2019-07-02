@@ -22,7 +22,6 @@ find_package(catkin REQUIRED
     pcl_conversions
     pcl_ros
     tf
-#    tf_conversion
     image_geometry
     cv_bridge)
 
@@ -47,6 +46,10 @@ include_directories(${CUDA_INCLUDE_DIRS})
 ## LIBRARIES: libraries you create in this project that dependent projects also need
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
+
+# Parametros ajustaveis zed-astra calibracao
+generate_dynamic_reconfigure_options(cfg/params.cfg)
+#include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES astra_calibrada
@@ -71,8 +74,9 @@ include_directories(
 #   src/${PROJECT_NAME}/astra_calibrada.cpp
 # )
 
-add_executable(nuvem_astra_calibrada src/astra_calibrada.cpp)
-target_link_libraries(nuvem_astra_calibrada
+add_executable(astra_calibrada src/astra_calibrada.cpp)
+add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg)
+target_link_libraries(astra_calibrada
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBS}

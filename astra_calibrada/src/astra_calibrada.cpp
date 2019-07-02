@@ -24,6 +24,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 
 // PCL
 #include <pcl_conversions/pcl_conversions.h>
@@ -47,6 +48,9 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <nav_msgs/Odometry.h>
 
+// Dynamic Reconfigure
+#include <dynamic_reconfigure/server.h>
+#include <astra_calibrada/calib_params_Config.h>
 
 using namespace pcl;
 using namespace std;
@@ -80,14 +84,17 @@ Eigen::Matrix3f K2;
 float fxrgb, fyrgb, Cxrgb, Cyrgb;// = getIntrinsicsFromK(K, "D");
 
 // Calculando Params. Extrisecos
-Eigen::MatrixXf RT(3,4);
+Eigen::MatrixXf RT(3, 4);
 
-Eigen::MatrixXf P;
+Eigen::MatrixXf P(3, 4);
 
 Eigen::Matrix3f F;
 
 // Resolucao da nuvem
 int resolucao;
+
+// Mutex para parar a publicacao
+mutex mut;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Filtro para distâncias
@@ -121,7 +128,9 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
     sor.setStddevMulThresh(deviation);
     sor.filter(*in);
 }
-
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para projecao da nuvem
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void callback(const sensor_msgs::ImageConstPtr& msg_zed,
               const sensor_msgs::ImageConstPtr& msg_depth,
               const OdometryConstPtr& msg_odo)
@@ -129,7 +138,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_zed,
     cv_bridge::CvImagePtr cv_ptr_d;
     cv_bridge::CvImagePtr cv_ptr_rgb;
     cv_ptr_d   = cv_bridge::toCvCopy(msg_depth, sensor_msgs::image_encodings::TYPE_16UC1);
-    cv_ptr_rgb = cv_bridge::toCvCopy(msg_zed,   sensor_msgs::image_encodings::TYPE_8UC3 );
+    cv_ptr_rgb = cv_bridge::toCvCopy(msg_zed,   sensor_msgs::image_encodings::RGB8 );
 
     sensor_msgs::PointCloud2 msg_cor;
 
@@ -159,7 +168,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_zed,
                 X = X/X(2,0);
 
                 // Adicionando o ponto sem conferencia da matriz fundamental
-                if( floor(X(0,0)) >= 0 && floor(X(0,0)) < cv_ptr_rgb->image.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < cv_ptr_rgb->image.rows){
+                if(floor(X(0,0)) >= 0 && floor(X(0,0)) < cv_ptr_rgb->image.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < cv_ptr_rgb->image.rows){
                     float s = 1;
                     current_point.z = z/s;
                     current_point.x = x/s;
@@ -199,12 +208,48 @@ void callback(const sensor_msgs::ImageConstPtr& msg_zed,
     nuvem_colorida->clear();
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Callback para parametros reconfiguraveis
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_t level){
+  mut.lock();
+  float cx = 960, cy = 540;
+  K2 << params.fx,         0,  cx,//963.9924, // CAMERA ZED
+                0, params.fy,  cy,//588.7955,
+                0,         0,    1.0000;
+  RT << 1, 0, 0, params.dx/1000,
+        0, 1, 0, params.dy/1000,
+        0, 0, 1, params.dz/1000;
+
+//  P = K2*RT;
+  Eigen::Vector3f offsets;
+  offsets << cx*params.dz+params.dx*params.fx,
+             cy*params.dz+params.dy*params.fy,
+             params.dz;
+  P << K2, offsets;
+//  cout << "\nDesvio calculado em x: " << (params.dx-960*params.dz)/params.fx << endl;
+//  cout << "\nDesvio calculado em y: " << (params.dy-540*params.dz)/params.fy << endl;
+
+
+  cout << "\nMatriz de Projecao:\n" << P << endl;
+  mut.unlock();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Main
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "nuvem_astra_calibrada");
+    ros::init(argc, argv, "astra_calibrada");
 
     ros::NodeHandle nh;
     ros::NodeHandle n_("~");
+
+    // Servidor e callback de parametros de calibracao reconfiguraveis
+    dynamic_reconfigure::Server<astra_calibrada::calib_params_Config> server;
+    dynamic_reconfigure::Server<astra_calibrada::calib_params_Config>::CallbackType f;
+    f = boost::bind(&dyn_reconfig_callback, _1, _2);
+    server.setCallback(f);
 
     // Variáveis
     K1 <<  582.9937,   -2.8599,  308.9297, // CAMERA IR, PROFUNDIDADE
@@ -216,18 +261,21 @@ int main(int argc, char **argv)
     Cxd = K1(0,2);
     Cyd = K1(1,2);
 
-    K2 <<   525.1389,    1.4908,  324.1741, // CAMERA RGB ZED
-            0,  521.6805,  244.8827,
-            0,         0,    1.0000;
+    K2 <<   1475.0,      0,  963.9924, // CAMERA ZED
+                 0, 1475.2,  588.7955,
+                 0,      0,    1.0000;
 
     fxrgb = K2(0,0);
     fyrgb = K2(1,1);
     Cxrgb = K2(0,2);
     Cyrgb = K2(1,2);
 
-    RT <<    0.999812767546507,  -0.013049436148855,  -0.014287829337980, -25.056528502229849, // MATLAB -25.056528502229849
-            0.012849751269106,   0.999819711122249,  -0.013979597409931, -10.308878899329242, // MATLAB -35.308878899329242
-            0.014467679265050,   0.013793384922440,   0.999800194433400,  -0.890397736650369;
+//    RT <<    0.999812767546507,  -0.013049436148855,  -0.014287829337980, -25.056528502229849, // MATLAB -25.056528502229849
+//            0.012849751269106,   0.999819711122249,  -0.013979597409931, -10.308878899329242, // MATLAB -35.308878899329242
+//            0.014467679265050,   0.013793384922440,   0.999800194433400,  -0.890397736650369;
+    RT <<   0.999812767546507,  -0.008049436148855,  -0.006587829337980, 27.3628, //49.3628
+            0.008149751269106,   0.999819711122249,  -0.002779597409931, 54.0082,
+            0.006567679265050,  -0.002793384922440,   0.999800194433400,  -2.5417;
 
     P = K2*RT;
 

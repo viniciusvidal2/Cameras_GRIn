@@ -64,7 +64,7 @@ using namespace nav_msgs;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Definicoes
 typedef PointXYZRGB       PointT;
-typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, Odometry> syncPolicy;
+typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, Odometry> syncPolicy;
 
 // Variaveis
 PointCloud<PointT>::Ptr nuvem_colorida;
@@ -131,8 +131,7 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Callback para projecao da nuvem
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
-              const sensor_msgs::ImageConstPtr& msg_zed,
+void callback(const sensor_msgs::ImageConstPtr& msg_zed,
               const sensor_msgs::ImageConstPtr& msg_depth,
               const OdometryConstPtr& msg_odo)
 {
@@ -197,10 +196,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     Odometry msg_odo2 = *msg_odo;
     msg_odo2.header.stamp = msg_cor.header.stamp;
 
-    // Mensagem imagem para sincronizar a frente
-    sensor_msgs::Image msg_rgb2 = *msg_rgb;
-    msg_rgb2.header.stamp = msg_cor.header.stamp;
-
     // Mensagem de imagem da ZED tambem para sincronizar depois
     sensor_msgs::Image msg_zed2 = *msg_zed;
     msg_zed2.header.stamp = msg_cor.header.stamp;
@@ -208,7 +203,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     // Publicando tudo junto
     pub_odom.publish(msg_odo2);
     pub_cloud.publish(msg_cor);
-    pub_img.publish(msg_rgb2);
     pub_zed.publish(msg_zed2);
 
     nuvem_colorida->clear();
@@ -267,14 +261,11 @@ int main(int argc, char **argv)
     Cxd = K1(0,2);
     Cyd = K1(1,2);
 
-//    K2 <<   525.1389,    1.4908,  324.1741, // CAMERA RGB
-//            0,  521.6805,  244.8827,
-//            0,         0,    1.0000;
     K2 <<   1475.0,      0,  963.9924, // CAMERA ZED
                  0, 1475.2,  588.7955,
                  0,      0,    1.0000;
 
-    fxrgb = K2(0,0); //cout << fxrgb << endl;
+    fxrgb = K2(0,0);
     fyrgb = K2(1,1);
     Cxrgb = K2(0,2);
     Cyrgb = K2(1,2);
@@ -288,10 +279,6 @@ int main(int argc, char **argv)
 
     P = K2*RT;
 
-    F << 0.000000051968032,   0.000002923620641,  -0.000171378176749,
-            -0.000001735294842,   0.000001158366503,   0.048294523803484,
-            -0.000673889418073,  -0.044225087946452,  -0.498521482515482;
-
     nuvem_colorida = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
     // Resolucao para a nuvem vinda no parametro
@@ -299,15 +286,13 @@ int main(int argc, char **argv)
 
     pub_cloud = nh.advertise<sensor_msgs::PointCloud2>("/astra_projetada", 10);
     pub_odom  = nh.advertise<Odometry>                ("/odom2"          , 10);
-    pub_img   = nh.advertise<sensor_msgs::Image>      ("/astra_rgb"      , 10);
     pub_zed   = nh.advertise<sensor_msgs::Image>      ("/zed2"           , 10);
 
-    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw"     , 1);
-    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 1);
-    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 1);
-    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                 , 1);
-    Synchronizer<syncPolicy> sync(syncPolicy(10), rgb_sub, zed_sub, depth_sub, subodo);
-    sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
+    message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 10);
+    message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 10);
+    message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                 , 10);
+    Synchronizer<syncPolicy> sync(syncPolicy(10), zed_sub, depth_sub, subodo);
+    sync.registerCallback(boost::bind(&callback, _1, _2, _3));
 
     ros::spin();
 

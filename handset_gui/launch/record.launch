@@ -12,6 +12,8 @@
 <!--<node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw /camera/depth/image_raw /zed/left/image_rect_color -O $(arg folder)/$(arg bag)">-->
 <node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/odom2 /astra_rgb /astra_projetada /zed2 -O $(arg folder)/$(arg bag)">
 </node>
+<!--<node name="rosbag_record_raw" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw /camera/depth/image_raw /zed/left/image_rect_color -O $(arg folder)/$(arg bag)_raw">-->
+<!--</node>-->
 </group>
 
 <!--To record all data-->

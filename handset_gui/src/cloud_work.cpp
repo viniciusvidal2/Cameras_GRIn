@@ -56,12 +56,11 @@ void Cloud_Work::init(){
     pub_global  = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
     // Subscribers para sincronizar
-    message_filters::Subscriber<sensor_msgs::Image      > sub_imagem(nh_, "/astra_rgb"      , 10);
     message_filters::Subscriber<sensor_msgs::Image      > sub_im_zed(nh_, "/zed2"           , 10);
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "/astra_projetada", 10);
     message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/odom2"          , 10);
-    sync.reset(new Sync(syncPolicy(10), sub_imagem, sub_im_zed, sub_nuvem, sub_odom));
-    sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3, _4));
+    sync.reset(new Sync(syncPolicy(10), sub_im_zed, sub_nuvem, sub_odom));
+    sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
 
     // Inicio do modelo da camera
     char* home;
@@ -97,7 +96,7 @@ void Cloud_Work::init(){
                    0, 0, 0, 1;
 
     // Rodar o no
-    ros::Rate rate(2);
+    ros::Rate rate(20);
     while(ros::ok()){
 
         // Publica recorrentemente a nuvem atual
@@ -252,8 +251,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image,
-                                     const sensor_msgs::ImageConstPtr &msg_zed_image,
+void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_image,
                                      const sensor_msgs::PointCloud2ConstPtr &msg_cloud,
                                      const OdometryConstPtr &msg_odom){
     // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
@@ -314,7 +312,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-            this->salva_dados_parciais(acumulada_parcial, q_azo, t_azo, msg_image, msg_zed_image);
+            this->salva_dados_parciais(acumulada_parcial, q_azo, t_azo, msg_zed_image);
             ROS_INFO("Dados Parciais salvos!");
         }
 
@@ -331,7 +329,6 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_image
 void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
                                       Eigen::Quaternion<float> rot,
                                       Eigen::Vector3f offset,
-                                      const sensor_msgs::ImageConstPtr &imagem,
                                       const sensor_msgs::ImageConstPtr &imagem_zed){
     // Atualiza contador de imagens - tambem usado para as nuvens parciais
     contador_imagens++;
@@ -342,16 +339,13 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     char* home;
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
-    std::string arquivo_imagem = pasta + std::to_string(contador_imagens) + ".jpg";
     std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
     std::string arquivo_nvm    = pasta + std::to_string(contador_imagens) + ".nvm";
 
     // Converte e salva imagem
     cv_bridge::CvImagePtr imgptr, imgzptr;
-    imgptr  = cv_bridge::toCvCopy(imagem    , sensor_msgs::image_encodings::BGR8);
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
-    imwrite(arquivo_imagem, imgptr->image );
     imwrite(arquivo_imzed , imgzptr->image);
 
     // Centro da camera, para escrever no arquivo NVM
@@ -363,7 +357,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
         file << "NVM_V3\n\n";
         file << "1\n"; // Quantas imagens, sempre uma aqui
-//        std::string linha_imagem = escreve_linha_imagem(arquivo_imagem, C, rot); // Imagem com detalhes de camera
         std::string linha_imagem = escreve_linha_imagem(arquivo_imzed, C, rot); // Imagem com detalhes de camera
         file << linha_imagem; // Imagem com detalhes de camera
         // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
@@ -374,7 +367,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
     // Calcular normais para a nuvem
     pcl::PointCloud<PointTN>::Ptr final_parcial (new pcl::PointCloud<PointTN>);
-//    this->calculateNormalsAndConcatenate(cloud, final_parcial, 30);
     calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
     // Salvar nuvem em arquivo .ply
@@ -385,8 +377,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 ///////////////////////////////////////////////////////////////////////////////////////////
 std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-//    float fzed = 1462.324341;
-    float fzed = 1380;
+    float fzed = 1462.32;
     // Adicionar foco
     linha = linha + " " + std::to_string(fzed);
     // Adicionar quaternion
@@ -503,6 +494,7 @@ void Cloud_Work::reiniciar(){
     // Reinicia tudo que pode ser reiniciado aqui
     acumulada_global->clear(); acumulada_parcial->clear();
     acumulada_parcial_anterior->clear(); acumulada_parcial_frame_camera->clear();
+    np.clear();
 
     system("gnome-terminal -x sh -c 'rosservice call /zed/reset_odometry'");
 

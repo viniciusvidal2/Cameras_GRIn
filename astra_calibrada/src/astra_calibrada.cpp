@@ -60,7 +60,7 @@ using namespace nav_msgs;
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Definicoes
 typedef PointXYZRGB       PointT;
-typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::Image, Odometry> syncPolicy;
+typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, Odometry> syncPolicy;
 
 // Variaveis
 PointCloud<PointT>::Ptr nuvem_colorida;
@@ -122,15 +122,14 @@ void remove_outlier(PointCloud<PointT>::Ptr in, float mean, float deviation){
     sor.filter(*in);
 }
 
-void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
-              const sensor_msgs::ImageConstPtr& msg_zed,
+void callback(const sensor_msgs::ImageConstPtr& msg_zed,
               const sensor_msgs::ImageConstPtr& msg_depth,
               const OdometryConstPtr& msg_odo)
 {
     cv_bridge::CvImagePtr cv_ptr_d;
     cv_bridge::CvImagePtr cv_ptr_rgb;
     cv_ptr_d   = cv_bridge::toCvCopy(msg_depth, sensor_msgs::image_encodings::TYPE_16UC1);
-    cv_ptr_rgb = cv_bridge::toCvCopy(msg_rgb,   sensor_msgs::image_encodings::TYPE_8UC3 );
+    cv_ptr_rgb = cv_bridge::toCvCopy(msg_zed,   sensor_msgs::image_encodings::TYPE_8UC3 );
 
     sensor_msgs::PointCloud2 msg_cor;
 
@@ -152,16 +151,16 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
                 // Reprojetando...
                 Eigen::MatrixXf X_(4,1);
                 X_ << x,
-                        y,
-                        z,
-                        1;
+                      y,
+                      z,
+                      1;
                 Eigen::MatrixXf X = P*X_;
 
                 X = X/X(2,0);
 
                 // Adicionando o ponto sem conferencia da matriz fundamental
-                if( floor(X(0,0)) >= 0 && floor(X(0,0)) < depthWidth && floor(X(1,0)) >= 0 && floor(X(1,0)) < depthHeight){
-                    float s = 1000;
+                if( floor(X(0,0)) >= 0 && floor(X(0,0)) < cv_ptr_rgb->image.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < cv_ptr_rgb->image.rows){
+                    float s = 1;
                     current_point.z = z/s;
                     current_point.x = x/s;
                     current_point.y = y/s;
@@ -188,10 +187,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     Odometry msg_odo2 = *msg_odo;
     msg_odo2.header.stamp = msg_cor.header.stamp;
 
-    // Mensagem imagem para sincronizar a frente
-    sensor_msgs::Image msg_rgb2 = *msg_rgb;
-    msg_rgb2.header.stamp = msg_cor.header.stamp;
-
     // Mensagem de imagem da ZED tambem para sincronizar depois
     sensor_msgs::Image msg_zed2 = *msg_zed;
     msg_zed2.header.stamp = msg_cor.header.stamp;
@@ -199,7 +194,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_rgb,
     // Publicando tudo junto
     pub_odom.publish(msg_odo2);
     pub_cloud.publish(msg_cor);
-    pub_img.publish(msg_rgb2);
     pub_zed.publish(msg_zed2);
 
     nuvem_colorida->clear();
@@ -222,11 +216,11 @@ int main(int argc, char **argv)
     Cxd = K1(0,2);
     Cyd = K1(1,2);
 
-    K2 <<   525.1389,    1.4908,  324.1741, // CAMERA RGB
+    K2 <<   525.1389,    1.4908,  324.1741, // CAMERA RGB ZED
             0,  521.6805,  244.8827,
             0,         0,    1.0000;
 
-    fxrgb = K2(0,0); //cout << fxrgb << endl;
+    fxrgb = K2(0,0);
     fyrgb = K2(1,1);
     Cxrgb = K2(0,2);
     Cyrgb = K2(1,2);
@@ -237,10 +231,6 @@ int main(int argc, char **argv)
 
     P = K2*RT;
 
-    F << 0.000000051968032,   0.000002923620641,  -0.000171378176749,
-            -0.000001735294842,   0.000001158366503,   0.048294523803484,
-            -0.000673889418073,  -0.044225087946452,  -0.498521482515482;
-
     nuvem_colorida = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
 
     // Resolucao para a nuvem vinda no parametro
@@ -248,15 +238,13 @@ int main(int argc, char **argv)
 
     pub_cloud = nh.advertise<sensor_msgs::PointCloud2>("/astra_projetada", 10);
     pub_odom  = nh.advertise<Odometry>                ("/odom2"          , 10);
-    pub_img   = nh.advertise<sensor_msgs::Image>      ("/astra_rgb"      , 10);
     pub_zed   = nh.advertise<sensor_msgs::Image>      ("/zed2"           , 10);
 
-    message_filters::Subscriber<sensor_msgs::Image> rgb_sub  (nh, "/camera/rgb/image_raw"     , 10);
     message_filters::Subscriber<sensor_msgs::Image> zed_sub  (nh, "/zed/left/image_rect_color", 10);
     message_filters::Subscriber<sensor_msgs::Image> depth_sub(nh, "/camera/depth/image_raw"   , 10);
     message_filters::Subscriber<Odometry>           subodo   (nh, "/zed/odom"                 , 10);
-    Synchronizer<syncPolicy> sync(syncPolicy(10), rgb_sub, zed_sub, depth_sub, subodo);
-    sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4));
+    Synchronizer<syncPolicy> sync(syncPolicy(10), zed_sub, depth_sub, subodo);
+    sync.registerCallback(boost::bind(&callback, _1, _2, _3));
 
     ros::spin();
 

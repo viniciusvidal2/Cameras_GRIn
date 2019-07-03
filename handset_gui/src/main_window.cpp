@@ -188,25 +188,25 @@ void MainWindow::on_pushButton_iniciararquivos_clicked(){
 /// Sliders sao liberados, a nuvem pode ser transformada
 void MainWindow::on_horizontalSlider_x_sliderReleased(){
     double x = (double)ui.horizontalSlider_x->value();
-    double y = (double)ui.horizontalSlider_y->value();
-    double z = (double)ui.horizontalSlider_z->value();
+    double y = ui.lineEdit_Y->text().toDouble();
+    double z = ui.lineEdit_Z->text().toDouble();
 
     ui.lineEdit_X->setText(QString::number(x));
 
     rn.set_translacao(x, y, z);
 }
 void MainWindow::on_horizontalSlider_y_sliderReleased(){
-    double x = (double)ui.horizontalSlider_x->value();
+    double x = ui.lineEdit_X->text().toDouble();
     double y = (double)ui.horizontalSlider_y->value();
-    double z = (double)ui.horizontalSlider_z->value();
+    double z = ui.lineEdit_Z->text().toDouble();
 
     ui.lineEdit_Y->setText(QString::number(y));
 
     rn.set_translacao(x, y, z);
 }
 void MainWindow::on_horizontalSlider_z_sliderReleased(){
-    double x = (double)ui.horizontalSlider_x->value();
-    double y = (double)ui.horizontalSlider_y->value();
+    double x = ui.lineEdit_X->text().toDouble();
+    double y = ui.lineEdit_Y->text().toDouble();
     double z = (double)ui.horizontalSlider_z->value();
 
     ui.lineEdit_Z->setText(QString::number(z));
@@ -216,25 +216,25 @@ void MainWindow::on_horizontalSlider_z_sliderReleased(){
 
 void MainWindow::on_dial_x_sliderReleased(){
     double x = (double)ui.dial_x->value();
-    double y = (double)ui.dial_y->value();
-    double z = (double)ui.dial_z->value();
+    double y = ui.lineEdit_rotacaoy->text().toDouble();
+    double z = ui.lineEdit_rotacaoz->text().toDouble();
 
     ui.lineEdit_rotacaox->setText(QString::number(x));
 
     rn.set_rotacao(x, y, z);
 }
 void MainWindow::on_dial_y_sliderReleased(){
-    double x = (double)ui.dial_x->value();
+    double x = ui.lineEdit_rotacaox->text().toDouble();
     double y = (double)ui.dial_y->value();
-    double z = (double)ui.dial_z->value();
+    double z = ui.lineEdit_rotacaoz->text().toDouble();
 
     ui.lineEdit_rotacaoy->setText(QString::number(y));
 
     rn.set_rotacao(x, y, z);
 }
 void MainWindow::on_dial_z_sliderReleased(){
-    double x = (double)ui.dial_x->value();
-    double y = (double)ui.dial_y->value();
+    double x = ui.lineEdit_rotacaox->text().toDouble();
+    double y = ui.lineEdit_rotacaoy->text().toDouble();
     double z = (double)ui.dial_z->value();
 
     ui.lineEdit_rotacaoz->setText(QString::number(z));
@@ -262,9 +262,9 @@ void MainWindow::on_lineEdit_X_returnPressed(){
     if(valor >= ui.horizontalSlider_x->minimum() && valor <= ui.horizontalSlider_x->maximum()){
         ui.horizontalSlider_x->setValue(valor);
 
-        double x = (double)ui.horizontalSlider_x->value();
-        double y = (double)ui.horizontalSlider_y->value();
-        double z = (double)ui.horizontalSlider_z->value();
+        double x = ui.lineEdit_X->text().toDouble();
+        double y = ui.lineEdit_Y->text().toDouble();
+        double z = ui.lineEdit_Z->text().toDouble();
 
         rn.set_translacao(x, y, z);
     }
@@ -274,9 +274,9 @@ void MainWindow::on_lineEdit_Y_returnPressed(){
     if(valor >= ui.horizontalSlider_y->minimum() && valor <= ui.horizontalSlider_y->maximum()){
         ui.horizontalSlider_y->setValue(valor);
 
-        double x = (double)ui.horizontalSlider_x->value();
-        double y = (double)ui.horizontalSlider_y->value();
-        double z = (double)ui.horizontalSlider_z->value();
+        double x = ui.lineEdit_X->text().toDouble();
+        double y = ui.lineEdit_Y->text().toDouble();
+        double z = ui.lineEdit_Z->text().toDouble();
 
         rn.set_translacao(x, y, z);
     }
@@ -286,9 +286,9 @@ void MainWindow::on_lineEdit_Z_returnPressed(){
     if(valor >= ui.horizontalSlider_z->minimum() && valor <= ui.horizontalSlider_z->maximum()){
         ui.horizontalSlider_z->setValue(valor);
 
-        double x = (double)ui.horizontalSlider_x->value();
-        double y = (double)ui.horizontalSlider_y->value();
-        double z = (double)ui.horizontalSlider_z->value();
+        double x = ui.lineEdit_X->text().toDouble();
+        double y = ui.lineEdit_Y->text().toDouble();
+        double z = ui.lineEdit_Z->text().toDouble();
 
         rn.set_translacao(x, y, z);
     }
@@ -300,9 +300,9 @@ void MainWindow::on_lineEdit_rotacaox_returnPressed(){
     if(valor >= ui.dial_x->minimum() && valor <= ui.dial_x->maximum()){
         ui.dial_x->setValue(valor);
 
-        double x = (double)ui.dial_x->value();
-        double y = (double)ui.dial_y->value();
-        double z = (double)ui.dial_z->value();
+        double x = ui.lineEdit_rotacaox->text().toDouble();
+        double y = ui.lineEdit_rotacaoy->text().toDouble();
+        double z = ui.lineEdit_rotacaoz->text().toDouble();
 
         rn.set_rotacao(x, y, z);
     }
@@ -312,9 +312,9 @@ void MainWindow::on_lineEdit_rotacaoy_returnPressed(){
     if(valor >= ui.dial_y->minimum() && valor <= ui.dial_y->maximum()){
         ui.dial_y->setValue(valor);
 
-        double x = (double)ui.dial_x->value();
-        double y = (double)ui.dial_y->value();
-        double z = (double)ui.dial_z->value();
+        double x = ui.lineEdit_rotacaox->text().toDouble();
+        double y = ui.lineEdit_rotacaoy->text().toDouble();
+        double z = ui.lineEdit_rotacaoz->text().toDouble();
 
         rn.set_rotacao(x, y, z);
     }
@@ -324,9 +324,9 @@ void MainWindow::on_lineEdit_rotacaoz_returnPressed(){
     if(valor >= ui.dial_z->minimum() && valor <= ui.dial_z->maximum()){
         ui.dial_z->setValue(valor);
 
-        double x = (double)ui.dial_x->value();
-        double y = (double)ui.dial_y->value();
-        double z = (double)ui.dial_z->value();
+        double x = ui.lineEdit_rotacaox->text().toDouble();
+        double y = ui.lineEdit_rotacaoy->text().toDouble();
+        double z = ui.lineEdit_rotacaoz->text().toDouble();
 
         rn.set_rotacao(x, y, z);
     }
@@ -335,6 +335,23 @@ void MainWindow::on_lineEdit_rotacaoz_returnPressed(){
 /// Botao para registrar as nuvens
 void MainWindow::on_pushButton_registrar_clicked(){
     rn.registrar_nuvens(ui.checkBox_icp->isChecked());
+
+    float x, y, z, rx, ry, rz;
+    rn.get_TFinal(x, y, z, rx, ry, rz);
+
+    ui.lineEdit_X->setText(QString::number(x));
+    ui.lineEdit_Y->setText(QString::number(y));
+    ui.lineEdit_Z->setText(QString::number(z));
+    ui.lineEdit_rotacaox->setText(QString::number(rx));
+    ui.lineEdit_rotacaoy->setText(QString::number(ry));
+    ui.lineEdit_rotacaoz->setText(QString::number(rz));
+
+    ui.dial_x->setValue(int(rx));
+    ui.dial_y->setValue(int(ry));
+    ui.dial_z->setValue(int(rz));
+    ui.horizontalSlider_x->setValue(int(x));
+    ui.horizontalSlider_y->setValue(int(y));
+    ui.horizontalSlider_z->setValue(int(z));
 }
 
 /// Botao para salvar ler os arquivos nvm, criar os objetos de cameras e escrever o novo arquivo no lugar certo

@@ -90,7 +90,7 @@ void Cloud_Work::init(){
 
 //    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
 //    offset_astra_zed << 0.04536, 0.027, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
-    offset_astra_zed << 0.045, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
+    offset_astra_zed << 0.025, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
 
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,

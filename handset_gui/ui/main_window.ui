@@ -34,7 +34,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -404,7 +404,7 @@
          </rect>
         </property>
         <property name="title">
-         <string>Ajustes Iniciais sobre pose da nuvem FONTE</string>
+         <string>Ajustes Iniciais sobre pose da nuvem FONTE - angulos em graus</string>
         </property>
         <property name="checkable">
          <bool>false</bool>
@@ -498,7 +498,7 @@
            <rect>
             <x>50</x>
             <y>60</y>
-            <width>561</width>
+            <width>501</width>
             <height>21</height>
            </rect>
           </property>
@@ -559,7 +559,7 @@
            <rect>
             <x>50</x>
             <y>90</y>
-            <width>561</width>
+            <width>501</width>
             <height>21</height>
            </rect>
           </property>
@@ -572,7 +572,7 @@
            <rect>
             <x>50</x>
             <y>120</y>
-            <width>561</width>
+            <width>501</width>
             <height>21</height>
            </rect>
           </property>
@@ -583,9 +583,9 @@
          <widget class="QLineEdit" name="lineEdit_X">
           <property name="geometry">
            <rect>
-            <x>610</x>
+            <x>560</x>
             <y>60</y>
-            <width>41</width>
+            <width>91</width>
             <height>25</height>
            </rect>
           </property>
@@ -599,9 +599,9 @@
          <widget class="QLineEdit" name="lineEdit_Y">
           <property name="geometry">
            <rect>
-            <x>610</x>
+            <x>560</x>
             <y>90</y>
-            <width>41</width>
+            <width>91</width>
             <height>25</height>
            </rect>
           </property>
@@ -615,9 +615,9 @@
          <widget class="QLineEdit" name="lineEdit_Z">
           <property name="geometry">
            <rect>
-            <x>610</x>
+            <x>560</x>
             <y>120</y>
-            <width>41</width>
+            <width>91</width>
             <height>25</height>
            </rect>
           </property>
@@ -644,14 +644,14 @@
          <widget class="QLabel" name="label_2">
           <property name="geometry">
            <rect>
-            <x>590</x>
+            <x>540</x>
             <y>20</y>
-            <width>81</width>
+            <width>121</width>
             <height>31</height>
            </rect>
           </property>
           <property name="text">
-           <string>Valor Deslocado</string>
+           <string>Valor Deslocado (cm)</string>
           </property>
           <property name="alignment">
            <set>Qt::AlignCenter</set>
@@ -707,45 +707,6 @@
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_3">
-         <property name="geometry">
-          <rect>
-           <x>230</x>
-           <y>150</y>
-           <width>67</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Graus</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_4">
-         <property name="geometry">
-          <rect>
-           <x>380</x>
-           <y>150</y>
-           <width>67</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Graus</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_5">
-         <property name="geometry">
-          <rect>
-           <x>530</x>
-           <y>150</y>
-           <width>67</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Graus</string>
          </property>
         </widget>
        </widget>

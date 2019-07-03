@@ -56,7 +56,7 @@ void RegistraNuvem::init(){
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 //    offset_astra_zed << 0.04936, 0.034, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-    offset_astra_zed << 0.045, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
+    offset_astra_zed << 0.025, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
@@ -231,6 +231,21 @@ void RegistraNuvem::filter_grid(PointCloud<PointT>::Ptr in, PointCloud<PointT>::
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(in);
     grid.filter(*out);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::get_TFinal(float &x, float &y, float &z, float &rx, float &ry, float &rz){
+    x = 100*T_fim(0, 3); y = 100*T_fim(1, 3); z = 100*T_fim(2, 3); // em centimetros aqui
+
+    cout << "translacao final: " << x << " " << y << " " << z << endl;
+
+    Eigen::Matrix3f rot;
+    rot = T_fim.block(0, 0, 3, 3);
+    Eigen::Vector3f rpy;
+    rpy = rot.eulerAngles(0, 1, 2);
+
+    cout << "vetor de angulos: " << 180/M_PI*rpy << endl;
+
+    rx = rad2deg(rpy[0]); ry = rad2deg(rpy[1]); rz = rad2deg(rpy[2]);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,

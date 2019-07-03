@@ -98,6 +98,8 @@ public:
     void registrar_nuvens(bool icp_flag);
     void salvar_dados_finais(QString pasta);
 
+    void get_TFinal(float &x, float &y, float &z, float &rx, float &ry, float &rz);
+
     /// Para filtragem da nuvem ///
     void set_nuvem_filtrar(QString n);
     void set_new_voxel(float v);

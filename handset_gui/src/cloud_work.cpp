@@ -97,7 +97,7 @@ void Cloud_Work::init(){
                    0, 0, 0, 1;
 
     // Rodar o no
-    ros::Rate rate(20);
+    ros::Rate rate(2);
     while(ros::ok()){
 
         // Publica recorrentemente a nuvem atual
@@ -117,7 +117,7 @@ void Cloud_Work::publica_nuvens(){
     parcial.header.frame_id = acumulada_parcial->header.frame_id;
     global.header.frame_id  = acumulada_parcial->header.frame_id;
     parcial.header.stamp = ros::Time::now();
-    global.header.stamp = parcial.header.stamp;
+    global.header.stamp = ros::Time::now();
     // Convertendo e Publicando
     toROSMsg(*acumulada_parcial, parcial);
     toROSMsg(*acumulada_global , global );
@@ -194,7 +194,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     icp.setMaximumIterations(500); // Chute inicial bom 10-100
     icp.setTransformationEpsilon(1*1e-10);
     icp.setEuclideanFitnessEpsilon(1*1e-12);
-    icp.setMaxCorrespondenceDistance(0.1);
+    icp.setMaxCorrespondenceDistance(0.3);
 
     PointCloud<PointT> final2;
     icp.align(final2, T);
@@ -223,7 +223,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
             // transformPointCloud(*parcial, *parcial, T_atual);
             T_corrigida = this->icp(parcial, acumulada_parcial_anterior, T_chute_icp);
-            transformPointCloud(*parcial, *parcial, T_corrigida);
+            transformPointCloud(*parcial, *parcial, T_corrigida);            
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
             *acumulada_parcial_anterior = *parcial;

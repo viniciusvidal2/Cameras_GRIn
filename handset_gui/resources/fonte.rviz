@@ -83,7 +83,7 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/Image
-      Enabled: false
+      Enabled: true
       Image Topic: /zed/left/image_rect_color
       Max Value: 1
       Median window: 5
@@ -93,9 +93,9 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
     - Class: rviz/Image
-      Enabled: true
+      Enabled: false
       Image Topic: /zed2
       Max Value: 1
       Median window: 5
@@ -105,7 +105,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -131,26 +131,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-
-      Distance: 1.67461145
+      Distance: 0.930314541
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.167533368
-        Y: -0.0910869986
-        Z: 0.0277988166
+        X: 0.0311799422
+        Y: -0.0304694958
+        Z: 0.159770846
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: -1.56479633
+      Pitch: -1.56979632
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.69354486
+      Yaw: 4.71354389
     Saved: ~
 Window Geometry:
   Displays:
@@ -170,5 +169,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1248
-  X: 1312
+  X: 672
   Y: 24

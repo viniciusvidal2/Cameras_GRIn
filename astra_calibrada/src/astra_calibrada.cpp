@@ -159,10 +159,8 @@ void callback(const sensor_msgs::ImageConstPtr& msg_zed,
                       y,
                       z,
                       1;
-                Eigen::MatrixXf X_framezed = RT*X_;
-                X_framezed = X_framezed/X_framezed(2);
-
-                Eigen::MatrixXf X = K2*X_framezed;
+                Eigen::MatrixXf X = P*X_;
+                X = X/X(2,0);
 
                 // Adicionando o ponto sem conferencia da matriz fundamental
                 if(floor(X(0,0)) >= 0 && floor(X(0,0)) < cv_ptr_rgb->image.cols && floor(X(1,0)) >= 0 && floor(X(1,0)) < cv_ptr_rgb->image.rows){
@@ -218,7 +216,6 @@ void dyn_reconfig_callback(astra_calibrada::calib_params_Config &params, uint32_
         0, 1, 0, params.dy,
         0, 0, 1, params.dz;
 
-//  P = K2*RT;
   Eigen::Vector3f offsets;
   offsets << cx*params.dz+params.dx*params.fx,
              cy*params.dz+params.dy*params.fy,

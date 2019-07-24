@@ -83,12 +83,12 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
-using namespace pcl;
 using namespace pcl::io;
 using namespace pcl::geometry;
 using namespace message_filters;
 using namespace nav_msgs;
 using namespace cv;
+using namespace pcl;
 
 namespace handset_gui {
 
@@ -97,8 +97,8 @@ class Cloud_Work : public QThread
     Q_OBJECT
 public:
     /// Definicoes ///
-    typedef PointXYZRGB PointT;
-    typedef PointXYZRGBNormal PointTN;
+    typedef PointXYZRGB PointC;
+    typedef PointXYZRGBNormal PointCN;
 
     Cloud_Work(int argc, char** argv, QMutex*);
     virtual ~Cloud_Work();
@@ -109,34 +109,36 @@ public:
     void salvar_acumulada();
     void set_profundidade_max(float d);
     void reiniciar();
-    Eigen::Matrix4f icp(const PointCloud<PointT>::Ptr src, const PointCloud<PointT>::Ptr tgt, Eigen::Matrix4f T);
+    Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
     QMutex* mutex;
 
 
 
 private:
-    /// Definicoes ///
-    typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::PointCloud2, Odometry> syncPolicy;
+
+    typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
     boost::shared_ptr<Sync> sync;
 
     /// Procedimentos internos ///
-    void filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size);
+    void filter_grid(PointCloud<PointC>::Ptr cloud, float leaf_size);
     void filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size); // Overload da funcao para usar no ICP
-    void passthrough(PointCloud<PointT>::Ptr cloud, std::string field, float min, float max);
-    void removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<PointXYZ>::Ptr out);
-    void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_image, const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const OdometryConstPtr &msg_odom);
-    void registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointT>::Ptr cloud, Eigen::Quaternion<float> rot, Eigen::Vector3f offset, const sensor_msgs::ImageConstPtr &imagem_zed);
+    void passthrough(PointCloud<PointC>::Ptr cloud, std::string field, float min, float max);
+    void removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<PointXYZ>::Ptr out);
+    void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_image, const sensor_msgs::ImageConstPtr &msg_zed_image,
+                             const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
+                             const OdometryConstPtr &msg_odom);
+    void registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
+    void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, const sensor_msgs::PointCloud2ConstPtr &pixels_msg);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
-    void calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2, int K);
+    void calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K);
     void calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K); // Overload da funcao para usar no ICP
     void saveMesh(std::string nome);
     void triangulate();
-    void calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K);
-    std::string escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
+    void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
+    std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
 
@@ -148,12 +150,12 @@ private:
     // Analisa se primeira vez ou nao para controlar acumulacao
     bool primeira_vez;
     // Nuvem acumulada total
-    PointCloud<PointT>::Ptr acumulada_global;
+    PointCloud<PointC>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
-    PointCloud<PointT>::Ptr acumulada_parcial_frame_camera;
-    PointCloud<PointT>::Ptr acumulada_parcial;
-    PointCloud<PointT>::Ptr acumulada_parcial_anterior;
-    PointCloud<PointT>::Ptr temp_nvm;
+    PointCloud<PointC>::Ptr acumulada_parcial_frame_camera;
+    PointCloud<PointC>::Ptr acumulada_parcial;
+    PointCloud<PointC>::Ptr acumulada_parcial_anterior;
+    PointCloud<PointC>::Ptr temp_nvm;
     // Matriz de transformacao para a aproximacao ICP
     Eigen::Matrix4f T_icp;
     // Transformacoes para calculo de movimento relativo e otimizacao do chute inicial do ICP
@@ -189,7 +191,7 @@ private:
     // Struct para guardar cada nuvem com seu ponto de vista respectivo e calcular normais
     struct nuvem_pose{
         nuvem_pose() {}
-        PointCloud<PointT> nuvem;
+        PointCloud<PointC> nuvem;
         Eigen::MatrixXf centro_camera; // Centro da camera no espaço
     };
     std::vector<nuvem_pose> np;

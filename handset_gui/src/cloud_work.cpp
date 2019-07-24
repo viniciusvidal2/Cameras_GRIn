@@ -24,6 +24,7 @@ Cloud_Work::Cloud_Work(int argc, char **argv, QMutex *nmutex):init_argc(argc),
     init_argv(argv),mutex(nmutex)
 {
     QFuture<void> future = QtConcurrent::run(this, &Cloud_Work::init);
+
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Cloud_Work::~Cloud_Work(){
@@ -45,22 +46,24 @@ void Cloud_Work::init(){
     ros::NodeHandle nh_;
 
     // Inicia nuvens globais
-    acumulada_parcial              = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    acumulada_parcial_anterior     = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    acumulada_global               = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    acumulada_parcial_frame_camera = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
-    temp_nvm                       = (PointCloud<PointT>::Ptr) new PointCloud<PointT>;
+    acumulada_parcial              = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+    acumulada_parcial_anterior     = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+    acumulada_global               = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+    acumulada_parcial_frame_camera = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+    temp_nvm                       = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
     pub_global  = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
     // Subscribers para sincronizar
+    message_filters::Subscriber<sensor_msgs::Image      > sub_im_as (nh_, "/astra2"         , 10);
     message_filters::Subscriber<sensor_msgs::Image      > sub_im_zed(nh_, "/zed2"           , 10);
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_nuvem (nh_, "/astra_projetada", 10);
+    message_filters::Subscriber<sensor_msgs::PointCloud2> sub_pixel (nh_, "/pixels"         , 10);
     message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/odom2"          , 10);
-    sync.reset(new Sync(syncPolicy(10), sub_im_zed, sub_nuvem, sub_odom));
-    sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3));
+    sync.reset(new Sync(syncPolicy(10), sub_im_as, sub_im_zed, sub_nuvem, sub_pixel, sub_odom));
+    sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3, _4, _5));
 
     // Inicio do modelo da camera
     char* home;
@@ -97,6 +100,9 @@ void Cloud_Work::init(){
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
 
+    // Mais uma vez aqui para nao ter erro
+    set_inicio_acumulacao(false);
+
     // Rodar o no
     ros::Rate rate(2);
     while(ros::ok()){
@@ -126,8 +132,8 @@ void Cloud_Work::publica_nuvens(){
     pub_global.publish(global);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::filter_grid(PointCloud<PointT>::Ptr cloud, float leaf_size){
-    VoxelGrid<PointT> grid;
+void Cloud_Work::filter_grid(PointCloud<PointC>::Ptr cloud, float leaf_size){
+    VoxelGrid<PointC> grid;
     grid.setLeafSize(leaf_size, leaf_size, leaf_size);
     grid.setInputCloud(cloud);
     grid.filter(*cloud);
@@ -140,8 +146,8 @@ void Cloud_Work::filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size){
     grid.filter(*cloud);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::passthrough(PointCloud<PointT>::Ptr cloud, string field, float min, float max){
-    PassThrough<PointT> ps;
+void Cloud_Work::passthrough(PointCloud<PointC>::Ptr cloud, string field, float min, float max){
+    PassThrough<PointC> ps;
     ps.setInputCloud(cloud);
     ps.setFilterFieldName(field);
     ps.setFilterLimits(min, max);
@@ -160,7 +166,7 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
     return T;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<PointXYZ>::Ptr out){
+void Cloud_Work::removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<PointXYZ>::Ptr out){
     PointXYZ point;
     for (int i=0; i<in->size(); i++) {
         point.x = in->points[i].x;
@@ -170,13 +176,13 @@ void Cloud_Work::removeColorFromPoints(PointCloud<PointT>::Ptr in, PointCloud<Po
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
-                                const PointCloud<PointT>::Ptr tgt,
+Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
+                                const PointCloud<PointC>::Ptr tgt,
                                 Eigen::Matrix4f T){
     ROS_INFO("Entrando no ICP");
     // Reduzindo complexidade das nuvens
-    PointCloud<PointT>::Ptr temp_src (new PointCloud<PointT>());
-    PointCloud<PointT>::Ptr temp_tgt (new PointCloud<PointT>());
+    PointCloud<PointC>::Ptr temp_src (new PointCloud<PointC>());
+    PointCloud<PointC>::Ptr temp_tgt (new PointCloud<PointC>());
 
     *temp_src = *src; *temp_tgt = *tgt;
 
@@ -188,7 +194,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
 
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
-    pcl::IterativeClosestPoint<PointT, PointT> icp;
+    pcl::IterativeClosestPoint<PointC, PointC> icp;
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
@@ -197,7 +203,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     icp.setEuclideanFitnessEpsilon(1*1e-12);
     icp.setMaxCorrespondenceDistance(0.3);
 
-    PointCloud<PointT> final2;
+    PointCloud<PointC> final2;
     icp.align(final2, T);
 
     if(icp.hasConverged())
@@ -208,7 +214,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointT>::Ptr src,
     return T_icp;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset){
+void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset){
     // Se primeira vez, so acumula, senao registra com ICP com a
     // transformada relativa entregue pela ZED como aproximacao inicial
     if(!primeira_vez){
@@ -253,8 +259,10 @@ void Cloud_Work::registra_global_icp(PointCloud<PointT>::Ptr parcial, Eigen::Qua
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_image,
+void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_image,
+                                     const sensor_msgs::ImageConstPtr &msg_zed_image,
                                      const sensor_msgs::PointCloud2ConstPtr &msg_cloud,
+                                     const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
                                      const OdometryConstPtr &msg_odom){
     // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
     if(realizar_acumulacao){
@@ -274,7 +282,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_i
         int cont_nuvens = 0;
         while( cont_nuvens < n_nuvens_instantaneas ){
             // Converte nuvem -> ja devia estar filtrada do outro no
-            PointCloud<PointT>::Ptr nuvem_inst (new PointCloud<PointT>());
+            PointCloud<PointC>::Ptr nuvem_inst (new PointCloud<PointC>());
             fromROSMsg(*msg_cloud, *nuvem_inst);
             // Garante que nao ha nenhum nan
             vector<int> indicesnan;
@@ -285,7 +293,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_i
             acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
             *acumulada_parcial_frame_camera += *nuvem_inst;
             // Rotacao para corrigir odometria
-            transformPointCloud<PointT>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+            transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
             // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
             acumulada_parcial->header.frame_id = "odom";
             *acumulada_parcial += *nuvem_inst;
@@ -314,7 +322,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_i
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-            this->salva_dados_parciais(acumulada_parcial, q_azo, t_azo, msg_zed_image);
+            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, msg_pixels);
             ROS_INFO("Dados Parciais salvos!");
         }
 
@@ -328,10 +336,10 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_zed_i
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
-                                      Eigen::Quaternion<float> rot,
-                                      Eigen::Vector3f offset,
-                                      const sensor_msgs::ImageConstPtr &imagem_zed){
+void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
+                                      const sensor_msgs::ImageConstPtr &imagem_zed,
+                                      const sensor_msgs::ImageConstPtr &imagem_ast,
+                                      const sensor_msgs::PointCloud2ConstPtr &pixels_msg){
     // Atualiza contador de imagens - tambem usado para as nuvens parciais
     contador_imagens++;
 
@@ -342,34 +350,83 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
+    std::string arquivo_imast  = pasta + std::to_string(contador_imagens) + "a.jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
-    std::string arquivo_nvm    = pasta + std::to_string(contador_imagens) + ".nvm";
+    std::string arquivo_nvm_z  = pasta + std::to_string(contador_imagens) + "z.nvm";
+    std::string arquivo_nvm_a  = pasta + std::to_string(contador_imagens) + "a.nvm";
+    std::string arquivo_pixels = pasta + std::to_string(contador_imagens) + "_pixels.ply";
 
-    // Converte e salva imagem
+    // Converte e salva imagem da zed
     cv_bridge::CvImagePtr imgptr, imgzptr;
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
-    imwrite(arquivo_imzed , imgzptr->image);
+    imwrite(arquivo_imzed, imgzptr->image);
+    imgptr  = cv_bridge::toCvCopy(imagem_ast, sensor_msgs::image_encodings::BGR8);
+    imwrite(arquivo_imast, imgptr->image);
+
+    ///// Escrevendo para a zed aqui /////
+    Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+    Eigen::Matrix3f rot_azo;
+    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+    Eigen::Quaternion<float>q_azo(rot_azo);
+    Eigen::Vector3f t_azo;
+    t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
 
     // Centro da camera, para escrever no arquivo NVM
-    Eigen::MatrixXf C = calcula_centro_camera(rot, offset);
+    Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
 
     // Escreve o arquivo NVM parcial, super necessario
-    ofstream file(arquivo_nvm);
-    if(file.is_open()){
+    ofstream filez(arquivo_nvm_z);
+    if(filez.is_open()){
 
-        file << "NVM_V3\n\n";
-        file << "1\n"; // Quantas imagens, sempre uma aqui
-        std::string linha_imagem = escreve_linha_imagem(arquivo_imzed, C, rot); // Imagem com detalhes de camera
-        file << linha_imagem; // Imagem com detalhes de camera
+        filez << "NVM_V3\n\n";
+        filez << "1\n"; // Quantas imagens, sempre uma aqui
+        std::string linha_imagem = escreve_linha_imagem(1462, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
+        filez << linha_imagem; // Imagem com detalhes de camera
         // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
         acumulada_imagens.push_back(linha_imagem);
 
     } // fim do if is open
-    file.close(); // Fechar para nao ter erro
+    filez.close(); // Fechar para nao ter erro
+
+    ///// Escrevendo para a astra aqui /////
+    Eigen::Matrix4f so_rot_astra;
+    so_rot_astra << T_astra_zed;
+    so_rot_astra(0, 3) = 0; so_rot_astra(1, 3) = 0; so_rot_astra(2, 3) = 0; // Muda pois nao tem o offset
+    Tazo = so_rot_astra*T_corrigida.inverse();
+    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+    Eigen::Quaternion<float>q_astra(rot_azo);
+    Eigen::Vector3f t_astra(Tazo(0, 3), Tazo(1, 3), Tazo(2, 3));
+
+    // Centro da camera, para escrever no arquivo NVM
+    C = calcula_centro_camera(q_astra, t_astra);
+
+    // Escreve o arquivo NVM parcial, super necessario
+    ofstream filea(arquivo_nvm_a);
+    if(filea.is_open()){
+
+        filea << "NVM_V3\n\n";
+        filea << "1\n"; // Quantas imagens, sempre uma aqui
+        std::string linha_imagema = escreve_linha_imagem(525, arquivo_imast, C, q_astra); // Imagem com detalhes de camera
+        filea << linha_imagema; // Imagem com detalhes de camera
+        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
+        acumulada_imagens.push_back(linha_imagema);
+
+    } // fim do if is open
+    filea.close(); // Fechar para nao ter erro
 
     // Calcular normais para a nuvem
-    pcl::PointCloud<PointTN>::Ptr final_parcial (new pcl::PointCloud<PointTN>);
+    pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
     calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
+
+    // Salvar nuvem em arquivo .ply
+    PointCloud<PointXYZ>::Ptr pixels (new PointCloud<PointXYZ>());
+    fromROSMsg(*pixels_msg, *pixels);
+    if(pcl::io::savePLYFileASCII(arquivo_pixels, *pixels))
+        ROS_INFO("Pixels para nuvem parcial %d salvos!", contador_imagens);
 
     // Salvar nuvem em arquivo .ply
     if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
@@ -377,11 +434,10 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointT>::Ptr cloud,
 
 } // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
-std::string Cloud_Work::escreve_linha_imagem(std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
+std::string Cloud_Work::escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q){
     std::string linha = nome;
-    float fzed = 1462.32;
     // Adicionar foco
-    linha = linha + " " + std::to_string(fzed);
+    linha = linha + " " + std::to_string(foco);
     // Adicionar quaternion
     linha = linha + " " + std::to_string(q.w()) + " " + std::to_string(q.x()) + " " + std::to_string(q.y()) + " " + std::to_string(q.z());
     // Adicionar centro da camera
@@ -413,16 +469,16 @@ void Cloud_Work::salvar_acumulada(){
 
     ROS_INFO("Salvando nuvem acumulada.....");
     // Acumulada global com normais
-    PointCloud<PointTN>::Ptr acumulada_global_normais      (new PointCloud<PointTN>());
-    PointCloud<PointTN>::Ptr acumulada_global_normais_temp (new PointCloud<PointTN>());
-    PointCloud<PointT>::Ptr cameras_temp (new PointCloud<PointT>());
+    PointCloud<PointCN>::Ptr acumulada_global_normais      (new PointCloud<PointCN>());
+    PointCloud<PointCN>::Ptr acumulada_global_normais_temp (new PointCloud<PointCN>());
+    PointCloud<PointC>::Ptr cameras_temp (new PointCloud<PointC>());
     for(int i=0; i < np.size(); i++){
         ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;
         acumulada_global_normais_temp->clear();
-        PointT ponto_temp;
+        PointC ponto_temp;
         ponto_temp.x = np.at(i).centro_camera(0);
         ponto_temp.y = np.at(i).centro_camera(1);
         ponto_temp.z = np.at(i).centro_camera(2);
@@ -438,17 +494,19 @@ void Cloud_Work::salvar_acumulada(){
     // Salvar o arquivo NVM para a acumulada
     this->salva_nvm_acumulada(arquivo_nvm);
     ROS_INFO("Nuvem salva na pasta correta!!");
+
+    np.clear();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointTN>::Ptr acc_temp, PointCloud<PointT> cloud, Eigen::MatrixXf C, int K){
+void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc_temp, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K){
     // Calcula centro da camera aqui
     Eigen::Vector3f p = C;
     // Estima normais viradas para o centro da camera
-    NormalEstimationOMP<PointT, Normal> ne;
-    PointCloud<PointT>::Ptr cloud2 (new PointCloud<PointT>());
+    NormalEstimationOMP<PointC, Normal> ne;
+    PointCloud<PointC>::Ptr cloud2 (new PointCloud<PointC>());
     *cloud2 = cloud;
     ne.setInputCloud(cloud2);
-    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
     ne.setKSearch(K);
@@ -531,14 +589,14 @@ void Cloud_Work::triangulate(){
     if(acumulada_global->size() > 0){
         int metodo = 2;
 
-        PointCloud<PointTN>::Ptr cloud_normals (new PointCloud<PointTN>());
+        PointCloud<PointCN>::Ptr cloud_normals (new PointCloud<PointCN>());
         calculateNormalsAndConcatenate(acumulada_global, cloud_normals, 30);
 
         if(metodo == 1){
 
-            pcl::search::KdTree<PointTN>::Ptr tree2 (new pcl::search::KdTree<PointTN>);
+            pcl::search::KdTree<PointCN>::Ptr tree2 (new pcl::search::KdTree<PointCN>);
 
-            GreedyProjectionTriangulation<PointTN> gp3;
+            GreedyProjectionTriangulation<PointCN> gp3;
             gp3.setSearchRadius (0.05);
             gp3.setMu (3);
             gp3.setMaximumNearestNeighbors (30);
@@ -554,7 +612,7 @@ void Cloud_Work::triangulate(){
 
         } else if(metodo == 2){
 
-            Poisson<PointTN> poisson;
+            Poisson<PointCN> poisson;
             int depth = 12;
             ROS_INFO("Comecando processo de POISSON com depth = %d", depth);
             poisson.setDepth(12);
@@ -566,11 +624,11 @@ void Cloud_Work::triangulate(){
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointT>::Ptr cloud, PointCloud<PointTN>::Ptr cloud2, int K){
+void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K){
     ROS_INFO("Calculando normais da nuvem, aguarde...");
-    NormalEstimationOMP<PointT, Normal> ne;
+    NormalEstimationOMP<PointC, Normal> ne;
     ne.setInputCloud(cloud);
-    search::KdTree<PointT>::Ptr tree (new search::KdTree<PointT>());
+    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
     ne.setSearchMethod(tree);
     PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
     ne.setKSearch(K);

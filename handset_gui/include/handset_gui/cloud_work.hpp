@@ -43,6 +43,7 @@
 #include <pcl/surface/poisson.h>
 #include <pcl/surface/mls.h>
 #include <pcl/surface/texture_mapping.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -124,13 +125,14 @@ private:
     /// Procedimentos internos ///
     void filter_grid(PointCloud<PointC>::Ptr cloud, float leaf_size);
     void filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size); // Overload da funcao para usar no ICP
-    void passthrough(PointCloud<PointC>::Ptr cloud, std::string field, float min, float max);
+    void filterForNan(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ>::Ptr pixels);
+    void passthrough(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ>::Ptr foto, std::string field, float min, float max);
     void removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<PointXYZ>::Ptr out);
     void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_image, const sensor_msgs::ImageConstPtr &msg_zed_image,
                              const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
                              const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, const sensor_msgs::PointCloud2ConstPtr &pixels_msg);
+    void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
     void calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K);

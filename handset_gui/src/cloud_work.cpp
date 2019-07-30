@@ -146,13 +146,33 @@ void Cloud_Work::filter_grid(PointCloud<PointXYZ>::Ptr cloud, float leaf_size){
     grid.filter(*cloud);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::passthrough(PointCloud<PointC>::Ptr cloud, string field, float min, float max){
-    PassThrough<PointC> ps;
+void Cloud_Work::filterForNan(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ>::Ptr pixels){
+    vector<int> indicesnan;
+    removeNaNFromPointCloud(*cloud, *cloud, indicesnan);
+    boost::shared_ptr<vector<int> > indicesnanptr (new vector<int> (indicesnan));
+    ExtractIndices<PointXYZ> ext;
+    ext.setInputCloud(pixels);
+    ext.setIndices(indicesnanptr);
+    ext.setNegative(false); // A funcao ja retorna os indices que nao tinham sido filtrados antes
+    ext.filter(*pixels);
+
+    cout << "Tamanho da nuvem de pontos normal: " << cloud->size() << "  nuvem de pixels: " << pixels->size() << endl;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::passthrough(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ>::Ptr foto, string field, float min, float max){
+    PassThrough<PointC> ps(true);
     ps.setInputCloud(cloud);
     ps.setFilterFieldName(field);
     ps.setFilterLimits(min, max);
 
     ps.filter(*cloud);
+    IndicesConstPtr indices_removidos = ps.getRemovedIndices();
+
+    ExtractIndices<PointXYZ> extract;
+    extract.setInputCloud(foto);
+    extract.setIndices(indices_removidos);
+    extract.setNegative(true);
+    extract.filter(*foto);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset){
@@ -198,7 +218,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
-    icp.setMaximumIterations(500); // Chute inicial bom 10-100
+    icp.setMaximumIterations(300); // Chute inicial bom 10-100
     icp.setTransformationEpsilon(1*1e-10);
     icp.setEuclideanFitnessEpsilon(1*1e-12);
     icp.setMaxCorrespondenceDistance(0.3);
@@ -278,28 +298,24 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
         // Reiniciando nuvens parciais
         acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
-        // Vamos aquisitar e acumular enquanto nao juntar n_nuvens_instantaneas
-        int cont_nuvens = 0;
-        while( cont_nuvens < n_nuvens_instantaneas ){
-            // Converte nuvem -> ja devia estar filtrada do outro no
-            PointCloud<PointC>::Ptr nuvem_inst (new PointCloud<PointC>());
-            fromROSMsg(*msg_cloud, *nuvem_inst);
-            // Garante que nao ha nenhum nan
-            vector<int> indicesnan;
-            removeNaNFromPointCloud(*nuvem_inst, *nuvem_inst, indicesnan);
-            // Filtro de profundidade como vinda da GUI
-            passthrough(nuvem_inst, "z", 0, profundidade_max);
-            // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
-            acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
-            *acumulada_parcial_frame_camera += *nuvem_inst;
-            // Rotacao para corrigir odometria
-            transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
-            // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
-            acumulada_parcial->header.frame_id = "odom";
-            *acumulada_parcial += *nuvem_inst;
-            // Atualiza contagem de nuvens durante captura
-            cont_nuvens++;
-        } // fim do while -> contagem de tempo
+
+        // Converte nuvem -> ja devia estar filtrada do outro no
+        PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
+        fromROSMsg(*msg_cloud, *nuvem_inst);
+        PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
+        fromROSMsg(*msg_pixels, *nuvem_pix);
+        // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
+        filterForNan(nuvem_inst, nuvem_pix);
+        // Filtro de profundidade como vinda da GUI
+        passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
+        // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
+        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
+        *acumulada_parcial_frame_camera += *nuvem_inst;
+        // Rotacao para corrigir odometria
+        transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+        // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
+        acumulada_parcial->header.frame_id = "odom";
+        *acumulada_parcial += *nuvem_inst;
 
         ROS_INFO("Nuvem parcial capturada");
 
@@ -322,7 +338,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, msg_pixels);
+            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix);
             ROS_INFO("Dados Parciais salvos!");
         }
 
@@ -339,7 +355,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
                                       const sensor_msgs::ImageConstPtr &imagem_zed,
                                       const sensor_msgs::ImageConstPtr &imagem_ast,
-                                      const sensor_msgs::PointCloud2ConstPtr &pixels_msg){
+                                      PointCloud<PointXYZ>::Ptr nuvem_pix){
     // Atualiza contador de imagens - tambem usado para as nuvens parciais
     contador_imagens++;
 
@@ -356,12 +372,15 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     std::string arquivo_nvm_a  = pasta + std::to_string(contador_imagens) + "a.nvm";
     std::string arquivo_pixels = pasta + std::to_string(contador_imagens) + "_pixels.ply";
 
-    // Converte e salva imagem da zed
+    // Converte e salva imagem da zed e da astra
     cv_bridge::CvImagePtr imgptr, imgzptr;
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imzed, imgzptr->image);
     imgptr  = cv_bridge::toCvCopy(imagem_ast, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imast, imgptr->image);
+
+    // Comparar aqui a zed e a astra com sift e usar a correspondencia da nuvem de pixels
+
 
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
@@ -375,6 +394,9 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
 
     // Centro da camera, para escrever no arquivo NVM
     Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
+
+    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
+    // Otimizar foco, rotacao e posicao para ZED
 
     // Escreve o arquivo NVM parcial, super necessario
     ofstream filez(arquivo_nvm_z);
@@ -404,6 +426,9 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     // Centro da camera, para escrever no arquivo NVM
     C = calcula_centro_camera(q_astra, t_astra);
 
+    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
+    // Otimizar foco, rotacao e posicao para ASTRA
+
     // Escreve o arquivo NVM parcial, super necessario
     ofstream filea(arquivo_nvm_a);
     if(filea.is_open()){
@@ -423,9 +448,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
     // Salvar nuvem em arquivo .ply
-    PointCloud<PointXYZ>::Ptr pixels (new PointCloud<PointXYZ>());
-    fromROSMsg(*pixels_msg, *pixels);
-    if(pcl::io::savePLYFileASCII(arquivo_pixels, *pixels))
+    if(pcl::io::savePLYFileASCII(arquivo_pixels, *nuvem_pix))
         ROS_INFO("Pixels para nuvem parcial %d salvos!", contador_imagens);
 
     // Salvar nuvem em arquivo .ply

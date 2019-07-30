@@ -52,6 +52,8 @@
 #include <dynamic_reconfigure/server.h>
 #include <astra_calibrada/calib_params_Config.h>
 
+// Otimizacao paralelo
+
 using namespace pcl;
 using namespace std;
 using namespace tf;
@@ -136,7 +138,6 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
               const OdometryConstPtr& msg_odo)
 {
     cv_bridge::CvImagePtr cv_ptr_d;
-    cv_bridge::CvImagePtr cv_ptr_zed;
     cv_bridge::CvImagePtr cv_ptr_astra;
     cv_ptr_d     = cv_bridge::toCvCopy(msg_depth, sensor_msgs::image_encodings::TYPE_16UC1);
     cv_ptr_astra = cv_bridge::toCvCopy(msg_astra, sensor_msgs::image_encodings::RGB8 );
@@ -144,17 +145,24 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
     sensor_msgs::PointCloud2 msg_cor;
     sensor_msgs::PointCloud2 msg_pixels;
 
+    nuvem_colorida->clear();
+    nuvem_pixels->clear();
+
     int depthHeight = cv_ptr_d->image.rows;  //cv_image_d.rows;
     int depthWidth  = cv_ptr_d->image.cols;  //cv_image_d.cols;
 
     cv::Vec3b intensity;
 
-    float x, y, z;
-    PointT current_point;
-    Pixel  current_point_pixel;
     resolucao = resolucao > 0 ? resolucao : 2;
+    #pragma omp parallel for num_threads(int(depthHeight/10))
     for(int v = 0; v < depthHeight; v=v+resolucao){
+        #pragma omp parallel for num_threads(int(depthWidth/10))
         for(int u = 0; u < depthWidth; u=u+resolucao){
+
+            float x, y, z;
+            PointT current_point;
+            Pixel  current_point_pixel;
+
             z = cv_ptr_d->image.at<short int>(v, u);
             if(z!=0){ // eliminando pontos de prof. zero
                 x = ((u - Cxd)*z)/fxd;
@@ -201,7 +209,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
     msg_cor.header.stamp = ros::Time::now();
 
     // Mensagem Nuvem de pixels
-    toROSMsg(*nuvem_pixels, msg_cor);
+    toROSMsg(*nuvem_pixels, msg_pixels);
     msg_pixels.header.frame_id = nuvem_pixels->header.frame_id;
     msg_pixels.header.stamp = ros::Time::now();
 
@@ -225,6 +233,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
     pub_pixels.publish(msg_pixels);
 
     nuvem_colorida->clear();
+    nuvem_pixels->clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

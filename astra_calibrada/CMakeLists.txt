@@ -13,7 +13,6 @@ find_package(catkin REQUIRED
     roscpp
     rosconsole
     sensor_msgs
-    #opencv
     image_transport
     dynamic_reconfigure
     urdf
@@ -31,11 +30,15 @@ INCLUDE_DIRECTORIES(${PCL_INCLUDE_DIRS} "/usr/local/include")
 LINK_DIRECTORIES(${PCL_LIBRARY_DIRS} "/usr/local/lib")
 ADD_DEFINITIONS(${PCL_DEFINITIONS})
 INCLUDE_DIRECTORIES(${catkin_INCLUDE_DIRS})
-
+find_package(OpenMP REQUIRED)
+if(OPENMP_FOUND)
+  message(STATUS "OPENMP FOUND")
+  set(OpenMP_FLAGS ${OpenMP_CXX_FLAGS})  # or if you use C: ${OpenMP_C_FLAGS}
+  set(OpenMP_LIBS gomp)
+endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 include_directories(${CUDA_INCLUDE_DIRS})
-
 
 ###################################
 ## catkin specific configuration ##
@@ -54,7 +57,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES astra_calibrada
 #  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+  DEPENDS OpenMP
 )
 
 ###########
@@ -67,6 +70,7 @@ include_directories(
 # include
  ${catkin_INCLUDE_DIRS}
  ${OpenCV_INCLUDE_DIRS}
+ ${OpenMP_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -75,12 +79,14 @@ include_directories(
 # )
 
 add_executable(astra_calibrada src/astra_calibrada.cpp)
-add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg)
+#target_compile_options(astra_calibrada PRIVATE ${OpenMP_FLAGS})
+add_dependencies(astra_calibrada ${PROJECT_NAME}_gencfg ${catkin_EXPORTED_TARGETS})
 target_link_libraries(astra_calibrada
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
   ${OpenCV_LIBS}
   ${roslib_LIBRARIES}
+  ${OpenMP_LIBS}
 )
 
 add_executable(astra_calibrada_felipe src/astra_calibrada_felipe.cpp)

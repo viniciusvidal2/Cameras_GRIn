@@ -32,7 +32,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: Image
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -136,7 +136,7 @@ Visualization Manager:
       Value: false
     - Class: rviz/Image
       Enabled: true
-      Image Topic: /astra_rgb
+      Image Topic: /zed2
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -171,7 +171,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.52381158
+      Distance: 0.913822651
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1

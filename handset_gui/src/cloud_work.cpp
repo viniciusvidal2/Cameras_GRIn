@@ -155,8 +155,6 @@ void Cloud_Work::filterForNan(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ
     ext.setIndices(indicesnanptr);
     ext.setNegative(false); // A funcao ja retorna os indices que nao tinham sido filtrados antes
     ext.filter(*pixels);
-
-    cout << "Tamanho da nuvem de pontos normal: " << cloud->size() << "  nuvem de pixels: " << pixels->size() << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::passthrough(PointCloud<PointC>::Ptr cloud, PointCloud<PointXYZ>::Ptr foto, string field, float min, float max){
@@ -366,28 +364,34 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
-    std::string arquivo_imast  = pasta + std::to_string(contador_imagens) + "a.jpg";
+//    std::string arquivo_imast  = pasta + std::to_string(contador_imagens) + "a.jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
     std::string arquivo_nvm_z  = pasta + std::to_string(contador_imagens) + "z.nvm";
-    std::string arquivo_nvm_a  = pasta + std::to_string(contador_imagens) + "a.nvm";
-    std::string arquivo_pixels = pasta + std::to_string(contador_imagens) + "_pixels.ply";
+//    std::string arquivo_nvm_a  = pasta + std::to_string(contador_imagens) + "a.nvm";
+//    std::string arquivo_pixels = pasta + std::to_string(contador_imagens) + "_pixels.ply";
 
     // Converte e salva imagem da zed e da astra
     cv_bridge::CvImagePtr imgptr, imgzptr;
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imzed, imgzptr->image);
     imgptr  = cv_bridge::toCvCopy(imagem_ast, sensor_msgs::image_encodings::BGR8);
-    imwrite(arquivo_imast, imgptr->image);
+//    imwrite(arquivo_imast, imgptr->image);
 
     // Comparar aqui a zed e a astra com sift e usar a correspondencia da nuvem de pixels
-
+    comparaSift(imgptr, imgzptr);
+    resolveAstraPixeis(nuvem_pix);
 
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+//    Eigen::Matrix4f Tazo = T_astra_zed.inverse()*T_depth_astra_zed.inverse();
     Eigen::Matrix3f rot_azo;
     rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+
+    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
+    // Otimizar foco, rotacao e posicao para ZED
+
     Eigen::Quaternion<float>q_azo(rot_azo);
     Eigen::Vector3f t_azo;
     t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
@@ -395,61 +399,58 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     // Centro da camera, para escrever no arquivo NVM
     Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
 
-    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
-    // Otimizar foco, rotacao e posicao para ZED
-
     // Escreve o arquivo NVM parcial, super necessario
-    ofstream filez(arquivo_nvm_z);
-    if(filez.is_open()){
+    ofstream nvmz(arquivo_nvm_z);
+    if(nvmz.is_open()){
 
-        filez << "NVM_V3\n\n";
-        filez << "1\n"; // Quantas imagens, sempre uma aqui
+        nvmz << "NVM_V3\n\n";
+        nvmz << "1\n"; // Quantas imagens, sempre uma aqui
         std::string linha_imagem = escreve_linha_imagem(1462, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
-        filez << linha_imagem; // Imagem com detalhes de camera
+        nvmz << linha_imagem; // Imagem com detalhes de camera
         // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
         acumulada_imagens.push_back(linha_imagem);
 
     } // fim do if is open
-    filez.close(); // Fechar para nao ter erro
+    nvmz.close(); // Fechar para nao ter erro
 
     ///// Escrevendo para a astra aqui /////
-    Eigen::Matrix4f so_rot_astra;
-    so_rot_astra << T_astra_zed;
-    so_rot_astra(0, 3) = 0; so_rot_astra(1, 3) = 0; so_rot_astra(2, 3) = 0; // Muda pois nao tem o offset
-    Tazo = so_rot_astra*T_corrigida.inverse();
-    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
-    Eigen::Quaternion<float>q_astra(rot_azo);
-    Eigen::Vector3f t_astra(Tazo(0, 3), Tazo(1, 3), Tazo(2, 3));
+//    Eigen::Matrix4f so_rot_astra;
+//    so_rot_astra << T_astra_zed;
+//    so_rot_astra(0, 3) = 0; so_rot_astra(1, 3) = 0; so_rot_astra(2, 3) = 0; // Muda pois nao tem o offset
+//    Tazo = so_rot_astra*T_corrigida.inverse();
+//    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+//               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+//               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+//    Eigen::Quaternion<float>q_astra(rot_azo);
+//    Eigen::Vector3f t_astra(Tazo(0, 3), Tazo(1, 3), Tazo(2, 3));
 
-    // Centro da camera, para escrever no arquivo NVM
-    C = calcula_centro_camera(q_astra, t_astra);
+//    // Centro da camera, para escrever no arquivo NVM
+//    C = calcula_centro_camera(q_astra, t_astra);
 
-    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
-    // Otimizar foco, rotacao e posicao para ASTRA
+//    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
+//    // Otimizar foco, rotacao e posicao para ASTRA
 
-    // Escreve o arquivo NVM parcial, super necessario
-    ofstream filea(arquivo_nvm_a);
-    if(filea.is_open()){
+//    // Escreve o arquivo NVM parcial, super necessario
+//    ofstream filea(arquivo_nvm_a);
+//    if(filea.is_open()){
 
-        filea << "NVM_V3\n\n";
-        filea << "1\n"; // Quantas imagens, sempre uma aqui
-        std::string linha_imagema = escreve_linha_imagem(525, arquivo_imast, C, q_astra); // Imagem com detalhes de camera
-        filea << linha_imagema; // Imagem com detalhes de camera
-        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
-        acumulada_imagens.push_back(linha_imagema);
+//        filea << "NVM_V3\n\n";
+//        filea << "1\n"; // Quantas imagens, sempre uma aqui
+//        std::string linha_imagema = escreve_linha_imagem(525, arquivo_imast, C, q_astra); // Imagem com detalhes de camera
+//        filea << linha_imagema; // Imagem com detalhes de camera
+//        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
+//        acumulada_imagens.push_back(linha_imagema);
 
-    } // fim do if is open
-    filea.close(); // Fechar para nao ter erro
+//    } // fim do if is open
+//    filea.close(); // Fechar para nao ter erro
 
     // Calcular normais para a nuvem
     pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
     calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
-    // Salvar nuvem em arquivo .ply
-    if(pcl::io::savePLYFileASCII(arquivo_pixels, *nuvem_pix))
-        ROS_INFO("Pixels para nuvem parcial %d salvos!", contador_imagens);
+//    // Salvar nuvem em arquivo .ply
+//    if(pcl::io::savePLYFileASCII(arquivo_pixels, *nuvem_pix))
+//        ROS_INFO("Pixels para nuvem parcial %d salvos!", contador_imagens);
 
     // Salvar nuvem em arquivo .ply
     if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
@@ -472,14 +473,169 @@ std::string Cloud_Work::escreve_linha_imagem(float foco, std::string nome, Eigen
     return linha;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset){
+Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f t){
     Eigen::MatrixXf C(3, 1);
     Eigen::MatrixXf R = q.matrix();
-    Eigen::MatrixXf t(3,1);
-    t = offset;
+//    Eigen::MatrixXf t(3,1);
+//    t = offset;
     C = -R.transpose()*t;
 
     return C;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed){
+    /// Calculando descritores SIFT ///
+    // Keypoints e descritores para astra e zed
+    std::vector<cv::KeyPoint> keypointsa, keypointsz;
+    cv::Mat descriptorsa, descriptorsz;
+    cv::Ptr<cv::Feature2D> f2d = cv::xfeatures2d::SIFT::create();
+    // Astra
+    f2d->detectAndCompute(astra->image, cv::noArray(), keypointsa, descriptorsa);
+    // Zed
+    f2d->detectAndCompute(zed->image  , cv::noArray(), keypointsz, descriptorsz);
+
+    /// Comparando e filtrando matchs ///
+    cv::Ptr<cv::DescriptorMatcher> matcher;
+    matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::FLANNBASED);
+    std::vector<std::vector< cv::DMatch > > matches;
+    std::vector< cv::DMatch > good_matches;
+
+    matcher->knnMatch(descriptorsa, descriptorsz, matches, 2);
+
+    for (size_t i = 0; i < matches.size(); i++)
+    {
+      if (matches.at(i).size() >= 2)
+      {
+        if (matches.at(i).at(0).distance < 0.75*matches.at(i).at(1).distance)
+        {
+          good_matches.push_back(matches.at(i).at(0));
+        }
+      }
+    }
+
+    // Daqui para baixo temos astra->left e zed->right
+
+    std::vector<cv::Point2f> imgLeftPts;
+    std::vector<cv::Point2f> imgRightPts;
+
+    for (size_t i = 0; i < good_matches.size(); i++)
+    {
+      //-- Get the keypoints from the good matches
+      goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
+      goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
+      imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
+      imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
+    }
+    cv::Mat inliers;
+    cv::Mat Ka = (cv::Mat_<double>(3, 3) << 525, 0, astra->image.cols / 2, 0, 525, astra->image.rows / 2, 0, 0, 1);
+    cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
+
+    std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
+    std::vector<cv::KeyPoint> goodKeypointsRightTemp;
+    for (size_t i = 0; i < inliers.rows; i++)
+    {
+            if (inliers.at<uchar>(i, 0) == 1)
+            {
+                    goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
+                    goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+            }
+    }
+    goodKeypointsLeft = goodKeypointsLeftTemp;
+    goodKeypointsRight = goodKeypointsRightTemp;
+
+//    cv::Mat tempImgLeft;
+//    astra->image.copyTo(tempImgLeft);
+//    cv::cvtColor(tempImgLeft, tempImgLeft, cv::COLOR_GRAY2BGR);
+//    cv::Mat tempImgRight;
+//    zed->image.copyTo(tempImgRight);
+//    cv::cvtColor(tempImgRight, tempImgRight, cv::COLOR_GRAY2BGR);
+//    cv::Scalar color;
+//    for (size_t i = 0; i < goodKeypointsLeft.size(); i++)
+//    {
+//            color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+//            cv::circle(tempImgLeft, goodKeypointsLeft.at(i).pt, 5, color, 2);
+//            cv::circle(tempImgRight, goodKeypointsRight.at(i).pt, 5, color, 2);
+//    }
+//    cv::Mat imgConcat;
+//    cv::resize(tempImgLeft, tempImgLeft, zed->image.size());
+//    hconcat(tempImgLeft, tempImgRight, imgConcat);
+//    cv::namedWindow("Matches", CV_WINDOW_NORMAL);
+//    cv::imshow("Matches", zed->image);
+//    cv::waitKey(0);
+
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis){
+    cv::Mat_<float> features(0, 2);
+    for (unsigned int i = 0; i < pixeis->size(); i++)
+    {
+        //Fill matrix
+        cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
+        features.push_back(row);
+    }
+    cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
+    cv::Mat_<float> query(0, 2);
+    for (auto keypoint : goodKeypointsLeft)
+    {
+        cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
+        query.push_back(row);
+    }
+    unsigned int max_neighbours = 10;
+    cv::Mat indices, dists;
+    flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
+
+    indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
+    std::unordered_set<int> usedPoints;
+    for (unsigned int i = 0; i < indices.rows; i++)
+    {
+        for (unsigned int j = 0; j < indices.cols; j++)
+        {
+            //Test to see if the point was already selected by other SIFT keypoint
+            if (usedPoints.insert(indices.at<int>(i, j)).second)
+            {
+                if (dists.at<float>(i, j) < 0.5)
+                {
+                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
+                    break;
+                }
+            }
+        }
+    }
+    // Relacionando pontos 3D com o SIFT da Zed
+    std::vector<cv::Point2f> imagePointsZed;
+    std::vector<cv::Point3f> objectPointsZed;
+    for (int i=0; i<indices_pontos_nuvem.size(); i++)
+    {
+        if (indices_pontos_nuvem[i] == -1)
+            continue;
+        imagePointsZed.push_back(goodKeypointsRight[i].pt);
+        PointC pnuvem = acumulada_parcial->points[indices_pontos_nuvem[i]];
+        cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
+        objectPointsZed.push_back(p);
+    }
+
+    updateRTFromSolvePNP(imagePointsZed, objectPointsZed);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints)
+{
+    cv::Mat R, t, distCoef;
+    cv::Mat Ka = (cv::Mat_<double>(3, 3) << 1462, 0, 1920/2, 0, 525, 1080/2, 0, 0, 1);
+    cv::solvePnPRansac(objectPoints, imagePoints, Ka, distCoef, R, t);
+    cv::Mat R_3_3;
+    cv::Rodrigues(R, R_3_3);
+    for (unsigned int i = 0; i < 3; i++)
+    {
+        for (unsigned int j = 0; j < 3; j++)
+        {
+            T_depth_astra_zed(i, j) = R_3_3.at<double>(i, j);
+        }
+    }
+    for (unsigned int j = 0; j < 3; j++)
+    {
+        T_depth_astra_zed(j, 3) = t.at<double>(j, 0);
+    }
+    T_depth_astra_zed(3, 0) = T_depth_astra_zed(3, 1) = T_depth_astra_zed(3, 2) = 0; T_depth_astra_zed(3, 3) = 1;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salvar_acumulada(){
@@ -512,7 +668,7 @@ void Cloud_Work::salvar_acumulada(){
     }
     savePLYFileASCII(pasta+"camerascentro.ply", *cameras_temp);
 
-    pcl::io::savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
+    savePLYFileASCII(arquivo_nuvem, *acumulada_global_normais);
 
     // Salvar o arquivo NVM para a acumulada
     this->salva_nvm_acumulada(arquivo_nvm);

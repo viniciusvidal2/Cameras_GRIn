@@ -17,11 +17,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/videoio.hpp"
+#include <opencv2/features2d.hpp>
+#include <opencv2/xfeatures2d.hpp>
 
 #include <image_geometry/pinhole_camera_model.h>
 #include <camera_calibration_parsers/parse.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <yaml-cpp/yaml.h>
+#include <unordered_set>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
@@ -140,6 +143,9 @@ private:
     void saveMesh(std::string nome);
     void triangulate();
     void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
+    void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed);
+    void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis);
+    void updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints);
     std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
@@ -197,6 +203,13 @@ private:
         Eigen::MatrixXf centro_camera; // Centro da camera no espaço
     };
     std::vector<nuvem_pose> np;
+    // Keypoints filtrados globais
+    std::vector<cv::KeyPoint> goodKeypointsLeft;  // astra
+    std::vector<cv::KeyPoint> goodKeypointsRight; // zed
+    // Vetor para guardar o indice do ponto na nuvem
+    std::vector<int> indices_pontos_nuvem;
+    // Matriz de pose da camera final, estimada pela correspondencia de pontos depth-astra-zed, Juliano
+    Eigen::Matrix4f T_depth_astra_zed;
 };
 
 }

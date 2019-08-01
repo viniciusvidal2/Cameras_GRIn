@@ -1,5 +1,6 @@
 <!--Launches the recording of the system messages. -->
 <launch>
+
 <!--arguments-->
 <arg name="only_raw_data" default="true"/> <!--Whether or not to record only raw data-->
 <arg name="bag" default="handset"/>
@@ -9,16 +10,14 @@
 
 <!--To record only raw data-->
 <group if="$(arg only_raw_data)">
-<!--<node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw /camera/depth/image_raw /zed/left/image_rect_color -O $(arg folder)/$(arg bag)">-->
-<node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/odom2 /astra_rgb /astra_projetada /zed2 /pixels -O $(arg folder)/$(arg bag)">
-</node>
-<!--<node name="rosbag_record_raw" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw /camera/depth/image_raw /zed/left/image_rect_color -O $(arg folder)/$(arg bag)_raw">-->
-<!--</node>-->
+    <node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/odom2 /astra2 /astra_projetada /zed2 /pixels -O $(arg folder)/$(arg bag)">
+    </node>
 </group>
 
 <!--To record all data-->
 <group unless="$(arg only_raw_data)">
-<node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw/compressed /camera/depth/image_raw/compressed /zed/left/image_rect_color/compressed /pixels -O $(arg folder)/$(arg bag)">
-</node>
+    <node name="rosbag_record" pkg="rosbag" type="record" output="screen" args="/zed/odom /camera/rgb/image_raw/compressed /camera/depth/image_raw/compressed /zed/left/image_rect_color/compressed /pixels -O $(arg folder)/$(arg bag)">
+    </node>
 </group>
+
 </launch>

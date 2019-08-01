@@ -146,6 +146,7 @@ private:
     void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed);
     void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis);
     void updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints);
+    void printT(Eigen::Matrix4f T);
     std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
@@ -210,6 +211,18 @@ private:
     std::vector<int> indices_pontos_nuvem;
     // Matriz de pose da camera final, estimada pela correspondencia de pontos depth-astra-zed, Juliano
     Eigen::Matrix4f T_depth_astra_zed;
+    // Estrutura para guardar os dados da camera interessantes aqui apos otimizados por bat
+    struct camera{
+        camera() {}
+        float foco;
+        Eigen::Matrix4f T;
+    };
+    // Variaveis para guardar os pontos 2D corretos e os 3D correspondentes
+    std::vector<Point2f> imagePointsZed;
+    std::vector<Point3f> objectPointsZed;
+    // Funcao de otimizacao do bat
+    camera bat(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, float foco_est, Eigen::Vector2f c_img);
+    float  fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, Eigen::MatrixXf bat, Eigen::Vector2f c_est, Eigen::MatrixXf range);
 };
 
 }

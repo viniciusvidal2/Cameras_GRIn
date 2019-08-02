@@ -144,8 +144,8 @@ private:
     void triangulate();
     void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
     void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed);
-    void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis);
-    void updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints);
+    void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge::CvImagePtr zed);
+    void updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints, cv_bridge::CvImagePtr zed);
     void printT(Eigen::Matrix4f T);
     std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
@@ -158,6 +158,8 @@ private:
     bool realizar_acumulacao;
     // Analisa se primeira vez ou nao para controlar acumulacao
     bool primeira_vez;
+    // Foco da ZED e da ASTRA global
+    float fzed, fastra;
     // Nuvem acumulada total
     PointCloud<PointC>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
@@ -207,8 +209,6 @@ private:
     // Keypoints filtrados globais
     std::vector<cv::KeyPoint> goodKeypointsLeft;  // astra
     std::vector<cv::KeyPoint> goodKeypointsRight; // zed
-    // Vetor para guardar o indice do ponto na nuvem
-    std::vector<int> indices_pontos_nuvem;
     // Matriz de pose da camera final, estimada pela correspondencia de pontos depth-astra-zed, Juliano
     Eigen::Matrix4f T_depth_astra_zed;
     // Estrutura para guardar os dados da camera interessantes aqui apos otimizados por bat

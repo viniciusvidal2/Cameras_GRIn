@@ -91,14 +91,18 @@ void Cloud_Work::init(){
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 
-//    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
-//    offset_astra_zed << 0.04536, 0.027, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
-//    offset_astra_zed << 0.025, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
+    //    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
+    //    offset_astra_zed << 0.04536, 0.027, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
+    //    offset_astra_zed << 0.025, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
     offset_astra_zed << 0.052, 0.01, -0.01; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, por reconfigure com imagem raw objetos proximos
 
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
-                   0, 0, 0, 1;
+            0, 0, 0, 1;
+
+    // Foco da ZED e ASTRA estimado inicial
+    fzed = 1462.0;
+    fastra = 525.0;
 
     // Mais uma vez aqui para nao ter erro
     set_inicio_acumulacao(false);
@@ -179,7 +183,7 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
     Eigen::MatrixXf t(3,1);
     t = offset;
     T << R,t,
-         0,0,0,1;
+            0,0,0,1;
 
     return T;
 }
@@ -248,7 +252,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Qua
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
             // transformPointCloud(*parcial, *parcial, T_atual);
             T_corrigida = this->icp(parcial, acumulada_parcial_anterior, T_chute_icp);
-            transformPointCloud(*parcial, *parcial, T_corrigida);            
+            transformPointCloud(*parcial, *parcial, T_corrigida);
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
             *acumulada_parcial_anterior = *parcial;
@@ -328,8 +332,8 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
         Eigen::Matrix3f rot_azo;
         rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-                   Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-                   Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
         Eigen::Quaternion<float>q_azo(rot_azo);
         Eigen::Vector3f t_azo;
         t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
@@ -359,40 +363,35 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
 
     ROS_INFO("Salvando arquivo parcial %d.", contador_imagens);
 
-    float fzed = 1462.0;
-
     // Nome da pasta para salvar
     char* home;
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
-//    std::string arquivo_imast  = pasta + std::to_string(contador_imagens) + "a.jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
     std::string arquivo_nvm_z  = pasta + std::to_string(contador_imagens) + "z.nvm";
-//    std::string arquivo_nvm_a  = pasta + std::to_string(contador_imagens) + "a.nvm";
-//    std::string arquivo_pixels = pasta + std::to_string(contador_imagens) + "_pixels.ply";
+    std::string arquivo_corr   = pasta + std::to_string(contador_imagens) + "_cor.txt";
 
     // Converte e salva imagem da zed e da astra
     cv_bridge::CvImagePtr imgptr, imgzptr;
     imgzptr = cv_bridge::toCvCopy(imagem_zed, sensor_msgs::image_encodings::BGR8);
     imwrite(arquivo_imzed, imgzptr->image);
     imgptr  = cv_bridge::toCvCopy(imagem_ast, sensor_msgs::image_encodings::BGR8);
-//    imwrite(arquivo_imast, imgptr->image);
 
     // Comparar aqui a zed e a astra com sift e usar a correspondencia da nuvem de pixels
     comparaSift(imgptr, imgzptr);
-    resolveAstraPixeis(nuvem_pix);
+    resolveAstraPixeis(nuvem_pix, imgzptr);
 
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
     cout << "\n Antes do bat:\n";
     this->printT(Tazo);
-//    Eigen::Matrix4f Tazo = T_astra_zed.inverse()*T_depth_astra_zed.inverse();
+    cout << "\n Calculo do Juliano:\n";
+    this->printT(T_depth_astra_zed);
 
-
-    ofstream temp("/home/grin/Desktop/teste/pontos.txt");
+    // Arquivo para conferencia de pontos 2D com 3D
+    ofstream temp(arquivo_corr);
     if(temp.is_open()){
-
         temp << std::to_string(imagePointsZed.size())+"\n";
         for (int k=0;k<imagePointsZed.size();k++) {
             std::string linha = std::to_string(imagePointsZed[k].x) + " " + std::to_string(imagePointsZed[k].y) + "\n";
@@ -405,17 +404,15 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
             std::replace(linha.begin(), linha.end(), ',', '.');
             temp << linha;
         }
-
     } // fim do if is open
     temp.close(); // Fechar para nao ter erro
-
-
 
     // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
     // Otimizar foco, rotacao e posicao para ZED
     camera co; // camera com resultados para otimizar
     Eigen::Vector2f s(imgzptr->image.cols/2.0, imgzptr->image.rows/2.0);
-    co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s);
+    //    co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s);
+    co = bat(imagePointsZed, objectPointsZed, T_depth_astra_zed, fzed, s);
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
     Tazo = co.T;
@@ -424,9 +421,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     this->printT(Tazo);
     Eigen::Matrix3f rot_azo;
     rot_azo << Tazo.block(0, 0, 3, 3);
-//    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-//               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-//               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
     Eigen::Quaternion<float>q_azo(rot_azo);
     Eigen::Vector3f t_azo;
     t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
@@ -448,44 +442,9 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     } // fim do if is open
     nvmz.close(); // Fechar para nao ter erro
 
-    ///// Escrevendo para a astra aqui /////
-//    Eigen::Matrix4f so_rot_astra;
-//    so_rot_astra << T_astra_zed;
-//    so_rot_astra(0, 3) = 0; so_rot_astra(1, 3) = 0; so_rot_astra(2, 3) = 0; // Muda pois nao tem o offset
-//    Tazo = so_rot_astra*T_corrigida.inverse();
-//    rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-//               Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-//               Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
-//    Eigen::Quaternion<float>q_astra(rot_azo);
-//    Eigen::Vector3f t_astra(Tazo(0, 3), Tazo(1, 3), Tazo(2, 3));
-
-//    // Centro da camera, para escrever no arquivo NVM
-//    C = calcula_centro_camera(q_astra, t_astra);
-
-//    // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
-//    // Otimizar foco, rotacao e posicao para ASTRA
-
-//    // Escreve o arquivo NVM parcial, super necessario
-//    ofstream filea(arquivo_nvm_a);
-//    if(filea.is_open()){
-
-//        filea << "NVM_V3\n\n";
-//        filea << "1\n"; // Quantas imagens, sempre uma aqui
-//        std::string linha_imagema = escreve_linha_imagem(525, arquivo_imast, C, q_astra); // Imagem com detalhes de camera
-//        filea << linha_imagema; // Imagem com detalhes de camera
-//        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
-//        acumulada_imagens.push_back(linha_imagema);
-
-//    } // fim do if is open
-//    filea.close(); // Fechar para nao ter erro
-
     // Calcular normais para a nuvem
     pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
     calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
-
-//    // Salvar nuvem em arquivo .ply
-//    if(pcl::io::savePLYFileASCII(arquivo_pixels, *nuvem_pix))
-//        ROS_INFO("Pixels para nuvem parcial %d salvos!", contador_imagens);
 
     // Salvar nuvem em arquivo .ply
     if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
@@ -511,8 +470,8 @@ std::string Cloud_Work::escreve_linha_imagem(float foco, std::string nome, Eigen
 Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f t){
     Eigen::MatrixXf C(3, 1);
     Eigen::MatrixXf R = q.matrix();
-//    Eigen::MatrixXf t(3,1);
-//    t = offset;
+    //    Eigen::MatrixXf t(3,1);
+    //    t = offset;
     C = -R.transpose()*t;
 
     return C;
@@ -539,13 +498,13 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 
     for (size_t i = 0; i < matches.size(); i++)
     {
-      if (matches.at(i).size() >= 2)
-      {
-        if (matches.at(i).at(0).distance < 0.75*matches.at(i).at(1).distance)
+        if (matches.at(i).size() >= 2)
         {
-          good_matches.push_back(matches.at(i).at(0));
+            if (matches.at(i).at(0).distance < 0.75*matches.at(i).at(1).distance)
+            {
+                good_matches.push_back(matches.at(i).at(0));
+            }
         }
-      }
     }
 
     // Daqui para baixo temos astra->left e zed->right
@@ -555,52 +514,32 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 
     for (size_t i = 0; i < good_matches.size(); i++)
     {
-      //-- Get the keypoints from the good matches
-      goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
-      goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
-      imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
-      imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
+        //-- Get the keypoints from the good matches
+        goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
+        goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
+        imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
+        imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
     }
     cv::Mat inliers;
-    cv::Mat Ka = (cv::Mat_<double>(3, 3) << 525.0, 0, astra->image.cols / 2.0, 0, 525.0, astra->image.rows / 2.0, 0, 0, 1);
+    cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
     cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
 
     std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
     std::vector<cv::KeyPoint> goodKeypointsRightTemp;
     for (size_t i = 0; i < inliers.rows; i++)
     {
-            if (inliers.at<uchar>(i, 0) == 1)
-            {
-                    goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
-                    goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
-            }
+        if (inliers.at<uchar>(i, 0) == 1)
+        {
+            goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
+            goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+        }
     }
     goodKeypointsLeft = goodKeypointsLeftTemp;
     goodKeypointsRight = goodKeypointsRightTemp;
 
-//    cv::Mat tempImgLeft;
-//    astra->image.copyTo(tempImgLeft);
-//    cv::cvtColor(tempImgLeft, tempImgLeft, cv::COLOR_GRAY2BGR);
-//    cv::Mat tempImgRight;
-//    zed->image.copyTo(tempImgRight);
-//    cv::cvtColor(tempImgRight, tempImgRight, cv::COLOR_GRAY2BGR);
-//    cv::Scalar color;
-//    for (size_t i = 0; i < goodKeypointsLeft.size(); i++)
-//    {
-//            color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
-//            cv::circle(tempImgLeft, goodKeypointsLeft.at(i).pt, 5, color, 2);
-//            cv::circle(tempImgRight, goodKeypointsRight.at(i).pt, 5, color, 2);
-//    }
-//    cv::Mat imgConcat;
-//    cv::resize(tempImgLeft, tempImgLeft, zed->image.size());
-//    hconcat(tempImgLeft, tempImgRight, imgConcat);
-//    cv::namedWindow("Matches", CV_WINDOW_NORMAL);
-//    cv::imshow("Matches", zed->image);
-//    cv::waitKey(0);
-
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis){
+void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge::CvImagePtr zed){
     cv::Mat_<float> features(0, 2);
     for (unsigned int i = 0; i < pixeis->size(); i++)
     {
@@ -619,6 +558,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis){
     cv::Mat indices, dists;
     flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
 
+    std::vector<int> indices_pontos_nuvem;
     indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
     std::unordered_set<int> usedPoints;
     for (unsigned int i = 0; i < indices.rows; i++)
@@ -649,28 +589,177 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis){
         objectPointsZed.push_back(p);
     }
 
-    updateRTFromSolvePNP(imagePointsZed, objectPointsZed);
+    updateRTFromSolvePNP(imagePointsZed, objectPointsZed, zed);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints)
+void Cloud_Work::updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints, cv_bridge::CvImagePtr zed)
 {
-    cv::Mat R, t, distCoef;
-    cv::Mat Ka = (cv::Mat_<double>(3, 3) << 1462.0, 0, 1920.0/2.0, 0, 525.0, 1080.0/2.0, 0, 0, 1);
-    cv::solvePnPRansac(objectPoints, imagePoints, Ka, distCoef, R, t);
-    cv::Mat R_3_3;
-    cv::Rodrigues(R, R_3_3);
-    for (unsigned int i = 0; i < 3; i++)
-    {
+    if(imagePoints.size() > 6){
+        cv::Mat R, t, distCoef;
+        cv::Mat Ka = (cv::Mat_<double>(3, 3) << fzed, 0, zed->image.cols/2.0, 0, fzed, zed->image.rows/2.0, 0, 0, 1);
+        cv::solvePnPRansac(objectPoints, imagePoints, Ka, distCoef, R, t);
+        cv::Mat R_3_3;
+        cv::Rodrigues(R, R_3_3);
+        for (unsigned int i = 0; i < 3; i++)
+        {
+            for (unsigned int j = 0; j < 3; j++)
+            {
+                T_depth_astra_zed(i, j) = R_3_3.at<double>(i, j);
+            }
+        }
         for (unsigned int j = 0; j < 3; j++)
         {
-            T_depth_astra_zed(i, j) = R_3_3.at<double>(i, j);
+            T_depth_astra_zed(j, 3) = t.at<double>(j, 0);
         }
+        T_depth_astra_zed(3, 0) = T_depth_astra_zed(3, 1) = T_depth_astra_zed(3, 2) = 0; T_depth_astra_zed(3, 3) = 1;
+    } else {
+        // Nao ha pontos suficientes, permanece com o chute de pose e foco vindos da zed+icp
+        T_depth_astra_zed = T_astra_zed*T_corrigida.inverse();
     }
-    for (unsigned int j = 0; j < 3; j++)
-    {
-        T_depth_astra_zed(j, 3) = t.at<double>(j, 0);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, float foco_est, Eigen::Vector2f c_img){
+    // Variavel de saida
+    camera c;
+
+    cout << "\nquantos pixels correspondentes? " << xy_zed.size() << endl;
+
+    // Restriçoes do espaço de busca aqui - a principio somente somente translacao e foco, depois adicionar a rotacao tambem
+    Eigen::MatrixXf rest(2, 4);
+    float libt = 0.1, libf = 150; // Metros de liberdade em translaçao / unidade de foco, para espaço de busca
+    rest << foco_est-libf, T_est(0, 3)-libt, T_est(1, 3)-libt, T_est(2, 3)-libt,
+            foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
+
+    /// Parametros para os bats ///
+    int nbats = 1000;
+    float alfa = 0.4, lambda = 0.7, beta = 0.2, e = -0.01;
+
+    // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
+    Eigen::MatrixXf v(nbats, rest.cols()), r(nbats, rest.cols());
+    Eigen::MatrixXf As = Eigen::MatrixXf::Constant(nbats, rest.cols(), 1);
+    Eigen::VectorXf F(nbats); // Vetor contendo a FOB de cada morcego
+    float fob_temp = 0;
+
+    // Iteraçoes
+    int t = 0, t_max = 400, t_lim = 40;
+
+    /// Iniciando os bats
+    Eigen::MatrixXf bats(nbats, rest.cols());
+    for(int i=0; i<nbats; i++){
+        bats.row(i) << Eigen::MatrixXf::Random(1, rest.cols());
+        F(i) = fob(xy_zed, X_zed, T_est, bats.row(i), c_img, rest);
     }
-    T_depth_astra_zed(3, 0) = T_depth_astra_zed(3, 1) = T_depth_astra_zed(3, 2) = 0; T_depth_astra_zed(3, 3) = 1;
+
+    // Variavel para o indice e menor valor do vetor de fob
+    float indice_melhor_bat = F.minCoeff(), melhor_valor = F(indice_melhor_bat);
+
+    /// Rodando o algoritmo, realmente, vamos la ///
+    float valor_anterior = melhor_valor;
+    int contador_repeticoes = 0;
+    while(t < t_max){
+        // Controle de repeticao
+        if(valor_anterior - melhor_valor <= 1e-2){
+            contador_repeticoes += 1;
+        } else {
+            contador_repeticoes = 0;
+        }
+        valor_anterior = melhor_valor;
+        cout << "busca local como esta = " << Eigen::MatrixXf::Constant(1, rest.cols(), e*As.mean()) << endl;
+        // Se nao estourou repeticao, rodam os morcegos
+        if(contador_repeticoes < t_lim){
+            for(int i=0; i<nbats; i++){
+
+                // Calculo da velocidade do morcego
+                v.row(i) << v.row(i) + (bats.row(indice_melhor_bat)-bats.row(i))*beta;
+                Eigen::MatrixXf bat_temp(1, 4);
+                bat_temp << bats.row(i) + v.row(i);
+                // Etapa de busca local
+                if((double)rand()/(RAND_MAX) < r(i))
+                    bat_temp << bats.row(indice_melhor_bat) + Eigen::MatrixXf::Constant(1, rest.cols(), e*As.mean());
+                // Etapa de avaliacao da fob
+                for(int j=0; j<bat_temp.cols(); j++){
+                    if(bat_temp(j) < -1) bat_temp(j) = -1;
+                    if(bat_temp(j) >  1) bat_temp(j) =  1;
+                }
+                fob_temp = fob(xy_zed, X_zed, T_est, bat_temp, c_img, rest);
+                // Atualizando o morcego ou nao por busca global
+                if((double)rand()/(RAND_MAX) < As(i) || fob_temp < F(i)){
+                    bats.row(i) << bat_temp;
+                    r(i)  = 1 - exp(-lambda*t);
+                    As(i) = alfa*As(i);
+                    F(i)  = fob_temp;
+                }
+                // Busca novamente pelo melhor valor dentre os morcegos pela fob
+                indice_melhor_bat = F.minCoeff(), melhor_valor = F(indice_melhor_bat);
+
+            } // fim do for de bats
+            // Aumenta o contador de t iteracoes corridas
+            t += 1;
+            cout << "\nValor da FOB do melhor bat por pixel: " << melhor_valor/xy_zed.size() << endl;
+        } else {
+            break; // Ja acabou a busca aqui entao
+        }
+
+    } // fim do while t<tmax
+
+    // Traz os valores de volta para o range original a partir do melhor bat e guarda na camera
+    float f_bom  = (rest(1,0) - rest(0,0))*(bats.row(indice_melhor_bat)(0) + 1)/2 + rest(0, 0);
+//    float tx_bom = (rest(1,1) - rest(0,1))*(bats.row(indice_melhor_bat)(1) + 1)/2 + rest(0, 1);
+//    float ty_bom = (rest(1,2) - rest(0,2))*(bats.row(indice_melhor_bat)(2) + 1)/2 + rest(0, 2);
+//    float tz_bom = (rest(1,3) - rest(0,3))*(bats.row(indice_melhor_bat)(3) + 1)/2 + rest(0, 3);
+    c.foco = f_bom;
+//    T_est.block<3, 1>(0, 3) << tx_bom, ty_bom, tz_bom;
+    c.T << T_est;
+
+    // Limpar os vetores
+    imagePointsZed.clear(); objectPointsZed.clear();
+
+    return c;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+float Cloud_Work::fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, Eigen::MatrixXf bat, Eigen::Vector2f c_img, Eigen::MatrixXf range){
+    // Somatorio da fob final aqui
+    float fob_final = 0;
+    // Trazendo os valores de volta ao range original
+    float f  = (range(1,0) - range(0,0))*(bat(0,0) + 1)/2 + range(0, 0);
+//    float tx = (range(1,1) - range(0,1))*(bat(0,1) + 1)/2 + range(0, 1);
+//    float ty = (range(1,2) - range(0,2))*(bat(0,2) + 1)/2 + range(0, 2);
+//    float tz = (range(1,3) - range(0,3))*(bat(0,3) + 1)/2 + range(0, 3);
+    // Alterando a matriz de transformaçao
+//    T_est(0,3) = tx; T_est(1,3) = ty; T_est(2,3) = tz;
+    // Matriz intrinseca
+    Eigen::Matrix3f K_est;
+    K_est << f, 0, c_img(0),
+             0, f, c_img(1),
+             0, 0,     1   ;
+    // Ajustando matriz de transformaçao para 3x4
+    Eigen::MatrixXf T(3, 4);
+    T << T_est.block(0, 0, 3, 4);
+    // Passando por todos os pontos 3D e 2D para calcular a fob final
+    for(int i=0; i<X_zed.size(); i++){
+        Eigen::Vector4f X_(X_zed[i].x, X_zed[i].y, X_zed[i].z, 1);
+        Eigen::Vector3f x_goal(xy_zed[i].x, xy_zed[i].y, 1);
+        Eigen::Vector3f X = T*X_;
+        X = X/X(2); // Normalizando pela escala na ultima casa
+        Eigen::Vector3f x = K_est*X;
+
+        fob_final += sqrt( (x(0)-x_goal(0))*(x(0)-x_goal(0)) + (x(1)-x_goal(1))*(x(1)-x_goal(1)) );//(x - x_goal).norm();
+    }
+
+    return fob_final;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::printT(Eigen::Matrix4f T){
+    cout << endl << endl;
+    ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(0,0), T(0,1), T(0,2), T(0,3));
+    ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(1,0), T(1,1), T(1,2), T(1,3));
+    ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(2,0), T(2,1), T(2,2), T(2,3));
+    ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(3,0), T(3,1), T(3,2), T(3,3));
+    //    cout << T(0,0) << " " << T(0,1) << " " << T(0,2) << " " << T(0,3) << " " << endl;
+    //    cout << T(1,0) << " " << T(1,1) << " " << T(1,2) << " " << T(1,3) << " " << endl;
+    //    cout << T(2,0) << " " << T(2,1) << " " << T(2,2) << " " << T(2,3) << " " << endl;
+    //    cout << T(3,0) << " " << T(3,1) << " " << T(3,2) << " " << T(3,3) << " " << endl;
+    cout << endl << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salvar_acumulada(){
@@ -880,143 +969,6 @@ void Cloud_Work::saveMesh(std::string nome){
     ROS_INFO("Salvando a Mesh no nome correto...");
     if(savePolygonFilePLY(nome, mesh_acumulada))
         ROS_INFO("Mesh salva!");
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, float foco_est, Eigen::Vector2f c_img){
-    // Variavel de saida
-    camera c;
-
-    cout << "\nquantos pixels correspondentes? " << xy_zed.size() << endl;
-
-    // Restriçoes do espaço de busca aqui - a principio somente somente translacao e foco, depois adicionar a rotacao tambem
-    Eigen::MatrixXf rest(2, 4);
-    float libt = 0.1, libf = 150; // Metros de liberdade em translaçao / unidade de foco, para espaço de busca
-    rest << foco_est-libf, T_est(0, 3)-libt, T_est(1, 3)-libt, T_est(2, 3)-libt,
-            foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
-
-    /// Parametros para os bats ///
-    int nbats = 10000;
-    float alfa = 0.5, lambda = 0.6, beta = 0.2, e = -0.1;
-
-    // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
-    Eigen::MatrixXf v(nbats, rest.cols()), r(nbats, rest.cols());
-    Eigen::MatrixXf As = Eigen::MatrixXf::Constant(nbats, rest.cols(), 1);
-    Eigen::VectorXf F(nbats); // Vetor contendo a FOB de cada morcego
-    float fob_temp = 0;
-
-    // Iteraçoes
-    int t = 0, t_max = 40, t_lim = 6;
-
-    /// Iniciando os bats
-    Eigen::MatrixXf bats(nbats, rest.cols());
-    for(int i=0; i<nbats; i++){
-        bats.row(i) << Eigen::MatrixXf::Random(1, rest.cols());
-        F(i) = fob(xy_zed, X_zed, T_est, bats.row(i), c_img, rest);
-    }
-
-    // Variavel para o indice e menor valor do vetor de fob
-    float indice_melhor_bat = F.minCoeff(), melhor_valor = F(indice_melhor_bat);
-
-    /// Rodando o algoritmo, realmente, vamos la ///
-    float valor_anterior = melhor_valor;
-    int contador_repeticoes = 0;
-    while(t < t_max){
-        // Controle de repeticao
-        if(valor_anterior - melhor_valor <= 1e-2){
-            contador_repeticoes += 1;
-        } else {
-            contador_repeticoes = 0;
-        }
-        valor_anterior = melhor_valor;
-        // Se nao estourou repeticao, rodam os morcegos
-        if(contador_repeticoes < t_lim){
-            for(int i=0; i<nbats; i++){
-
-                // Calculo da velocidade do morcego
-                v.row(i) << v.row(i) + (bats.row(indice_melhor_bat)-bats.row(i))*beta;
-                Eigen::MatrixXf bat_temp(1, 4);
-                bat_temp << bats.row(i) + v.row(i);
-                // Etapa de busca local
-                if((double)rand()/(RAND_MAX) < r(i))
-                    bat_temp << bats.row(indice_melhor_bat) + Eigen::MatrixXf::Constant(1, rest.cols(), e*As.mean());
-                // Etapa de avaliacao da fob
-                for(int j=0; j<bat_temp.cols(); j++){
-                    if(bat_temp(j) < -1) bat_temp(j) = -1;
-                    if(bat_temp(j) >  1) bat_temp(j) =  1;
-                }
-                fob_temp = fob(xy_zed, X_zed, T_est, bat_temp, c_img, rest);
-                // Atualizando o morcego ou nao por busca global
-                if((double)rand()/(RAND_MAX) < As(i) || fob_temp < F(i)){
-                    bats.row(i) << bat_temp;
-                    r(i)  = 1 - exp(-lambda*t);
-                    As(i) = alfa*As(i);
-                    F(i)  = fob_temp;
-                }
-                // Busca novamente pelo melhor valor dentre os morcegos pela fob
-                indice_melhor_bat = F.minCoeff(), melhor_valor = F(indice_melhor_bat);
-
-            } // fim do for de bats
-            // Aumenta o contador de t iteracoes corridas
-            t += 1;
-            cout << "\nValor da FOB do melhor bat por pixel: " << melhor_valor/xy_zed.size() << endl;
-        }
-
-    } // fim do while t<tmax
-
-    // Traz os valores de volta para o range original a partir do melhor bat e guarda na camera
-    float f_bom  = (rest(1,0) - rest(0,0))*(bats.row(indice_melhor_bat)(0) + 1)/2 + rest(0, 0);
-    float tx_bom = (rest(1,1) - rest(0,1))*(bats.row(indice_melhor_bat)(1) + 1)/2 + rest(0, 1);
-    float ty_bom = (rest(1,2) - rest(0,2))*(bats.row(indice_melhor_bat)(2) + 1)/2 + rest(0, 2);
-    float tz_bom = (rest(1,3) - rest(0,3))*(bats.row(indice_melhor_bat)(3) + 1)/2 + rest(0, 3);
-    c.foco = f_bom;
-    T_est.block<3, 1>(0, 3) << tx_bom, ty_bom, tz_bom;
-    c.T << T_est;
-
-    // Limpar os vetores
-    imagePointsZed.clear(); objectPointsZed.clear();
-
-    return c;
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-float Cloud_Work::fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, Eigen::MatrixXf bat, Eigen::Vector2f c_img, Eigen::MatrixXf range){
-    // Somatorio da fob final aqui
-    float fob_final = 0;
-    // Trazendo os valores de volta ao range original
-    float f  = (range(1,0) - range(0,0))*(bat(0,0) + 1)/2 + range(0, 0);
-    float tx = (range(1,1) - range(0,1))*(bat(0,1) + 1)/2 + range(0, 1);
-    float ty = (range(1,2) - range(0,2))*(bat(0,2) + 1)/2 + range(0, 2);
-    float tz = (range(1,3) - range(0,3))*(bat(0,3) + 1)/2 + range(0, 3);
-    // Alterando a matriz de transformaçao
-    T_est(0,3) = tx; T_est(1,3) = ty; T_est(2,3) = tz;
-    // Matriz intrinseca
-    Eigen::Matrix3f K_est;
-    K_est << f, 0, c_img(0),
-             0, f, c_img(1),
-             0, 0,     1   ;
-    // Ajustando matriz de transformaçao para 3x4
-    Eigen::MatrixXf T(3, 4);
-    T << T_est.block(0, 0, 3, 4);
-    // Passando por todos os pontos 3D e 2D para calcular a fob final
-    for(int i=0; i<X_zed.size(); i++){
-        Eigen::Vector4f X_(X_zed[i].x, X_zed[i].y, X_zed[i].z, 1);
-        Eigen::Vector3f x_goal(xy_zed[i].x, xy_zed[i].y, 1);
-        Eigen::Vector3f X = T*X_;
-        X = X/X(2); // Normalizando pela escala na ultima casa
-        Eigen::Vector3f x = K_est*X;
-
-        fob_final += (x - x_goal).norm();
-    }
-
-    return fob_final;
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::printT(Eigen::Matrix4f T){
-    cout << endl << endl;
-    cout << T(0,0) << " " << T(0,1) << " " << T(0,2) << " " << T(0,3) << " " << endl;
-    cout << T(1,0) << " " << T(1,1) << " " << T(1,2) << " " << T(1,3) << " " << endl;
-    cout << T(2,0) << " " << T(2,1) << " " << T(2,2) << " " << T(2,3) << " " << endl;
-    cout << T(3,0) << " " << T(3,1) << " " << T(3,2) << " " << T(3,3) << " " << endl;
-    cout << endl << endl;
 }
 
 } // Fim do namespace handset_gui

@@ -389,6 +389,28 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     this->printT(Tazo);
 //    Eigen::Matrix4f Tazo = T_astra_zed.inverse()*T_depth_astra_zed.inverse();
 
+
+    ofstream temp("/home/grin/Desktop/teste/pontos.txt");
+    if(temp.is_open()){
+
+        temp << std::to_string(imagePointsZed.size())+"\n";
+        for (int k=0;k<imagePointsZed.size();k++) {
+            std::string linha = std::to_string(imagePointsZed[k].x) + " " + std::to_string(imagePointsZed[k].y) + "\n";
+            std::replace(linha.begin(), linha.end(), ',', '.');
+            temp << linha;
+        }
+        temp << objectPointsZed.size();
+        for (int k=0;k<objectPointsZed.size();k++) {
+            std::string linha = std::to_string(objectPointsZed[k].x) + " " + std::to_string(objectPointsZed[k].y) + " " + std::to_string(objectPointsZed[k].z) + "\n";
+            std::replace(linha.begin(), linha.end(), ',', '.');
+            temp << linha;
+        }
+
+    } // fim do if is open
+    temp.close(); // Fechar para nao ter erro
+
+
+
     // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
     // Otimizar foco, rotacao e posicao para ZED
     camera co; // camera com resultados para otimizar
@@ -873,7 +895,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
             foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
 
     /// Parametros para os bats ///
-    int nbats = 1000;
+    int nbats = 10000;
     float alfa = 0.5, lambda = 0.6, beta = 0.2, e = -0.1;
 
     // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
@@ -900,7 +922,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
     int contador_repeticoes = 0;
     while(t < t_max){
         // Controle de repeticao
-        if(valor_anterior == melhor_valor){
+        if(valor_anterior - melhor_valor <= 1e-2){
             contador_repeticoes += 1;
         } else {
             contador_repeticoes = 0;

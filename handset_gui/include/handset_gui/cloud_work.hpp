@@ -221,7 +221,7 @@ private:
     std::vector<Point2f> imagePointsZed;
     std::vector<Point3f> objectPointsZed;
     // Funcao de otimizacao do bat
-    camera bat(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, float foco_est, Eigen::Vector2f c_img);
+    camera bat(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, float foco_est, Eigen::Vector2f c_img, bool &valid);
     float  fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, Eigen::Matrix4f T_est, Eigen::MatrixXf bat, Eigen::Vector2f c_est, Eigen::MatrixXf range);
 };
 

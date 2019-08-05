@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: ""
+    SyncSource: PointCloud2
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -83,18 +83,6 @@ Visualization Manager:
       Use rainbow: true
       Value: true
     - Class: rviz/Image
-      Enabled: false
-      Image Topic: /zed/left/image_rect_color
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Queue Size: 2
-      Transport Hint: raw
-      Unreliable: false
-      Value: false
-    - Class: rviz/Image
       Enabled: true
       Image Topic: /zed2
       Max Value: 1
@@ -106,6 +94,18 @@ Visualization Manager:
       Transport Hint: raw
       Unreliable: false
       Value: true
+    - Class: rviz/Image
+      Enabled: false
+      Image Topic: /zed2
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: raw
+      Unreliable: false
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -169,5 +169,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1248
-  X: 1312
+  X: 672
   Y: 24

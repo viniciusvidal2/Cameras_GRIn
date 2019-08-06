@@ -400,7 +400,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
             std::replace(linha.begin(), linha.end(), ',', '.');
             temp << linha;
         }
-        temp << objectPointsZed.size();
         for (int k=0;k<objectPointsZed.size();k++) {
             std::string linha = std::to_string(objectPointsZed[k].x) + " " + std::to_string(objectPointsZed[k].y) + " " + std::to_string(objectPointsZed[k].z) + "\n";
             std::replace(linha.begin(), linha.end(), ',', '.');
@@ -503,7 +502,6 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
     cv::resize(zed->image, zed2, astra->image.size());
     while(good_matches.size() < 90 && tent < 10){
         good_matches.clear();
-//        cv::Ptr<cv::Feature2D> f2d = cv::xfeatures2d::SIFT::create(40, 3, ct, et, s);
         Ptr<xfeatures2d::SURF> f2d = xfeatures2d::SURF::create(min_hessian);
         // Astra
         f2d->detectAndCompute(astra->image, Mat(), keypointsa, descriptorsa);
@@ -516,7 +514,7 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
         {
             if (matches.at(i).size() >= 2)
             {
-                if (matches.at(i).at(0).distance < 0.95*matches.at(i).at(1).distance)
+                if (matches.at(i).at(0).distance < 0.75*matches.at(i).at(1).distance)
                 {
                     good_matches.push_back(matches.at(i).at(0));
                 }
@@ -536,16 +534,22 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
     goodKeypointsLeft.clear();
     goodKeypointsRight.clear();
 
+    float scaleazx = zed->image.cols/astra->image.cols, scaleazy = zed->image.rows/astra->image.rows, window = 100.0;
+    cout << "antes do meu filtro por janela: " << good_matches.size() << endl;
     for (size_t i = 0; i < good_matches.size(); i++)
     {
+        KeyPoint kp_as = keypointsa[good_matches[i].queryIdx], kp_zed = keypointsz[good_matches[i].trainIdx];
         //-- Get the keypoints from the good matches
-        goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
-        goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
-        imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
-        imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
+        if(kp_zed.pt.x > kp_as.pt.x*scaleazx-window && kp_zed.pt.x < kp_as.pt.x*scaleazx+window &&
+           kp_zed.pt.y > kp_as.pt.y*scaleazy-window && kp_zed.pt.y < kp_as.pt.y*scaleazy+window   ){
+            goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
+            goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
+            imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
+            imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
+        }
     }
 
-    cout << "Aqui quantos keypoints bons? " << goodKeypointsLeft.size() << endl;
+    cout << "Aqui quantos keypoints bons depois da minha moda? " << goodKeypointsLeft.size() << endl;
     cv::Mat inliers;
     cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
     cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
@@ -562,7 +566,21 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
     }
     goodKeypointsLeft = goodKeypointsLeftTemp;
     goodKeypointsRight = goodKeypointsRightTemp;
-    cout << "Aqui quantos keypoints bons? " << goodKeypointsLeft.size() << endl;
+    cout << "Aqui quantos keypoints bons depois do teste inliers? " << goodKeypointsLeft.size() << endl;
+
+    char* home;
+    home = getenv("HOME");
+    std::string pasta = std::string(home)+"/Desktop/teste/";
+    Mat a, z;
+    astra->image.copyTo(a); zed->image.copyTo(z);
+    for(int i=0; i<goodKeypointsLeft.size(); i++){
+        cv::Scalar color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+        circle(a, goodKeypointsLeft[i].pt, 5, color, 2);
+        circle(z, goodKeypointsRight[i].pt, 5, color, 2);
+    }
+    std::string foto_zed = pasta+"fotozed.jpeg", foto_astra = pasta+"fotoastra.jpeg";
+    imwrite(foto_astra, a);
+    imwrite(foto_zed,   z);
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -582,7 +600,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge:
         cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
         query.push_back(row);
     }
-    unsigned int max_neighbours = 20;
+    unsigned int max_neighbours = 10;
     cv::Mat indices, dists;
     flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
 
@@ -596,7 +614,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge:
             //Test to see if the point was already selected by other SIFT keypoint
             if (usedPoints.insert(indices.at<int>(i, j)).second)
             {
-                if (dists.at<float>(i, j) < 1.95)
+                if (dists.at<float>(i, j) < 0.5)
                 {
                     indices_pontos_nuvem[i] = indices.at<int>(i, j);
                     break;
@@ -812,7 +830,7 @@ void Cloud_Work::salvar_acumulada(){
     PointCloud<PointCN>::Ptr acumulada_global_normais_temp (new PointCloud<PointCN>());
     PointCloud<PointC>::Ptr cameras_temp (new PointCloud<PointC>());
     for(int i=0; i < np.size(); i++){
-        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
+        ROS_INFO("Calculando normais na nuvem %l, de %l totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;

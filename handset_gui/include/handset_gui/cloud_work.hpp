@@ -135,7 +135,7 @@ private:
                              const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
                              const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
-    void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix);
+    void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix_total, PointCloud<PointC>::Ptr nuvem_bat);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
     void calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K);
@@ -143,8 +143,8 @@ private:
     void saveMesh(std::string nome);
     void triangulate();
     void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
-    void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed);
-    void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge::CvImagePtr zed);
+    void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed, PointCloud<PointC>::Ptr cloud);
+    void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed);
     void updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints, cv_bridge::CvImagePtr zed);
     void printT(Eigen::Matrix4f T);
     std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);

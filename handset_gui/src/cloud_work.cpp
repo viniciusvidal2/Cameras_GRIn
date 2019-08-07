@@ -308,13 +308,19 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         fromROSMsg(*msg_pixels, *nuvem_pix);
         // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
         filterForNan(nuvem_inst, nuvem_pix);
+        // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
+        PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
+        PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
+        *nuvem_inst_total = *nuvem_inst;
+        *nuvem_pix_total  = *nuvem_pix ;
         // Filtro de profundidade como vinda da GUI
         passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
         // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
-        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
-        *acumulada_parcial_frame_camera += *nuvem_inst;
+//        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
+//        *acumulada_parcial_frame_camera += *nuvem_inst;
         // Rotacao para corrigir odometria
         transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
         // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
         acumulada_parcial->header.frame_id = "odom";
         *acumulada_parcial += *nuvem_inst;
@@ -326,6 +332,9 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
         // Acumular com a global, a depender se primeira vez ou nao
         registra_global_icp(acumulada_parcial, q, offset);
+
+        // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
 
         // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
         // REFERENCIA : left_zed->ASTRA->ZED->ODOM
@@ -340,8 +349,9 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix);
-            ROS_INFO("Dados Parciais salvos!");
+//            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix, acumulada_parcial);
+            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
+            ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
         }
 
         // Salva no vetor de nuvens e poses para acumular tudo ao final
@@ -357,7 +367,8 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
                                       const sensor_msgs::ImageConstPtr &imagem_zed,
                                       const sensor_msgs::ImageConstPtr &imagem_ast,
-                                      PointCloud<PointXYZ>::Ptr nuvem_pix){
+                                      PointCloud<PointXYZ>::Ptr nuvem_pix_total,
+                                      PointCloud<PointC>::Ptr nuvem_bat){
     // Atualiza contador de imagens - tambem usado para as nuvens parciais
     contador_imagens++;
 
@@ -379,17 +390,17 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     imgptr  = cv_bridge::toCvCopy(imagem_ast, sensor_msgs::image_encodings::BGR8);
 
     // Comparar aqui a zed e a astra com sift e usar a correspondencia da nuvem de pixels
-    comparaSift(imgptr, imgzptr);
-    resolveAstraPixeis(nuvem_pix, imgzptr);
+    comparaSift(imgptr, imgzptr, nuvem_bat);
+    resolveAstraPixeis(nuvem_pix_total, nuvem_bat, imgzptr);
 
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
 
-    cout << "\n Calculo do Juliano:\n";
-    this->printT(T_depth_astra_zed);
+//    cout << "\n Calculo do Juliano:\n";
+//    this->printT(T_depth_astra_zed);
 
-    if(imagePointsZed.size() > 4)
-        Tazo = T_depth_astra_zed;
+//    if(imagePointsZed.size() > 4)
+//        Tazo = T_depth_astra_zed;
 
     // Arquivo para conferencia de pontos 2D com 3D
     ofstream temp(arquivo_corr);
@@ -410,12 +421,14 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
 
     // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
     // Otimizar foco, rotacao e posicao para ZED
+//    cout << "\n Antes do bat:\n";
+//    this->printT(Tazo);
     camera co; // camera com resultados para otimizar
     Eigen::Vector2f s(imgzptr->image.cols/2.0, imgzptr->image.rows/2.0);
     bool funcionou;
-        co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
+    co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
 //    co = bat(imagePointsZed, objectPointsZed, T_depth_astra_zed, fzed, s, funcionou);
-    cout << endl << funcionou << endl;
+    cout << endl << "Foi usado o bat? " << funcionou << endl;
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
     if(funcionou){
@@ -425,7 +438,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
         fzed = 1462.0;
     }
     cout << "\n Depois do bat, com foco " << fzed <<":\n";
-    this->printT(Tazo);
+//    this->printT(Tazo);
     Eigen::Matrix3f rot_azo;
     rot_azo << Tazo.block(0, 0, 3, 3);
     Eigen::Quaternion<float>q_azo(rot_azo);
@@ -484,7 +497,7 @@ Eigen::MatrixXf Cloud_Work::calcula_centro_camera(Eigen::Quaternion<float> q, Ei
     return C;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed){
+void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed, PointCloud<PointC>::Ptr cloud){
     /// Calculando descritores SIFT ///
     // Keypoints e descritores para astra e zed
     std::vector<cv::KeyPoint> keypointsa, keypointsz;
@@ -498,9 +511,35 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
     int tent = 0; // tentativas de achar X correspondencias bacanas
     float min_hessian = 2000;
 
-    Mat zed2;
-    cv::resize(zed->image, zed2, astra->image.size());
-    while(good_matches.size() < 90 && tent < 10){
+    // Achando limites na imagem em X e Y onde podemos ter pontos 3D, estimativa inicial pra ter correspondencias
+    Eigen::Matrix3f Kz;
+    Kz << fzed,   0 , zed->image.cols/2.0,
+            0 , fzed, zed->image.rows/2.0,
+            0 ,   0 ,          1         ;
+    Eigen::MatrixXf Pz = Kz*(T_astra_zed*T_corrigida.inverse()).block<3, 4>(0, 0);
+    Eigen::Vector4f limites(1000, -1000, 1000, -1000), ponto;
+    Eigen::Vector3f ponto_proj;
+    for(size_t i=0; i<cloud->size(); i++){
+        ponto << cloud->points[i].x, cloud->points[i].y, cloud->points[i].z, 1.0;
+        ponto_proj = Pz*ponto;
+        ponto_proj = ponto_proj/ponto_proj[2];
+        if(ponto_proj[0] > 0 && ponto_proj[0] < zed->image.cols && ponto_proj[1] > 0 && ponto_proj[1] < zed->image.rows){
+            if(ponto_proj[0] < limites[0])
+                limites[0] = ponto_proj[0];
+            if(ponto_proj[0] > limites[1])
+                limites[1] = ponto_proj[0];
+            if(ponto_proj[1] < limites[2])
+                limites[2] = ponto_proj[1];
+            if(ponto_proj[1] > limites[3])
+                limites[3] = ponto_proj[1];
+        }
+    }
+
+    cout << "\nLimites x: " << limites[0] << " " << limites[1] << endl;
+    cout << "\nLimites y: " << limites[2] << " " << limites[3] << endl;
+    goodKeypointsLeft.clear(); goodKeypointsRight.clear();
+
+    while(goodKeypointsLeft.size() < 15 && tent < 10){
         good_matches.clear();
         Ptr<xfeatures2d::SURF> f2d = xfeatures2d::SURF::create(min_hessian);
         // Astra
@@ -523,50 +562,58 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 
         tent += 1;
         min_hessian = 0.7*min_hessian;
-//        ct *= 0.8; et *= 0.8; s *= 0.8;
-    }
+        //    } // alterar aqui
 
-    // Daqui para baixo temos astra->left e zed->right
+        // Daqui para baixo temos astra->left e zed->right
 
-    std::vector<cv::Point2f> imgLeftPts;
-    std::vector<cv::Point2f> imgRightPts;
+        std::vector<cv::Point2f> imgLeftPts;
+        std::vector<cv::Point2f> imgRightPts;
 
-    goodKeypointsLeft.clear();
-    goodKeypointsRight.clear();
+        goodKeypointsLeft.clear();
+        goodKeypointsRight.clear();
 
-    float scaleazx = zed->image.cols/astra->image.cols, scaleazy = zed->image.rows/astra->image.rows, window = 100.0;
-    cout << "antes do meu filtro por janela: " << good_matches.size() << endl;
-    for (size_t i = 0; i < good_matches.size(); i++)
-    {
-        KeyPoint kp_as = keypointsa[good_matches[i].queryIdx], kp_zed = keypointsz[good_matches[i].trainIdx];
-        //-- Get the keypoints from the good matches
-        if(kp_zed.pt.x > kp_as.pt.x*scaleazx-window && kp_zed.pt.x < kp_as.pt.x*scaleazx+window &&
-           kp_zed.pt.y > kp_as.pt.y*scaleazy-window && kp_zed.pt.y < kp_as.pt.y*scaleazy+window   ){
-            goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
-            goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
-            imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
-            imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
-        }
-    }
-
-    cout << "Aqui quantos keypoints bons depois da minha moda? " << goodKeypointsLeft.size() << endl;
-    cv::Mat inliers;
-    cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
-    cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
-
-    std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
-    std::vector<cv::KeyPoint> goodKeypointsRightTemp;
-    for (size_t i = 0; i < inliers.rows; i++)
-    {
-        if (inliers.at<uchar>(i, 0) == 1)
+        float scaleazx = zed->image.cols/astra->image.cols, scaleazy = zed->image.rows/astra->image.rows, window = 100.0;
+        cout << "antes do meu filtro por janela: " << good_matches.size() << endl;
+        for (size_t i = 0; i < good_matches.size(); i++)
         {
-            goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
-            goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+            KeyPoint kp_as = keypointsa[good_matches[i].queryIdx], kp_zed = keypointsz[good_matches[i].trainIdx];
+            //-- Get the keypoints from the good matches
+            if(kp_zed.pt.x > kp_as.pt.x*scaleazx-window && kp_zed.pt.x < kp_as.pt.x*scaleazx+window &&
+               kp_zed.pt.y > kp_as.pt.y*scaleazy-window && kp_zed.pt.y < kp_as.pt.y*scaleazy+window   ){
+                goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
+                goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
+                imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
+                imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
+            }
         }
-    }
-    goodKeypointsLeft = goodKeypointsLeftTemp;
-    goodKeypointsRight = goodKeypointsRightTemp;
-    cout << "Aqui quantos keypoints bons depois do teste inliers? " << goodKeypointsLeft.size() << endl;
+
+        cout << "Aqui quantos keypoints bons depois da minha moda? " << goodKeypointsLeft.size() << endl;
+        cv::Mat inliers;
+        cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
+        cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
+
+        std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
+        std::vector<cv::KeyPoint> goodKeypointsRightTemp;
+        bool dx = false, dy = false;
+        for (size_t i = 0; i < inliers.rows; i++)
+        {
+            // Filtrando aqui pelos limites provaveis da nuvem tambem
+            dx = false; dy = false;
+            if(goodKeypointsLeft.at(i).pt.x > limites[0] && goodKeypointsLeft.at(i).pt.x < limites[1])
+                dx = true;
+            if(goodKeypointsLeft.at(i).pt.y > limites[2] && goodKeypointsLeft.at(i).pt.y < limites[3])
+                dy = true;
+            if (inliers.at<uchar>(i, 0) == 1 && dx && dy)
+            {
+                goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
+                goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+            }
+        }
+        goodKeypointsLeft = goodKeypointsLeftTemp;
+        goodKeypointsRight = goodKeypointsRightTemp;
+        cout << "Aqui quantos keypoints bons depois do teste inliers e limites? " << goodKeypointsLeft.size() << endl;
+
+    } // fim do while
 
     char* home;
     home = getenv("HOME");
@@ -584,7 +631,7 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge::CvImagePtr zed){
+void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed){
     cv::Mat_<float> features(0, 2);
     for (unsigned int i = 0; i < pixeis->size(); i++)
     {
@@ -614,7 +661,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge:
             //Test to see if the point was already selected by other SIFT keypoint
             if (usedPoints.insert(indices.at<int>(i, j)).second)
             {
-                if (dists.at<float>(i, j) < 0.5)
+                if (dists.at<float>(i, j) < 1)
                 {
                     indices_pontos_nuvem[i] = indices.at<int>(i, j);
                     break;
@@ -630,7 +677,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, cv_bridge:
         if (indices_pontos_nuvem[i] == -1)
             continue;
         imagePointsZed.push_back(goodKeypointsRight[i].pt);
-        PointC pnuvem = acumulada_parcial->points[indices_pontos_nuvem[i]];
+        PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
         cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
         objectPointsZed.push_back(p);
     }
@@ -678,7 +725,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
             foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
 
     /// Parametros para os bats ///
-    int nbats = 1000;
+    int nbats = 100;
     float alfa = 0.7, lambda = 0.5, beta = 0.2, e = -0.01;
 
     // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
@@ -688,7 +735,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
     float fob_temp = 0;
 
     // Iteraçoes
-    int t = 0, t_max = 70, t_lim = 40;
+    int t = 0, t_max = 70, t_lim = 10;
 
     /// Iniciando os bats
     Eigen::MatrixXf bats(nbats, rest.cols());
@@ -763,7 +810,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
 
     // Ver se o algoritmo foi capaz de otimizar
     valid = false;
-    if(melhor_valor/xy_zed.size() <= 10.0)
+    if(melhor_valor/xy_zed.size() <= 15.0)
         valid = true;
 
     return c;
@@ -774,11 +821,11 @@ float Cloud_Work::fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, E
     float fob_final = 0;
     // Trazendo os valores de volta ao range original
     float f  = (range(1,0) - range(0,0))*(bat(0,0) + 1)/2 + range(0, 0);
-//    float tx = (range(1,1) - range(0,1))*(bat(0,1) + 1)/2 + range(0, 1);
-//    float ty = (range(1,2) - range(0,2))*(bat(0,2) + 1)/2 + range(0, 2);
-//    float tz = (range(1,3) - range(0,3))*(bat(0,3) + 1)/2 + range(0, 3);
+    float tx = (range(1,1) - range(0,1))*(bat(0,1) + 1)/2 + range(0, 1);
+    float ty = (range(1,2) - range(0,2))*(bat(0,2) + 1)/2 + range(0, 2);
+    float tz = (range(1,3) - range(0,3))*(bat(0,3) + 1)/2 + range(0, 3);
     // Alterando a matriz de transformaçao
-//    T_est(0,3) = tx; T_est(1,3) = ty; T_est(2,3) = tz;
+    T_est(0,3) = tx; T_est(1,3) = ty; T_est(2,3) = tz;
     // Matriz intrinseca
     Eigen::Matrix3f K_est;
     K_est << f, 0, c_img(0),
@@ -788,9 +835,9 @@ float Cloud_Work::fob(std::vector<Point2f> xy_zed, std::vector<Point3f> X_zed, E
     Eigen::MatrixXf T(3, 4);
     T << T_est.block(0, 0, 3, 4);
     // Conferindo o tamanho dos vetores para evitar erro
-    int pontos = (X_zed.size() <= xy_zed.size()) ? X_zed.size() : xy_zed.size();
+    size_t pontos = (X_zed.size() <= xy_zed.size()) ? X_zed.size() : xy_zed.size();
     // Passando por todos os pontos 3D e 2D para calcular a fob final
-    for(int i=0; i<pontos; i++){
+    for(size_t i=0; i<pontos; i++){
         Eigen::Vector4f X_(X_zed[i].x, X_zed[i].y, X_zed[i].z, 1);
         Eigen::Vector3f x_goal(xy_zed[i].x, xy_zed[i].y, 1);
         Eigen::Vector3f X = T*X_;
@@ -809,10 +856,6 @@ void Cloud_Work::printT(Eigen::Matrix4f T){
     ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(1,0), T(1,1), T(1,2), T(1,3));
     ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(2,0), T(2,1), T(2,2), T(2,3));
     ROS_INFO("%.4f  %.4f  %.4f  %.4f", T(3,0), T(3,1), T(3,2), T(3,3));
-    //    cout << T(0,0) << " " << T(0,1) << " " << T(0,2) << " " << T(0,3) << " " << endl;
-    //    cout << T(1,0) << " " << T(1,1) << " " << T(1,2) << " " << T(1,3) << " " << endl;
-    //    cout << T(2,0) << " " << T(2,1) << " " << T(2,2) << " " << T(2,3) << " " << endl;
-    //    cout << T(3,0) << " " << T(3,1) << " " << T(3,2) << " " << T(3,3) << " " << endl;
     cout << endl << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -919,7 +962,7 @@ void Cloud_Work::reiniciar(){
 
     contador_imagens = 0;
 
-    cout << "\n\n\n\nRESETOU TUDO CAMERAS E ZED \n\n\n\n" << endl;
+    cout << "\n\n\n\nRESETOU TUDO CAMERAS E ZED\n\n\n\n" << endl;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 /// Sets

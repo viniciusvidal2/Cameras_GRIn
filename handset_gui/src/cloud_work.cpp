@@ -250,8 +250,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Qua
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-            // transformPointCloud(*parcial, *parcial, T_atual);
-            T_corrigida = this->icp(parcial, acumulada_parcial_anterior, T_chute_icp);
+            T_corrigida = this->icp(parcial, acumulada_global, T_chute_icp);
             transformPointCloud(*parcial, *parcial, T_corrigida);
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
@@ -399,8 +398,8 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
 //    cout << "\n Calculo do Juliano:\n";
 //    this->printT(T_depth_astra_zed);
 
-//    if(imagePointsZed.size() > 4)
-//        Tazo = T_depth_astra_zed;
+    if(imagePointsZed.size() > 9)
+        Tazo = T_depth_astra_zed;
 
     // Arquivo para conferencia de pontos 2D com 3D
     ofstream temp(arquivo_corr);
@@ -427,7 +426,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     Eigen::Vector2f s(imgzptr->image.cols/2.0, imgzptr->image.rows/2.0);
     bool funcionou;
     co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
-//    co = bat(imagePointsZed, objectPointsZed, T_depth_astra_zed, fzed, s, funcionou);
+    //    co = bat(imagePointsZed, objectPointsZed, T_depth_astra_zed, fzed, s, funcionou);
     cout << endl << "Foi usado o bat? " << funcionou << endl;
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
@@ -438,37 +437,41 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
         fzed = 1462.0;
     }
     cout << "\n Depois do bat, com foco " << fzed <<":\n";
-//    this->printT(Tazo);
-    Eigen::Matrix3f rot_azo;
-    rot_azo << Tazo.block(0, 0, 3, 3);
-    Eigen::Quaternion<float>q_azo(rot_azo);
-    Eigen::Vector3f t_azo;
-    t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
+    //    this->printT(Tazo);
+//    if(funcionou){
+        Eigen::Matrix3f rot_azo;
+        rot_azo << Tazo.block(0, 0, 3, 3);
+        Eigen::Quaternion<float>q_azo(rot_azo);
+        Eigen::Vector3f t_azo;
+        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
 
-    // Centro da camera, para escrever no arquivo NVM
-    Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
+        // Centro da camera, para escrever no arquivo NVM
+        Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
 
-    // Escreve o arquivo NVM parcial, super necessario
-    ofstream nvmz(arquivo_nvm_z);
-    if(nvmz.is_open()){
+        // Escreve o arquivo NVM parcial, super necessario
+        ofstream nvmz(arquivo_nvm_z);
+        if(nvmz.is_open()){
 
-        nvmz << "NVM_V3\n\n";
-        nvmz << "1\n"; // Quantas imagens, sempre uma aqui
-        std::string linha_imagem = escreve_linha_imagem(fzed, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
-        nvmz << linha_imagem; // Imagem com detalhes de camera
-        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
-        acumulada_imagens.push_back(linha_imagem);
+            nvmz << "NVM_V3\n\n";
+            nvmz << "1\n"; // Quantas imagens, sempre uma aqui
+            std::string linha_imagem = escreve_linha_imagem(fzed, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
+            nvmz << linha_imagem; // Imagem com detalhes de camera
+            // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
+            acumulada_imagens.push_back(linha_imagem);
 
-    } // fim do if is open
-    nvmz.close(); // Fechar para nao ter erro
+        } // fim do if is open
+        nvmz.close(); // Fechar para nao ter erro
 
-    // Calcular normais para a nuvem
-    pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
-    calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
+        // Calcular normais para a nuvem
+        pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
+        calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
-    // Salvar nuvem em arquivo .ply
-    if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
-        ROS_INFO("Nuvem parcial %d salva!", contador_imagens);
+        // Salvar nuvem em arquivo .ply
+        if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
+            ROS_INFO("Nuvem parcial %d salva!", contador_imagens);
+//    } else {
+//        ROS_INFO("Nao salvou o arquivo parcial porque o bat nao conseguiu otimizar.");
+//    }
 
 } // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -536,10 +539,10 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
     }
 
     cout << "\nLimites x: " << limites[0] << " " << limites[1] << endl;
-    cout << "\nLimites y: " << limites[2] << " " << limites[3] << endl;
+    cout << "Limites y: "   << limites[2] << " " << limites[3] << endl << endl;
     goodKeypointsLeft.clear(); goodKeypointsRight.clear();
 
-    while(goodKeypointsLeft.size() < 15 && tent < 10){
+    while(goodKeypointsLeft.size() < 15 && tent < 20){
         good_matches.clear();
         Ptr<xfeatures2d::SURF> f2d = xfeatures2d::SURF::create(min_hessian);
         // Astra
@@ -572,118 +575,125 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
         goodKeypointsLeft.clear();
         goodKeypointsRight.clear();
 
-        float scaleazx = zed->image.cols/astra->image.cols, scaleazy = zed->image.rows/astra->image.rows, window = 100.0;
+        float scaleazx = zed->image.cols/astra->image.cols, scaleazy = zed->image.rows/astra->image.rows, window = 200.0;
         cout << "antes do meu filtro por janela: " << good_matches.size() << endl;
         for (size_t i = 0; i < good_matches.size(); i++)
         {
-            KeyPoint kp_as = keypointsa[good_matches[i].queryIdx], kp_zed = keypointsz[good_matches[i].trainIdx];
+//            KeyPoint kp_as = keypointsa[good_matches[i].queryIdx], kp_zed = keypointsz[good_matches[i].trainIdx];
             //-- Get the keypoints from the good matches
-            if(kp_zed.pt.x > kp_as.pt.x*scaleazx-window && kp_zed.pt.x < kp_as.pt.x*scaleazx+window &&
-               kp_zed.pt.y > kp_as.pt.y*scaleazy-window && kp_zed.pt.y < kp_as.pt.y*scaleazy+window   ){
+//            if(kp_zed.pt.x > kp_as.pt.x*scaleazx-window && kp_zed.pt.x < kp_as.pt.x*scaleazx+window &&
+//               kp_zed.pt.y > kp_as.pt.y*scaleazy-window && kp_zed.pt.y < kp_as.pt.y*scaleazy+window   ){
                 goodKeypointsLeft.push_back(keypointsa[good_matches[i].queryIdx]);
                 goodKeypointsRight.push_back(keypointsz[good_matches[i].trainIdx]);
                 imgLeftPts.push_back(keypointsa[good_matches[i].queryIdx].pt);
                 imgRightPts.push_back(keypointsz[good_matches[i].trainIdx].pt);
-            }
+//            }
         }
 
         cout << "Aqui quantos keypoints bons depois da minha moda? " << goodKeypointsLeft.size() << endl;
-        cv::Mat inliers;
-        cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
-        cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
+        if(imgLeftPts.size() > 0){
+            cv::Mat inliers;
+            cv::Mat Ka = (cv::Mat_<double>(3, 3) << fastra, 0, astra->image.cols / 2.0, 0, fastra, astra->image.rows / 2.0, 0, 0, 1);
+            cv::Mat E = findEssentialMat(imgLeftPts, imgRightPts, Ka, CV_RANSAC, 0.99999, 1.0, inliers);
 
-        std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
-        std::vector<cv::KeyPoint> goodKeypointsRightTemp;
-        bool dx = false, dy = false;
-        for (size_t i = 0; i < inliers.rows; i++)
-        {
-            // Filtrando aqui pelos limites provaveis da nuvem tambem
-            dx = false; dy = false;
-            if(goodKeypointsLeft.at(i).pt.x > limites[0] && goodKeypointsLeft.at(i).pt.x < limites[1])
-                dx = true;
-            if(goodKeypointsLeft.at(i).pt.y > limites[2] && goodKeypointsLeft.at(i).pt.y < limites[3])
-                dy = true;
-            if (inliers.at<uchar>(i, 0) == 1 && dx && dy)
+            std::vector<cv::KeyPoint> goodKeypointsLeftTemp;
+            std::vector<cv::KeyPoint> goodKeypointsRightTemp;
+            bool dx = false, dy = false;
+            for (size_t i = 0; i < inliers.rows; i++)
             {
-                goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
-                goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+                // Filtrando aqui pelos limites provaveis da nuvem tambem
+                dx = false; dy = false;
+                if(goodKeypointsLeft.at(i).pt.x > limites[0] && goodKeypointsLeft.at(i).pt.x < limites[1])
+                    dx = true;
+                if(goodKeypointsLeft.at(i).pt.y > limites[2] && goodKeypointsLeft.at(i).pt.y < limites[3])
+                    dy = true;
+                if (inliers.at<uchar>(i, 0) == 1 && dx && dy)
+                {
+                    goodKeypointsLeftTemp.push_back(goodKeypointsLeft.at(i));
+                    goodKeypointsRightTemp.push_back(goodKeypointsRight.at(i));
+                }
             }
+            goodKeypointsLeft = goodKeypointsLeftTemp;
+            goodKeypointsRight = goodKeypointsRightTemp;
+            cout << "Aqui quantos keypoints bons depois do teste inliers e limites? " << goodKeypointsLeft.size() << endl;
         }
-        goodKeypointsLeft = goodKeypointsLeftTemp;
-        goodKeypointsRight = goodKeypointsRightTemp;
-        cout << "Aqui quantos keypoints bons depois do teste inliers e limites? " << goodKeypointsLeft.size() << endl;
 
     } // fim do while
 
-    char* home;
-    home = getenv("HOME");
-    std::string pasta = std::string(home)+"/Desktop/teste/";
-    Mat a, z;
-    astra->image.copyTo(a); zed->image.copyTo(z);
-    for(int i=0; i<goodKeypointsLeft.size(); i++){
-        cv::Scalar color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
-        circle(a, goodKeypointsLeft[i].pt, 5, color, 2);
-        circle(z, goodKeypointsRight[i].pt, 5, color, 2);
+    if(goodKeypointsLeft.size()){
+        char* home;
+        home = getenv("HOME");
+        std::string pasta = std::string(home)+"/Desktop/teste/";
+        Mat a, z;
+        astra->image.copyTo(a); zed->image.copyTo(z);
+        for(int i=0; i<goodKeypointsLeft.size(); i++){
+            cv::Scalar color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
+            circle(a, goodKeypointsLeft[i].pt, 5, color, 2);
+            circle(z, goodKeypointsRight[i].pt, 5, color, 2);
+        }
+        std::string foto_zed = pasta+"fotozed.jpeg", foto_astra = pasta+"fotoastra.jpeg";
+        imwrite(foto_astra, a);
+        imwrite(foto_zed,   z);
     }
-    std::string foto_zed = pasta+"fotozed.jpeg", foto_astra = pasta+"fotoastra.jpeg";
-    imwrite(foto_astra, a);
-    imwrite(foto_zed,   z);
-
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed){
     cv::Mat_<float> features(0, 2);
-    for (unsigned int i = 0; i < pixeis->size(); i++)
-    {
-        //Fill matrix
-        cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
-        features.push_back(row);
-    }
-    cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
-    cv::Mat_<float> query(0, 2);
-    cout << "goodkeypointsleft aqui: " << goodKeypointsLeft.size() << endl;
-    for (auto keypoint : goodKeypointsLeft)
-    {
-        cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
-        query.push_back(row);
-    }
-    unsigned int max_neighbours = 10;
-    cv::Mat indices, dists;
-    flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
-
-    std::vector<int> indices_pontos_nuvem;
-    indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
-    std::unordered_set<int> usedPoints;
-    for (unsigned int i = 0; i < indices.rows; i++)
-    {
-        for (unsigned int j = 0; j < indices.cols; j++)
+    if(goodKeypointsLeft.size() > 0){
+        for (unsigned int i = 0; i < pixeis->size(); i++)
         {
-            //Test to see if the point was already selected by other SIFT keypoint
-            if (usedPoints.insert(indices.at<int>(i, j)).second)
+            //Fill matrix
+            cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
+            features.push_back(row);
+        }
+        cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
+        cv::Mat_<float> query(0, 2);
+        cout << "goodkeypointsleft aqui: " << goodKeypointsLeft.size() << endl;
+        for (auto keypoint : goodKeypointsLeft)
+        {
+            cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
+            query.push_back(row);
+        }
+        unsigned int max_neighbours = 10;
+        cv::Mat indices, dists;
+        flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
+
+        std::vector<int> indices_pontos_nuvem;
+        indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
+        std::unordered_set<int> usedPoints;
+        for (unsigned int i = 0; i < indices.rows; i++)
+        {
+            for (unsigned int j = 0; j < indices.cols; j++)
             {
-                if (dists.at<float>(i, j) < 1)
+                //Test to see if the point was already selected by other SIFT keypoint
+                if (usedPoints.insert(indices.at<int>(i, j)).second)
                 {
-                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
-                    break;
+//                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
+//                    break;
+                    if (dists.at<float>(i, j) < 1)
+                    {
+                        indices_pontos_nuvem[i] = indices.at<int>(i, j);
+                        break;
+                    }
                 }
             }
         }
-    }
-    // Relacionando pontos 3D com o SIFT da Zed
-    imagePointsZed.clear();
-    objectPointsZed.clear();
-    for (int i=0; i<indices_pontos_nuvem.size(); i++)
-    {
-        if (indices_pontos_nuvem[i] == -1)
-            continue;
-        imagePointsZed.push_back(goodKeypointsRight[i].pt);
-        PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
-        cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
-        objectPointsZed.push_back(p);
-    }
-    cout << "imagePointszed aqui: " << imagePointsZed.size() << endl;
+        // Relacionando pontos 3D com o SIFT da Zed
+        imagePointsZed.clear();
+        objectPointsZed.clear();
+        for (int i=0; i<indices_pontos_nuvem.size(); i++)
+        {
+            if (indices_pontos_nuvem[i] == -1)
+                continue;
+            imagePointsZed.push_back(goodKeypointsRight[i].pt);
+            PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
+            cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
+            objectPointsZed.push_back(p);
+        }
+        cout << "imagePointszed aqui: " << imagePointsZed.size() << endl;
 
-    updateRTFromSolvePNP(imagePointsZed, objectPointsZed, zed);
+        updateRTFromSolvePNP(imagePointsZed, objectPointsZed, zed);
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::updateRTFromSolvePNP(std::vector<cv::Point2f> imagePoints, std::vector<cv::Point3f> objectPoints, cv_bridge::CvImagePtr zed)
@@ -873,7 +883,7 @@ void Cloud_Work::salvar_acumulada(){
     PointCloud<PointCN>::Ptr acumulada_global_normais_temp (new PointCloud<PointCN>());
     PointCloud<PointC>::Ptr cameras_temp (new PointCloud<PointC>());
     for(int i=0; i < np.size(); i++){
-        ROS_INFO("Calculando normais na nuvem %l, de %l totais, aguarde...", i+1, np.size());
+        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;

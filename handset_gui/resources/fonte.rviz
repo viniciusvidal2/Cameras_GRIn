@@ -28,7 +28,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -169,5 +169,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1248
-  X: 672
+  X: 1312
   Y: 24

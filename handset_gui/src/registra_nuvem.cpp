@@ -450,7 +450,7 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     if( !(dir_err == -1) ){ // Nao houve erro na criacao do diretorio
         // Escrever o novo arquivo
         ROS_INFO("Salvando arquivo NVM final.");
-        std::string arquivo_final = pasta_final+"/nuvem_final.nvm";
+        std::string arquivo_final = pasta_final+"/camerasfinal.nvm";
         ofstream nvm_final(arquivo_final);
         if(nvm_final.is_open()){
 

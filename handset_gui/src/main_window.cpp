@@ -46,7 +46,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     // Inicia a classe que trabalha as nuvens, principal do programa
     cw.set_inicio_acumulacao(false);
     cw.set_primeira_vez(true);
-    cw.set_inicio_acumulacao(ui.lineEdit_tempo->text().toFloat()); // Tempo default para garantir
+    cw.set_inicio_acumulacao(false);
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////
 

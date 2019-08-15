@@ -339,9 +339,10 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         // REFERENCIA : left_zed->ASTRA->ZED->ODOM
         Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
         Eigen::Matrix3f rot_azo;
-        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+        rot_azo = Tazo.block(0, 0, 3, 3);
+//        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+//                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+//                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
         Eigen::Quaternion<float>q_azo(rot_azo);
         Eigen::Vector3f t_azo;
         t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
@@ -640,56 +641,91 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed){
     cv::Mat_<float> features(0, 2);
     if(goodKeypointsLeft.size() > 0){
-        for (unsigned int i = 0; i < pixeis->size(); i++)
-        {
-            //Fill matrix
-            cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
-            features.push_back(row);
-        }
-        cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
-        cv::Mat_<float> query(0, 2);
+//        for (unsigned int i = 0; i < pixeis->size(); i++)
+//        {
+//            //Fill matrix
+//            cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
+//            features.push_back(row);
+//        }
+//        cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
+//        cv::Mat_<float> query(0, 2);
         cout << "goodkeypointsleft aqui: " << goodKeypointsLeft.size() << endl;
-        for (auto keypoint : goodKeypointsLeft)
-        {
-            cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
-            query.push_back(row);
-        }
-        unsigned int max_neighbours = 10;
-        cv::Mat indices, dists;
-        flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
+//        for (auto keypoint : goodKeypointsLeft)
+//        {
+//            cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
+//            query.push_back(row);
+//        }
+//        unsigned int max_neighbours = 10;
+//        cv::Mat indices, dists;
+//        flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
 
-        std::vector<int> indices_pontos_nuvem;
-        indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
-        std::unordered_set<int> usedPoints;
-        for (unsigned int i = 0; i < indices.rows; i++)
-        {
-            for (unsigned int j = 0; j < indices.cols; j++)
-            {
-                //Test to see if the point was already selected by other SIFT keypoint
-                if (usedPoints.insert(indices.at<int>(i, j)).second)
-                {
-//                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
-//                    break;
-                    if (dists.at<float>(i, j) < 1)
-                    {
-                        indices_pontos_nuvem[i] = indices.at<int>(i, j);
-                        break;
-                    }
+//        std::vector<int> indices_pontos_nuvem;
+//        indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
+//        std::unordered_set<int> usedPoints;
+//        for (unsigned int i = 0; i < indices.rows; i++)
+//        {
+//            for (unsigned int j = 0; j < indices.cols; j++)
+//            {
+//                //Test to see if the point was already selected by other SIFT keypoint
+//                if (usedPoints.insert(indices.at<int>(i, j)).second)
+//                {
+////                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
+////                    break;
+//                    if (dists.at<float>(i, j) < 1)
+//                    {
+//                        indices_pontos_nuvem[i] = indices.at<int>(i, j);
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+
+        // Jeito meu, a principio burro, mas logico
+        std::vector<int> indices_nuvem;
+        indices_nuvem.resize(goodKeypointsLeft.size(), -1);
+        std::vector<float> melhores_distancias;
+        melhores_distancias.resize(indices_nuvem.size(), 1000);
+        int lim_coord = 7; // Limite de distancia ao quadrado em pixels para cada coordenada
+
+        #pragma omp parallel for num_threads(int(goodLeftKeypoints.size()))
+        for(int i=0; i < goodKeypointsLeft.size(); i++) {
+//            #pragma omp parallel for num_threads(int(pixeis->size()/10))
+            for(int j=0; j < pixeis->size(); j++){
+                float dx2 = (pixeis->points[j].x - goodKeypointsLeft[i].pt.x)*(pixeis->points[j].x - goodKeypointsLeft[i].pt.x);
+                float dy2 = (pixeis->points[j].y - goodKeypointsLeft[i].pt.y)*(pixeis->points[j].y - goodKeypointsLeft[i].pt.y);
+
+                if(sqrt(dx2) < lim_coord && sqrt(dy2) < lim_coord && sqrt(dx2+dy2) < melhores_distancias[i]){
+                    melhores_distancias[i] = sqrt(dx2+dy2);
+                    indices_nuvem[i] = j;
                 }
             }
         }
+
         // Relacionando pontos 3D com o SIFT da Zed
         imagePointsZed.clear();
         objectPointsZed.clear();
-        for (int i=0; i<indices_pontos_nuvem.size(); i++)
+        for (int i=0; i<indices_nuvem.size(); i++)
         {
-            if (indices_pontos_nuvem[i] == -1)
+            if (indices_nuvem[i] == -1)
                 continue;
             imagePointsZed.push_back(goodKeypointsRight[i].pt);
-            PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
+            PointC pnuvem = nuvem_total_bat->points[indices_nuvem[i]];
             cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
             objectPointsZed.push_back(p);
         }
+
+//        // Relacionando pontos 3D com o SIFT da Zed
+//        imagePointsZed.clear();
+//        objectPointsZed.clear();
+//        for (int i=0; i<indices_pontos_nuvem.size(); i++)
+//        {
+//            if (indices_pontos_nuvem[i] == -1)
+//                continue;
+//            imagePointsZed.push_back(goodKeypointsRight[i].pt);
+//            PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
+//            cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
+//            objectPointsZed.push_back(p);
+//        }
         cout << "imagePointszed aqui: " << imagePointsZed.size() << endl;
 
         updateRTFromSolvePNP(imagePointsZed, objectPointsZed, zed);

@@ -78,6 +78,7 @@
 #include <qobject.h>
 #include <QThread>
 #include <QMutex>
+#include <QString>
 
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
@@ -86,6 +87,11 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/connection.h>
+
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <rosbag/bag_player.h>
 
 using namespace pcl::io;
 using namespace pcl::geometry;
@@ -110,20 +116,23 @@ public:
     void set_inicio_acumulacao(bool flag);
     void set_primeira_vez(bool flag);
     void set_n_nuvens_aquisicao(float t);
+    void set_nome_bag(QString nome);
+    void set_dados_online_offline(bool vejamos);
     void salvar_acumulada();
     void set_profundidade_max(float d);
     void reiniciar();
     Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
+    void cancela_listeners(bool eai); // A janela principal vai chamar dependendo de como estiver pra rodar, online ou nao
+
     QMutex* mutex;
-
-
 
 private:
 
     typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
     boost::shared_ptr<Sync> sync;
+    message_filters::Connection funcionou_porra;
 
     /// Procedimentos internos ///
     void filter_grid(PointCloud<PointC>::Ptr cloud, float leaf_size);
@@ -138,10 +147,6 @@ private:
     void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix_total, PointCloud<PointC>::Ptr nuvem_bat);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
-    void calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K);
-    void calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K); // Overload da funcao para usar no ICP
-    void saveMesh(std::string nome);
-    void triangulate();
     void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
     void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed, PointCloud<PointC>::Ptr cloud);
     void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed);
@@ -150,6 +155,8 @@ private:
     std::string escreve_linha_imagem(float foco, std::string nome, Eigen::MatrixXf C, Eigen::Quaternion<float> q);
     Eigen::Matrix4f qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     Eigen::MatrixXf calcula_centro_camera(Eigen::Quaternion<float> q, Eigen::Vector3f offset);
+
+    void ProcessaOffline();
 
     /// Variaveis ///
     int init_argc;
@@ -177,6 +184,10 @@ private:
     ros::Publisher pub_parcial;
     // Pasta onde sera guardado o projeto para o MART e tudo o mais
     std::string pasta;
+    // Caminho completo para a bag de dados
+    QString caminho_bag;
+    // Bool para controle de se vamos por bag ou online
+    bool vamos_de_bag;
     // Modelo da camera astra
     image_geometry::PinholeCameraModel astra_model;
     /// ARQUIVO NVM

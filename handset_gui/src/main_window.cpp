@@ -92,11 +92,22 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 /// Botao de inicio do sistemas de cameras
 void MainWindow::on_pushButton_inicio_clicked(){
-    if(ui.checkBox_online->isChecked())
+    if(ui.checkBox_online->isChecked()){
         system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=true'");
-    else
+        cw.inicia_listeners();
+    } else {
         system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=false'");
+    }
     ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
+}
+
+/// Botao de selecionar a bag a tocar
+void MainWindow::on_pushButton_selecionabag_clicked(){
+    QString nome_bag;
+    nome_bag = QFileDialog::getOpenFileName(this, "Bag de dados", "", "RosBag files (*.bag)");
+    ui.lineEdit_nomeplaybag->setText(nome_bag);
+    // Setar o caminho da bag aqui para dentro da classe
+    cw.set_nome_bag(nome_bag);
 }
 
 /// Botao para iniciar a captura corretamente por tanto tempo
@@ -121,6 +132,17 @@ void MainWindow::on_pushButton_gravardados_clicked(){
         ui.pushButton_gravardados->setText("Parar gravacao");
         ui.pushButton_gravardados->setStyleSheet("background-color: rgb(200, 0, 0); color: rgb(0, 0, 0)");
         controle_gravacao = true;
+    }
+}
+
+/// Checkbox de online para habilitar ou desabilitar a seleçao de bags
+void MainWindow::on_checkBox_online_clicked(){
+    if(ui.checkBox_online->isChecked()){
+        ui.pushButton_selecionabag->setVisible(false);
+        ui.lineEdit_nomeplaybag->setVisible(false);
+    } else {
+        ui.pushButton_selecionabag->setVisible(true);
+        ui.lineEdit_nomeplaybag->setVisible(true);
     }
 }
 

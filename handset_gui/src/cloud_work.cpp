@@ -56,6 +56,7 @@ void Cloud_Work::init(){
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
     pub_global  = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
+
     // Subscribers para sincronizar
     message_filters::Subscriber<sensor_msgs::Image      > sub_im_as (nh_, "/astra2"         , 10);
     message_filters::Subscriber<sensor_msgs::Image      > sub_im_zed(nh_, "/zed2"           , 10);
@@ -63,7 +64,7 @@ void Cloud_Work::init(){
     message_filters::Subscriber<sensor_msgs::PointCloud2> sub_pixel (nh_, "/pixels"         , 10);
     message_filters::Subscriber<Odometry                > sub_odom  (nh_, "/odom2"          , 10);
     sync.reset(new Sync(syncPolicy(10), sub_im_as, sub_im_zed, sub_nuvem, sub_pixel, sub_odom));
-    sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3, _4, _5));
+    funcionou_porra = sync->registerCallback(boost::bind(&Cloud_Work::callback_acumulacao, this, _1, _2, _3, _4, _5));
 
     // Inicio do modelo da camera
     char* home;
@@ -79,9 +80,6 @@ void Cloud_Work::init(){
     set_inicio_acumulacao(false);
     set_primeira_vez(true);
 
-    // Quantas nuvens acumular a cada captura
-    n_nuvens_instantaneas = 2; // Inicia aqui, mas vai pegar do GUI
-
     // Inicio do mutex de acumulacao - verdadeiro se estamos acumulando
     mutex_acumulacao = false;
 
@@ -91,25 +89,24 @@ void Cloud_Work::init(){
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 
-    //    offset_astra_zed << 0.048, 0.031, -0.019; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, CORRIGIDO MART 2
-    //    offset_astra_zed << 0.04536, 0.027, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
-    //    offset_astra_zed << 0.025, 0.020, 0; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA, MATLAB
     offset_astra_zed << 0.052, 0.01, -0.01; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, por reconfigure com imagem raw objetos proximos
 
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
-            0, 0, 0, 1;
+                   0,   0,   0,   1;
 
     // Foco da ZED e ASTRA estimado inicial
     fzed = 1462.0;
     fastra = 525.0;
 
-    // Mais uma vez aqui para nao ter erro
-    set_inicio_acumulacao(false);
-
     // Rodar o no
     ros::Rate rate(2);
     while(ros::ok()){
+
+        // Rotina para rodar dados com bag, se assim for desejado, vamos forçar loop eterno la dentro
+        if(vamos_de_bag){
+
+        }
 
         // Publica recorrentemente a nuvem atual
         this->publica_nuvens();
@@ -119,6 +116,15 @@ void Cloud_Work::init(){
 
     }
 
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::cancela_listeners(bool eai){
+    if(eai){
+        funcionou_porra.disconnect();
+        vamos_de_bag = true;
+    } else {
+        vamos_de_bag = false;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::publica_nuvens(){
@@ -362,6 +368,85 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
     } // fim do if -> acumular ou nao
 
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::ProcessaOffline(){
+    // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
+    if(realizar_acumulacao){
+        Eigen::Quaternion<float> q;
+        Eigen::Vector3f offset;
+
+        // Converte odometria -> so uma vez no inicio para evitar drifts
+        q.x() = (float)msg_odom->pose.pose.orientation.x;
+        q.y() = (float)msg_odom->pose.pose.orientation.y;
+        q.z() = (float)msg_odom->pose.pose.orientation.z;
+        q.w() = (float)msg_odom->pose.pose.orientation.w;
+        offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
+
+        // Reiniciando nuvens parciais
+        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
+
+        // Converte nuvem -> ja devia estar filtrada do outro no
+        PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
+        fromROSMsg(*msg_cloud, *nuvem_inst);
+        PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
+        fromROSMsg(*msg_pixels, *nuvem_pix);
+        // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
+        filterForNan(nuvem_inst, nuvem_pix);
+        // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
+        PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
+        PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
+        *nuvem_inst_total = *nuvem_inst;
+        *nuvem_pix_total  = *nuvem_pix ;
+        // Filtro de profundidade como vinda da GUI
+        passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
+        // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
+//        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
+//        *acumulada_parcial_frame_camera += *nuvem_inst;
+        // Rotacao para corrigir odometria
+        transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
+        // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
+        acumulada_parcial->header.frame_id = "odom";
+        *acumulada_parcial += *nuvem_inst;
+
+        ROS_INFO("Nuvem parcial capturada");
+
+        // Nao podemos mais acumular enquanto o botao nao chamar de novo
+        set_inicio_acumulacao(false);
+
+        // Acumular com a global, a depender se primeira vez ou nao
+        registra_global_icp(acumulada_parcial, q, offset);
+
+        // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
+
+        // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
+        // REFERENCIA : left_zed->ASTRA->ZED->ODOM
+        Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+        Eigen::Matrix3f rot_azo;
+        rot_azo = Tazo.block(0, 0, 3, 3);
+//        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
+//                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
+//                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
+        Eigen::Quaternion<float>q_azo(rot_azo);
+        Eigen::Vector3f t_azo;
+        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
+
+        // Salva os dados na pasta do projeto -> PARCIAIS
+        if(acumulada_parcial->size() > 0){
+//            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix, acumulada_parcial);
+            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
+            ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
+        }
+
+        // Salva no vetor de nuvens e poses para acumular tudo ao final
+        nuvem_pose n;
+        n.nuvem = *acumulada_parcial;
+        n.centro_camera = calcula_centro_camera(q_azo, t_azo);
+        np.push_back(n);
+
+    } // fim do if -> acumular ou nao
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
@@ -1029,89 +1114,97 @@ void Cloud_Work::set_profundidade_max(float d){
     profundidade_max = d;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::set_nome_bag(QString nome){
+    caminho_bag = nome;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::set_dados_online_offline(bool vejamos){
+    vamos_de_bag = vejamos;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 /// Mesh
 ///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::triangulate(){
-    if(acumulada_global->size() > 0){
-        int metodo = 2;
+//void Cloud_Work::triangulate(){
+//    if(acumulada_global->size() > 0){
+//        int metodo = 2;
 
-        PointCloud<PointCN>::Ptr cloud_normals (new PointCloud<PointCN>());
-        calculateNormalsAndConcatenate(acumulada_global, cloud_normals, 30);
+//        PointCloud<PointCN>::Ptr cloud_normals (new PointCloud<PointCN>());
+//        calculateNormalsAndConcatenate(acumulada_global, cloud_normals, 30);
 
-        if(metodo == 1){
+//        if(metodo == 1){
 
-            pcl::search::KdTree<PointCN>::Ptr tree2 (new pcl::search::KdTree<PointCN>);
+//            pcl::search::KdTree<PointCN>::Ptr tree2 (new pcl::search::KdTree<PointCN>);
 
-            GreedyProjectionTriangulation<PointCN> gp3;
-            gp3.setSearchRadius (0.05);
-            gp3.setMu (3);
-            gp3.setMaximumNearestNeighbors (30);
-            gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
-            gp3.setMinimumAngle(M_PI/18); // 10 degrees
-            gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
-            gp3.setNormalConsistency(false);
-            ROS_INFO("Construindo Mesh sobre a nuvem....");
-            gp3.setInputCloud (cloud_normals);
-            gp3.setSearchMethod (tree2);
-            gp3.reconstruct (mesh_acumulada);
-            ROS_INFO("Mesh reconstruida!");
+//            GreedyProjectionTriangulation<PointCN> gp3;
+//            gp3.setSearchRadius (0.05);
+//            gp3.setMu (3);
+//            gp3.setMaximumNearestNeighbors (30);
+//            gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
+//            gp3.setMinimumAngle(M_PI/18); // 10 degrees
+//            gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
+//            gp3.setNormalConsistency(false);
+//            ROS_INFO("Construindo Mesh sobre a nuvem....");
+//            gp3.setInputCloud (cloud_normals);
+//            gp3.setSearchMethod (tree2);
+//            gp3.reconstruct (mesh_acumulada);
+//            ROS_INFO("Mesh reconstruida!");
 
-        } else if(metodo == 2){
+//        } else if(metodo == 2){
 
-            Poisson<PointCN> poisson;
-            int depth = 12;
-            ROS_INFO("Comecando processo de POISSON com depth = %d", depth);
-            poisson.setDepth(12);
-            poisson.setInputCloud(cloud_normals);
-            poisson.reconstruct(mesh_acumulada);
-            ROS_INFO("Processo de POISSON finalizado.");
+//            Poisson<PointCN> poisson;
+//            int depth = 12;
+//            ROS_INFO("Comecando processo de POISSON com depth = %d", depth);
+//            poisson.setDepth(12);
+//            poisson.setInputCloud(cloud_normals);
+//            poisson.reconstruct(mesh_acumulada);
+//            ROS_INFO("Processo de POISSON finalizado.");
 
-        }
-    }
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K){
-    ROS_INFO("Calculando normais da nuvem, aguarde...");
-    NormalEstimationOMP<PointC, Normal> ne;
-    ne.setInputCloud(cloud);
-    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(K);
-    ne.setNumberOfThreads(4);
+//        }
+//    }
+//}
+/////////////////////////////////////////////////////////////////////////////////////////////
+//void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K){
+//    ROS_INFO("Calculando normais da nuvem, aguarde...");
+//    NormalEstimationOMP<PointC, Normal> ne;
+//    ne.setInputCloud(cloud);
+//    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
+//    ne.setSearchMethod(tree);
+//    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+//    ne.setKSearch(K);
+//    ne.setNumberOfThreads(4);
 
-    ne.compute(*cloud_normals);
+//    ne.compute(*cloud_normals);
 
-    concatenateFields(*cloud, *cloud_normals, *cloud2);
+//    concatenateFields(*cloud, *cloud_normals, *cloud2);
 
-    vector<int> indicesnan;
-    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
-    ROS_INFO("Normais calculadas!");
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K){
-    ROS_INFO("Calculando normais da nuvem, aguarde...");
-    NormalEstimationOMP<PointXYZ, Normal> ne;
-    ne.setInputCloud(cloud);
-    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-    ne.setKSearch(K);
-    ne.setNumberOfThreads(4);
+//    vector<int> indicesnan;
+//    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
+//    ROS_INFO("Normais calculadas!");
+//}
+/////////////////////////////////////////////////////////////////////////////////////////////
+//void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K){
+//    ROS_INFO("Calculando normais da nuvem, aguarde...");
+//    NormalEstimationOMP<PointXYZ, Normal> ne;
+//    ne.setInputCloud(cloud);
+//    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
+//    ne.setSearchMethod(tree);
+//    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
+//    ne.setKSearch(K);
+//    ne.setNumberOfThreads(4);
 
-    ne.compute(*cloud_normals);
+//    ne.compute(*cloud_normals);
 
-    concatenateFields(*cloud, *cloud_normals, *cloud2);
+//    concatenateFields(*cloud, *cloud_normals, *cloud2);
 
-    vector<int> indicesnan;
-    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
-    ROS_INFO("Normais calculadas!");
-}
-///////////////////////////////////////////////////////////////////////////////////////////
-void Cloud_Work::saveMesh(std::string nome){
-    ROS_INFO("Salvando a Mesh no nome correto...");
-    if(savePolygonFilePLY(nome, mesh_acumulada))
-        ROS_INFO("Mesh salva!");
-}
+//    vector<int> indicesnan;
+//    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
+//    ROS_INFO("Normais calculadas!");
+//}
+/////////////////////////////////////////////////////////////////////////////////////////////
+//void Cloud_Work::saveMesh(std::string nome){
+//    ROS_INFO("Salvando a Mesh no nome correto...");
+//    if(savePolygonFilePLY(nome, mesh_acumulada))
+//        ROS_INFO("Mesh salva!");
+//}
 
 } // Fim do namespace handset_gui

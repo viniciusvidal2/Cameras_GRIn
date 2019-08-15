@@ -73,6 +73,8 @@ private Q_SLOTS:
     void on_pushButton_visualizar_clicked();
     void on_pushButton_encerrar_clicked();
     void on_pushButton_reiniciar_clicked();
+    void on_pushButton_selecionabag_clicked();
+    void on_checkBox_online_clicked();
 
     /// ABA 2 ///
     void on_pushButton_nuvemalvo_clicked();

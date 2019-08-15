@@ -68,6 +68,7 @@ public Q_SLOTS:
 private Q_SLOTS:
     /// ABA 1 ///
     void on_pushButton_inicio_clicked();
+    void on_pushButton_naocapturar_clicked();
     void on_pushButton_capturar_clicked();
     void on_pushButton_gravardados_clicked();
     void on_pushButton_visualizar_clicked();

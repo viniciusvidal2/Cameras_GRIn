@@ -30,6 +30,43 @@
         <height>0</height>
        </size>
       </property>
+      <property name="palette">
+       <palette>
+        <active>
+         <colorrole role="Text">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>0</red>
+            <green>0</green>
+            <blue>0</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </active>
+        <inactive>
+         <colorrole role="Text">
+          <brush brushstyle="SolidPattern">
+           <color alpha="255">
+            <red>0</red>
+            <green>0</green>
+            <blue>0</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </inactive>
+        <disabled>
+         <colorrole role="Text">
+          <brush brushstyle="SolidPattern">
+           <color alpha="96">
+            <red>164</red>
+            <green>166</green>
+            <blue>168</blue>
+           </color>
+          </brush>
+         </colorrole>
+        </disabled>
+       </palette>
+      </property>
       <property name="locale">
        <locale language="English" country="Australia"/>
       </property>
@@ -43,67 +80,274 @@
        <widget class="QGroupBox" name="groupBox_captura">
         <property name="geometry">
          <rect>
-          <x>40</x>
-          <y>220</y>
-          <width>331</width>
-          <height>91</height>
+          <x>270</x>
+          <y>180</y>
+          <width>231</width>
+          <height>181</height>
          </rect>
         </property>
         <property name="title">
-         <string>Captura (quantas repeticoes):</string>
+         <string>CAPTURA DE DADOS</string>
         </property>
         <property name="alignment">
          <set>Qt::AlignCenter</set>
         </property>
-        <widget class="QLineEdit" name="lineEdit_tempo">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>30</y>
-           <width>113</width>
-           <height>25</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>1</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_capturar">
-         <property name="geometry">
-          <rect>
-           <x>180</x>
-           <y>30</y>
-           <width>131</width>
-           <height>25</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Capturar!</string>
-         </property>
-        </widget>
-        <widget class="QPushButton" name="pushButton_encerrar">
+        <widget class="QWidget" name="gridLayoutWidget">
          <property name="geometry">
           <rect>
            <x>20</x>
-           <y>60</y>
-           <width>291</width>
-           <height>25</height>
+           <y>20</y>
+           <width>192</width>
+           <height>80</height>
           </rect>
          </property>
-         <property name="text">
-          <string>Encerrar Captura</string>
+         <layout class="QGridLayout" name="gridLayout">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetNoConstraint</enum>
+          </property>
+          <property name="horizontalSpacing">
+           <number>2</number>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="label_3">
+            <property name="text">
+             <string>Numero de cenas:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QLineEdit" name="lineEdit_tempo">
+            <property name="text">
+             <string>1</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>Filtro de profundidade:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <widget class="QLineEdit" name="lineEdit_profundidade">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>2</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+        <widget class="QWidget" name="verticalLayoutWidget_2">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>100</y>
+           <width>191</width>
+           <height>80</height>
+          </rect>
          </property>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QPushButton" name="pushButton_naocapturar">
+            <property name="palette">
+             <palette>
+              <active>
+               <colorrole role="WindowText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>175</green>
+                  <blue>62</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </active>
+              <inactive>
+               <colorrole role="WindowText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>175</green>
+                  <blue>62</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </inactive>
+              <disabled>
+               <colorrole role="WindowText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="96">
+                  <red>164</red>
+                  <green>166</green>
+                  <blue>168</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>252</red>
+                  <green>175</green>
+                  <blue>62</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="96">
+                  <red>164</red>
+                  <green>166</green>
+                  <blue>168</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </disabled>
+             </palette>
+            </property>
+            <property name="text">
+             <string>Nao capturar...</string>
+            </property>
+            <property name="flat">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_capturar">
+            <property name="palette">
+             <palette>
+              <active>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>114</red>
+                  <green>159</green>
+                  <blue>207</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </active>
+              <inactive>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>114</red>
+                  <green>159</green>
+                  <blue>207</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>0</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </inactive>
+              <disabled>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>114</red>
+                  <green>159</green>
+                  <blue>207</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="96">
+                  <red>164</red>
+                  <green>166</green>
+                  <blue>168</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </disabled>
+             </palette>
+            </property>
+            <property name="text">
+             <string>Capturar!</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_encerrar">
+            <property name="text">
+             <string>Encerrar Captura</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </widget>
        <widget class="QPushButton" name="pushButton_visualizar">
         <property name="geometry">
          <rect>
           <x>40</x>
-          <y>350</y>
-          <width>331</width>
+          <y>380</y>
+          <width>711</width>
           <height>25</height>
          </rect>
         </property>
@@ -111,50 +355,12 @@
          <string>Visualizar</string>
         </property>
        </widget>
-       <widget class="QGroupBox" name="groupBox_profundidade">
-        <property name="geometry">
-         <rect>
-          <x>40</x>
-          <y>170</y>
-          <width>251</width>
-          <height>51</height>
-         </rect>
-        </property>
-        <property name="title">
-         <string>Filtro de profundidade (metros)</string>
-        </property>
-        <property name="alignment">
-         <set>Qt::AlignCenter</set>
-        </property>
-        <widget class="QLineEdit" name="lineEdit_profundidade">
-         <property name="geometry">
-          <rect>
-           <x>0</x>
-           <y>20</y>
-           <width>251</width>
-           <height>25</height>
-          </rect>
-         </property>
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="text">
-          <string>2</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-        </widget>
-       </widget>
        <widget class="QPushButton" name="pushButton_reiniciar">
         <property name="geometry">
          <rect>
           <x>40</x>
-          <y>380</y>
-          <width>331</width>
+          <y>410</y>
+          <width>711</width>
           <height>25</height>
          </rect>
         </property>
@@ -170,54 +376,51 @@
          <rect>
           <x>40</x>
           <y>90</y>
-          <width>451</width>
+          <width>711</width>
           <height>80</height>
          </rect>
         </property>
         <property name="title">
          <string>Gravar dados na area de trabalho:</string>
         </property>
-        <widget class="QPushButton" name="pushButton_gravardados">
+        <widget class="QWidget" name="horizontalLayoutWidget_5">
          <property name="geometry">
           <rect>
-           <x>290</x>
-           <y>40</y>
-           <width>161</width>
-           <height>25</height>
+           <x>0</x>
+           <y>30</y>
+           <width>711</width>
+           <height>31</height>
           </rect>
          </property>
-         <property name="text">
-          <string>Gravar dados</string>
-         </property>
-        </widget>
-        <widget class="QLabel" name="label_12">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>40</y>
-           <width>101</width>
-           <height>21</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Nome da bag:</string>
-         </property>
-        </widget>
-        <widget class="QLineEdit" name="lineEdit_nomebag">
-         <property name="geometry">
-          <rect>
-           <x>110</x>
-           <y>40</y>
-           <width>171</width>
-           <height>25</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>nome_bag</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetNoConstraint</enum>
+          </property>
+          <item>
+           <widget class="QLabel" name="label_12">
+            <property name="text">
+             <string>Nome da bag:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit_nomebag">
+            <property name="text">
+             <string>nome_bag</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_gravardados">
+            <property name="text">
+             <string>Gravar dados</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </widget>
        <widget class="QWidget" name="verticalLayoutWidget">

@@ -37,9 +37,13 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     setWindowIcon(QIcon(":/images/icon.png"));
     ui.aba_1->setCurrentIndex(0); // ensure the first tab is showing - qt-designer should have this already hardwired, but often loses it (settings?).
     controle_gravacao = false; // Nao estamos gravando ainda
+    ui.pushButton_capturar->setStyleSheet("background-color: rgb(100, 200, 250); color: rgb(0, 0, 0)");
+    ui.pushButton_naocapturar->setStyleSheet("background-color: rgb(250, 100, 80); color: rgb(0, 0, 0)");
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
+    ui.pushButton_naocapturar->setEnabled(false); // So se as cameras ligarem ele habilita
     ui.checkBox_online->setChecked(false);
+    ui.groupBox_gravardados->setVisible(false);
 
     qnode.init();
 
@@ -94,11 +98,12 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::on_pushButton_inicio_clicked(){
     if(ui.checkBox_online->isChecked()){
         system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=true'");
-        cw.inicia_listeners();
     } else {
+        cw.cancela_listeners(true);
         system("gnome-terminal -x sh -c 'roslaunch handset_gui lancar_cameras.launch online:=false'");
     }
     ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
+    ui.pushButton_naocapturar->setEnabled(true); // Agora pode nao capturar
 }
 
 /// Botao de selecionar a bag a tocar
@@ -110,12 +115,21 @@ void MainWindow::on_pushButton_selecionabag_clicked(){
     cw.set_nome_bag(nome_bag);
 }
 
-/// Botao para iniciar a captura corretamente por tanto tempo
+/// Botao para pular o frame sem capturar
+void MainWindow::on_pushButton_naocapturar_clicked(){
+    cw.set_comando_bag(1);
+}
+
+/// Botao para iniciar a captura corretamente
 void MainWindow::on_pushButton_capturar_clicked(){
     float t = ui.lineEdit_tempo->text().toFloat();
     cw.set_n_nuvens_aquisicao(t); // Numero de nuvens para aquisitar no instante
     cw.set_profundidade_max(ui.lineEdit_profundidade->text().toFloat()); // Profundidade para filtrar as nuvens capturadas
-    cw.set_inicio_acumulacao(true); // Liberar a flag de inicio de aquisicao
+    if(ui.checkBox_online->isChecked()){
+        cw.set_inicio_acumulacao(true); // Liberar a flag de inicio de aquisicao
+    } else {
+        cw.set_comando_bag(2); // Vamos capturar o dado no modo offline
+    }
 }
 
 /// Botao para gravar a parar gravacao da bag
@@ -140,9 +154,13 @@ void MainWindow::on_checkBox_online_clicked(){
     if(ui.checkBox_online->isChecked()){
         ui.pushButton_selecionabag->setVisible(false);
         ui.lineEdit_nomeplaybag->setVisible(false);
+        ui.pushButton_naocapturar->setVisible(false);
+        ui.groupBox_gravardados->setVisible(true);
     } else {
         ui.pushButton_selecionabag->setVisible(true);
         ui.lineEdit_nomeplaybag->setVisible(true);
+        ui.pushButton_naocapturar->setVisible(true);
+        ui.groupBox_gravardados->setVisible(false);
     }
 }
 

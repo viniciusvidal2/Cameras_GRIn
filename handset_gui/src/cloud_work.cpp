@@ -49,8 +49,8 @@ void Cloud_Work::init(){
     acumulada_parcial              = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_parcial_anterior     = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_global               = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
-    acumulada_parcial_frame_camera = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
-    temp_nvm                       = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+//    acumulada_parcial_frame_camera = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+//    temp_nvm                       = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
@@ -104,9 +104,8 @@ void Cloud_Work::init(){
     while(ros::ok()){
 
         // Rotina para rodar dados com bag, se assim for desejado, vamos forçar loop eterno la dentro
-        if(vamos_de_bag){
-
-        }
+        if(vamos_de_bag)
+            ProcessaOffline();
 
         // Publica recorrentemente a nuvem atual
         this->publica_nuvens();
@@ -304,7 +303,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
 
         // Reiniciando nuvens parciais
-        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
+        acumulada_parcial->clear(); //acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
 
         // Converte nuvem -> ja devia estar filtrada do outro no
         PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
@@ -320,9 +319,7 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         *nuvem_pix_total  = *nuvem_pix ;
         // Filtro de profundidade como vinda da GUI
         passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
-        // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
-//        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
-//        *acumulada_parcial_frame_camera += *nuvem_inst;
+
         // Rotacao para corrigir odometria
         transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
         transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
@@ -346,16 +343,12 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
         Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
         Eigen::Matrix3f rot_azo;
         rot_azo = Tazo.block(0, 0, 3, 3);
-//        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-//                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-//                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
         Eigen::Quaternion<float>q_azo(rot_azo);
         Eigen::Vector3f t_azo;
         t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
 
         // Salva os dados na pasta do projeto -> PARCIAIS
         if(acumulada_parcial->size() > 0){
-//            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix, acumulada_parcial);
             this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
             ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
         }
@@ -371,82 +364,145 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::ProcessaOffline(){
-    // Se podemos iniciar a acumular (inicialmente botao da GUI setou essa flag)
-    if(realizar_acumulacao){
-        Eigen::Quaternion<float> q;
-        Eigen::Vector3f offset;
+    // Lendo a bag
+    cout << "\n\nEntramos no processo offline com a bag " << caminho_bag.toStdString().c_str() << endl;
+    rosbag::Bag bag;
+    if(!caminho_bag.isNull())
+        bag.open(caminho_bag.toStdString().c_str(),rosbag::bagmode::Read);
 
-        // Converte odometria -> so uma vez no inicio para evitar drifts
-        q.x() = (float)msg_odom->pose.pose.orientation.x;
-        q.y() = (float)msg_odom->pose.pose.orientation.y;
-        q.z() = (float)msg_odom->pose.pose.orientation.z;
-        q.w() = (float)msg_odom->pose.pose.orientation.w;
-        offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
+    std::vector<std::string> topics;
+    topics.push_back(std::string("/astra2"         ));
+    topics.push_back(std::string("/astra_projetada"));
+    topics.push_back(std::string("/odom2"          ));
+    topics.push_back(std::string("/pixels"         ));
+    topics.push_back(std::string("/zed2"           ));
 
-        // Reiniciando nuvens parciais
-        acumulada_parcial->clear(); acumulada_parcial_frame_camera->clear(); temp_nvm->clear();
+    bool check_a = false, check_n = false, check_od = false, check_pi = false, check_z = false;
+    sensor_msgs::PointCloud2ConstPtr msg_cloud, msg_pixels;
+    sensor_msgs::ImageConstPtr msg_ast_image, msg_zed_image;
+    OdometryConstPtr msg_odom;
 
-        // Converte nuvem -> ja devia estar filtrada do outro no
-        PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
-        fromROSMsg(*msg_cloud, *nuvem_inst);
-        PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
-        fromROSMsg(*msg_pixels, *nuvem_pix);
-        // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
-        filterForNan(nuvem_inst, nuvem_pix);
-        // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
-        PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
-        PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
-        *nuvem_inst_total = *nuvem_inst;
-        *nuvem_pix_total  = *nuvem_pix ;
-        // Filtro de profundidade como vinda da GUI
-        passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
-        // Acumula na parcial do frame da camera, sem transformar, para projetar depois e salvar NVM
-//        acumulada_parcial_frame_camera->header.frame_id = msg_cloud->header.frame_id;
-//        *acumulada_parcial_frame_camera += *nuvem_inst;
-        // Rotacao para corrigir odometria
-        transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
-        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
-        // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
-        acumulada_parcial->header.frame_id = "odom";
-        *acumulada_parcial += *nuvem_inst;
+    ros::Rate r(1);
 
-        ROS_INFO("Nuvem parcial capturada");
+    rosbag::View view(bag, rosbag::TopicQuery(topics));
 
-        // Nao podemos mais acumular enquanto o botao nao chamar de novo
-        set_inicio_acumulacao(false);
-
-        // Acumular com a global, a depender se primeira vez ou nao
-        registra_global_icp(acumulada_parcial, q, offset);
-
-        // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
-        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
-
-        // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
-        // REFERENCIA : left_zed->ASTRA->ZED->ODOM
-        Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
-        Eigen::Matrix3f rot_azo;
-        rot_azo = Tazo.block(0, 0, 3, 3);
-//        rot_azo << Tazo(0, 0), Tazo(0, 1), Tazo(0, 2),
-//                Tazo(1, 0), Tazo(1, 1), Tazo(1, 2),
-//                Tazo(2, 0), Tazo(2, 1), Tazo(2, 2);
-        Eigen::Quaternion<float>q_azo(rot_azo);
-        Eigen::Vector3f t_azo;
-        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
-
-        // Salva os dados na pasta do projeto -> PARCIAIS
-        if(acumulada_parcial->size() > 0){
-//            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix, acumulada_parcial);
-            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
-            ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
+    /// Para cada grupo de mensagens sincronizadas da bag resolver o que faz
+    BOOST_FOREACH(rosbag::MessageInstance const m, view){
+        if(m.getTopic() == "/astra2"){
+            msg_ast_image = m.instantiate<sensor_msgs::Image>();
+            check_a = true;
+        }
+        if(m.getTopic() == "/astra_projetada"){
+            msg_cloud = m.instantiate<sensor_msgs::PointCloud2>();
+            check_n = true;
+        }
+        if(m.getTopic() == "/odom2"){
+            msg_odom = m.instantiate<Odometry>();
+            check_od = true;
+        }
+        if(m.getTopic() == "/pixels"){
+            msg_pixels = m.instantiate<sensor_msgs::PointCloud2>();
+            check_pi = true;
+        }
+        if(m.getTopic() == "/zed2"){
+            msg_zed_image = m.instantiate<sensor_msgs::Image>();
+            check_z = true;
         }
 
-        // Salva no vetor de nuvens e poses para acumular tudo ao final
-        nuvem_pose n;
-        n.nuvem = *acumulada_parcial;
-        n.centro_camera = calcula_centro_camera(q_azo, t_azo);
-        np.push_back(n);
+        // Se todas chegaram, trabalhar dependendo do comando externo
+        if(check_a && check_n && check_od && check_pi && check_z){
+            this->publica_nuvens();
+            // Aguarda comando aqui
+            while(comando_bag == 0){
+                this->publica_nuvens();
+                ROS_INFO("Aguardando comando da GUI.....");
+                r.sleep();
+            }
 
-    } // fim do if -> acumular ou nao
+            if(comando_bag == 1){ // Nao vamos usar essas mensagens
+
+                this->publica_nuvens();
+                comando_bag = 0;
+
+            } else if(comando_bag == 2){ // Aqui deveria ter o mesmo processamento visto quando online
+
+                // Converte odometria -> so uma vez no inicio para evitar drifts
+                Eigen::Quaternion<float> q;
+                Eigen::Vector3f offset;
+
+                // Converte odometria -> so uma vez no inicio para evitar drifts
+                q.x() = (float)msg_odom->pose.pose.orientation.x;
+                q.y() = (float)msg_odom->pose.pose.orientation.y;
+                q.z() = (float)msg_odom->pose.pose.orientation.z;
+                q.w() = (float)msg_odom->pose.pose.orientation.w;
+                offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
+
+                // Reiniciando nuvens parciais
+                acumulada_parcial->clear();
+
+                // Converte nuvem -> ja devia estar filtrada do outro no
+                PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
+                fromROSMsg(*msg_cloud, *nuvem_inst);
+                PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
+                fromROSMsg(*msg_pixels, *nuvem_pix);
+                // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
+                filterForNan(nuvem_inst, nuvem_pix);
+                // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
+                PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
+                PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
+                *nuvem_inst_total = *nuvem_inst;
+                *nuvem_pix_total  = *nuvem_pix ;
+
+                // Filtro de profundidade como vinda da GUI
+                passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
+                // Rotacao para corrigir odometria
+                transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+                transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
+                // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
+                acumulada_parcial->header.frame_id = "odom";
+                *acumulada_parcial += *nuvem_inst;
+
+                ROS_INFO("Nuvem parcial capturada");
+
+                // Acumular com a global, a depender se primeira vez ou nao
+                registra_global_icp(acumulada_parcial, q, offset);
+
+                // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
+                transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
+
+                // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
+                // REFERENCIA : left_zed->ASTRA->ZED->ODOM
+                Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+                Eigen::Matrix3f rot_azo;
+                rot_azo = Tazo.block(0, 0, 3, 3);
+                Eigen::Quaternion<float>q_azo(rot_azo);
+                Eigen::Vector3f t_azo;
+                t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
+
+                // Salva os dados na pasta do projeto -> PARCIAIS
+                if(acumulada_parcial->size() > 0){
+                    this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
+                    ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
+                }
+
+                // Salva no vetor de nuvens e poses para acumular tudo ao final
+                nuvem_pose n;
+                n.nuvem = *acumulada_parcial;
+                n.centro_camera = calcula_centro_camera(q_azo, t_azo);
+                np.push_back(n);
+
+                // Publica pra mostrar pra galera
+                this->publica_nuvens();
+
+            } // Fim do comando bag = 1 ou 2
+
+            // Zera todos os marcadores e aguarda as novas mensagens
+            check_a = check_n = check_od = check_pi = check_z = false;
+        } // Fim do if para todos os checks
+    } // Fim do FOREACH message
+
+    bag.close();
+    vamos_de_bag = false; // Ja fizemos tudo com os dados, para o programa seguir como de costume e nao cair
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
@@ -724,46 +780,9 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed){
-    cv::Mat_<float> features(0, 2);
     if(goodKeypointsLeft.size() > 0){
-//        for (unsigned int i = 0; i < pixeis->size(); i++)
-//        {
-//            //Fill matrix
-//            cv::Mat row = (cv::Mat_<float>(1, 2) << pixeis->points[i].x, pixeis->points[i].y);
-//            features.push_back(row);
-//        }
-//        cv::flann::Index flann_index(features, cv::flann::KDTreeIndexParams(1));
-//        cv::Mat_<float> query(0, 2);
-        cout << "goodkeypointsleft aqui: " << goodKeypointsLeft.size() << endl;
-//        for (auto keypoint : goodKeypointsLeft)
-//        {
-//            cv::Mat row = (cv::Mat_<float>(1, 2) << keypoint.pt.x, keypoint.pt.y);
-//            query.push_back(row);
-//        }
-//        unsigned int max_neighbours = 10;
-//        cv::Mat indices, dists;
-//        flann_index.knnSearch(query, indices, dists, max_neighbours, cv::flann::SearchParams(32));
 
-//        std::vector<int> indices_pontos_nuvem;
-//        indices_pontos_nuvem.resize(goodKeypointsLeft.size(), -1);
-//        std::unordered_set<int> usedPoints;
-//        for (unsigned int i = 0; i < indices.rows; i++)
-//        {
-//            for (unsigned int j = 0; j < indices.cols; j++)
-//            {
-//                //Test to see if the point was already selected by other SIFT keypoint
-//                if (usedPoints.insert(indices.at<int>(i, j)).second)
-//                {
-////                    indices_pontos_nuvem[i] = indices.at<int>(i, j);
-////                    break;
-//                    if (dists.at<float>(i, j) < 1)
-//                    {
-//                        indices_pontos_nuvem[i] = indices.at<int>(i, j);
-//                        break;
-//                    }
-//                }
-//            }
-//        }
+        cout << "goodkeypointsleft aqui: " << goodKeypointsLeft.size() << endl;
 
         // Jeito meu, a principio burro, mas logico
         std::vector<int> indices_nuvem;
@@ -774,7 +793,6 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
 
         #pragma omp parallel for num_threads(int(goodLeftKeypoints.size()))
         for(int i=0; i < goodKeypointsLeft.size(); i++) {
-//            #pragma omp parallel for num_threads(int(pixeis->size()/10))
             for(int j=0; j < pixeis->size(); j++){
                 float dx2 = (pixeis->points[j].x - goodKeypointsLeft[i].pt.x)*(pixeis->points[j].x - goodKeypointsLeft[i].pt.x);
                 float dy2 = (pixeis->points[j].y - goodKeypointsLeft[i].pt.y)*(pixeis->points[j].y - goodKeypointsLeft[i].pt.y);
@@ -799,18 +817,6 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
             objectPointsZed.push_back(p);
         }
 
-//        // Relacionando pontos 3D com o SIFT da Zed
-//        imagePointsZed.clear();
-//        objectPointsZed.clear();
-//        for (int i=0; i<indices_pontos_nuvem.size(); i++)
-//        {
-//            if (indices_pontos_nuvem[i] == -1)
-//                continue;
-//            imagePointsZed.push_back(goodKeypointsRight[i].pt);
-//            PointC pnuvem = nuvem_total_bat->points[indices_pontos_nuvem[i]];
-//            cv::Point3f p(pnuvem.x, pnuvem.y, pnuvem.z);
-//            objectPointsZed.push_back(p);
-//        }
         cout << "imagePointszed aqui: " << imagePointsZed.size() << endl;
 
         updateRTFromSolvePNP(imagePointsZed, objectPointsZed, zed);
@@ -1084,7 +1090,7 @@ void Cloud_Work::salva_nvm_acumulada(std::string nome){
 void Cloud_Work::reiniciar(){
     // Reinicia tudo que pode ser reiniciado aqui
     acumulada_global->clear(); acumulada_parcial->clear();
-    acumulada_parcial_anterior->clear(); acumulada_parcial_frame_camera->clear();
+    acumulada_parcial_anterior->clear();
     np.clear();
 
     system("gnome-terminal -x sh -c 'rosservice call /zed/reset_odometry'");
@@ -1122,89 +1128,8 @@ void Cloud_Work::set_dados_online_offline(bool vejamos){
     vamos_de_bag = vejamos;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-/// Mesh
-///////////////////////////////////////////////////////////////////////////////////////////
-//void Cloud_Work::triangulate(){
-//    if(acumulada_global->size() > 0){
-//        int metodo = 2;
-
-//        PointCloud<PointCN>::Ptr cloud_normals (new PointCloud<PointCN>());
-//        calculateNormalsAndConcatenate(acumulada_global, cloud_normals, 30);
-
-//        if(metodo == 1){
-
-//            pcl::search::KdTree<PointCN>::Ptr tree2 (new pcl::search::KdTree<PointCN>);
-
-//            GreedyProjectionTriangulation<PointCN> gp3;
-//            gp3.setSearchRadius (0.05);
-//            gp3.setMu (3);
-//            gp3.setMaximumNearestNeighbors (30);
-//            gp3.setMaximumSurfaceAngle(M_PI/4); // 45 degrees
-//            gp3.setMinimumAngle(M_PI/18); // 10 degrees
-//            gp3.setMaximumAngle(2*M_PI/3); // 120 degrees
-//            gp3.setNormalConsistency(false);
-//            ROS_INFO("Construindo Mesh sobre a nuvem....");
-//            gp3.setInputCloud (cloud_normals);
-//            gp3.setSearchMethod (tree2);
-//            gp3.reconstruct (mesh_acumulada);
-//            ROS_INFO("Mesh reconstruida!");
-
-//        } else if(metodo == 2){
-
-//            Poisson<PointCN> poisson;
-//            int depth = 12;
-//            ROS_INFO("Comecando processo de POISSON com depth = %d", depth);
-//            poisson.setDepth(12);
-//            poisson.setInputCloud(cloud_normals);
-//            poisson.reconstruct(mesh_acumulada);
-//            ROS_INFO("Processo de POISSON finalizado.");
-
-//        }
-//    }
-//}
-/////////////////////////////////////////////////////////////////////////////////////////////
-//void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointC>::Ptr cloud, PointCloud<PointCN>::Ptr cloud2, int K){
-//    ROS_INFO("Calculando normais da nuvem, aguarde...");
-//    NormalEstimationOMP<PointC, Normal> ne;
-//    ne.setInputCloud(cloud);
-//    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
-//    ne.setSearchMethod(tree);
-//    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-//    ne.setKSearch(K);
-//    ne.setNumberOfThreads(4);
-
-//    ne.compute(*cloud_normals);
-
-//    concatenateFields(*cloud, *cloud_normals, *cloud2);
-
-//    vector<int> indicesnan;
-//    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
-//    ROS_INFO("Normais calculadas!");
-//}
-/////////////////////////////////////////////////////////////////////////////////////////////
-//void Cloud_Work::calculateNormalsAndConcatenate(PointCloud<PointXYZ>::Ptr cloud, PointCloud<PointNormal>::Ptr cloud2, int K){
-//    ROS_INFO("Calculando normais da nuvem, aguarde...");
-//    NormalEstimationOMP<PointXYZ, Normal> ne;
-//    ne.setInputCloud(cloud);
-//    search::KdTree<PointXYZ>::Ptr tree (new search::KdTree<PointXYZ>());
-//    ne.setSearchMethod(tree);
-//    PointCloud<Normal>::Ptr cloud_normals (new PointCloud<Normal>());
-//    ne.setKSearch(K);
-//    ne.setNumberOfThreads(4);
-
-//    ne.compute(*cloud_normals);
-
-//    concatenateFields(*cloud, *cloud_normals, *cloud2);
-
-//    vector<int> indicesnan;
-//    removeNaNNormalsFromPointCloud(*cloud2, *cloud2, indicesnan);
-//    ROS_INFO("Normais calculadas!");
-//}
-/////////////////////////////////////////////////////////////////////////////////////////////
-//void Cloud_Work::saveMesh(std::string nome){
-//    ROS_INFO("Salvando a Mesh no nome correto...");
-//    if(savePolygonFilePLY(nome, mesh_acumulada))
-//        ROS_INFO("Mesh salva!");
-//}
+void Cloud_Work::set_comando_bag(int c){
+    comando_bag = c;
+}
 
 } // Fim do namespace handset_gui

@@ -93,6 +93,8 @@
 #include <rosbag/view.h>
 #include <rosbag/bag_player.h>
 
+#include <boost/foreach.hpp>
+
 using namespace pcl::io;
 using namespace pcl::geometry;
 using namespace message_filters;
@@ -120,6 +122,7 @@ public:
     void set_dados_online_offline(bool vejamos);
     void salvar_acumulada();
     void set_profundidade_max(float d);
+    void set_comando_bag(int c);
     void reiniciar();
     Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
@@ -170,10 +173,10 @@ private:
     // Nuvem acumulada total
     PointCloud<PointC>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
-    PointCloud<PointC>::Ptr acumulada_parcial_frame_camera;
+//    PointCloud<PointC>::Ptr acumulada_parcial_frame_camera;
     PointCloud<PointC>::Ptr acumulada_parcial;
     PointCloud<PointC>::Ptr acumulada_parcial_anterior;
-    PointCloud<PointC>::Ptr temp_nvm;
+//    PointCloud<PointC>::Ptr temp_nvm;
     // Matriz de transformacao para a aproximacao ICP
     Eigen::Matrix4f T_icp;
     // Transformacoes para calculo de movimento relativo e otimizacao do chute inicial do ICP
@@ -188,6 +191,8 @@ private:
     QString caminho_bag;
     // Bool para controle de se vamos por bag ou online
     bool vamos_de_bag;
+    // Comando do que fazer com cada leitura de bag que vier
+    int comando_bag; // 0 nao faz nada, 1 pula a mensagem e 2 realmente processa
     // Modelo da camera astra
     image_geometry::PinholeCameraModel astra_model;
     /// ARQUIVO NVM

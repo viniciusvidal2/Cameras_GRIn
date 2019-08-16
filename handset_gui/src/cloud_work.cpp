@@ -16,7 +16,19 @@
 #include <tf/transform_listener.h>
 #include <tf_conversions/tf_eigen.h>
 
+
+
 namespace handset_gui {
+
+template <class M>
+class BagSubscriber : public message_filters::SimpleFilter<M>
+{
+public:
+  void newMessage(const boost::shared_ptr<M const> &msg)
+  {
+    message_filters::SimpleFilter<M>::signalMessage(msg);
+  }
+};
 
 using namespace std;
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -49,6 +61,7 @@ void Cloud_Work::init(){
     acumulada_parcial              = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_parcial_anterior     = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_global               = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
+    acumulada_global_anterior      = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
@@ -267,6 +280,9 @@ void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Qua
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
             T_corrigida = this->icp(parcial, acumulada_global, T_chute_icp);
             transformPointCloud(*parcial, *parcial, T_corrigida);
+            // Guarda a acumulada anterior aqui
+            *acumulada_global_anterior = *acumulada_global;
+            // Adiciona a parcial na global
             *acumulada_global += *parcial;
             // Salvar nuvem atual alinhada para proxima iteracao ser referencia
             *acumulada_parcial_anterior = *parcial;
@@ -282,6 +298,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Qua
         // Primeira nuvem
         *acumulada_global          += *parcial;
         *acumulada_parcial_anterior = *parcial;
+        *acumulada_global_anterior  = *parcial;
         // Primeira transformacao vinda da odometria -> converter matriz 4x4
         T_icp = qt2T(rot, offset);
         // Ajustando transformadas para calculo de posicao da nuvem otimizado
@@ -373,6 +390,125 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::callback_offline(const sensor_msgs::ImageConstPtr &msg_ast_image,
+                                  const sensor_msgs::ImageConstPtr &msg_zed_image,
+                                  const sensor_msgs::PointCloud2ConstPtr &msg_cloud,
+                                  const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
+                                  const OdometryConstPtr &msg_odom){
+    ros::Rate r(2);
+    conjunto_dados_atual++;
+    this->publica_nuvens();
+    this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+    // Aguarda comando aqui
+    while(comando_bag == 0){
+        this->publica_nuvens();
+        this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+        ROS_INFO("Aguardando comando da GUI no conjunto %d ....", conjunto_dados_atual);
+        r.sleep();
+    }
+
+    switch(comando_bag){
+
+    case 1: // Nao vamos usar essas mensagens
+
+        ROS_INFO("Nao usou o conjunto %d na acumulacao!", conjunto_dados_atual);
+        this->publica_nuvens();
+        this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+        break;
+
+    case 3: // Corrigir para a acumulada anterior ja que essa nao foi boa
+
+        // Nuvem visual
+        *acumulada_global = *acumulada_global_anterior;
+        // Lista de imagens pra salvar ao fim
+        acumulada_imagens.erase(acumulada_imagens.end());
+        // Lista de nuvens para acumular com normais ao final
+        np.erase(np.end());
+        // Publica pra ver se ta tudo certo
+        this->publica_nuvens();
+        ROS_INFO("Foi retirado o frame anterior %d...", conjunto_dados_atual-1);
+        break;
+
+    case 2: // Aqui deveria ter o mesmo processamento visto quando online
+
+        // Converte odometria -> so uma vez no inicio para evitar drifts
+        Eigen::Quaternion<float> q;
+        Eigen::Vector3f offset;
+
+        // Converte odometria -> so uma vez no inicio para evitar drifts
+        q.x() = (float)msg_odom->pose.pose.orientation.x;
+        q.y() = (float)msg_odom->pose.pose.orientation.y;
+        q.z() = (float)msg_odom->pose.pose.orientation.z;
+        q.w() = (float)msg_odom->pose.pose.orientation.w;
+        offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
+
+        // Reiniciando nuvens parciais
+        acumulada_parcial->clear();
+
+        // Converte nuvem -> ja devia estar filtrada do outro no
+        PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
+        fromROSMsg(*msg_cloud, *nuvem_inst);
+        PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
+        fromROSMsg(*msg_pixels, *nuvem_pix);
+        // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
+        filterForNan(nuvem_inst, nuvem_pix);
+        // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
+        PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
+        PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
+        *nuvem_inst_total = *nuvem_inst;
+        *nuvem_pix_total  = *nuvem_pix ;
+
+        // Filtro de profundidade como vinda da GUI
+        passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
+        // Rotacao para corrigir odometria
+        transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
+        // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
+        acumulada_parcial->header.frame_id = "odom";
+        *acumulada_parcial += *nuvem_inst;
+
+        ROS_INFO("Nuvem parcial capturada");
+
+        // Acumular com a global, a depender se primeira vez ou nao
+        registra_global_icp(acumulada_parcial, q, offset);
+
+        // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
+        transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
+
+        // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
+        // REFERENCIA : left_zed->ASTRA->ZED->ODOM
+        Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
+        Eigen::Matrix3f rot_azo;
+        rot_azo = Tazo.block(0, 0, 3, 3);
+        Eigen::Quaternion<float>q_azo(rot_azo);
+        Eigen::Vector3f t_azo;
+        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
+
+        // Salva os dados na pasta do projeto -> PARCIAIS
+        if(acumulada_parcial->size() > 0){
+            this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
+            ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
+        }
+
+        // Salva no vetor de nuvens e poses para acumular tudo ao final
+        nuvem_pose n;
+        n.nuvem = *acumulada_parcial;
+        n.centro_camera = calcula_centro_camera(q_azo, t_azo);
+        np.push_back(n);
+
+        // Publica pra mostrar pra galera
+        this->publica_nuvens();
+        this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+        break;
+
+    }
+
+    // Fim do comando bag = 1 ou 2
+    // Reseta o comando para 0 e fica em aguardo
+    comando_bag = 0;
+
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::ProcessaOffline(){
     // Lendo a bag
     cout << "\n\nEntramos no processo offline com a bag " << caminho_bag << endl;
@@ -387,12 +523,18 @@ void Cloud_Work::ProcessaOffline(){
     topics.push_back(std::string("/pixels"         ));
     topics.push_back(std::string("/zed2"           ));
 
-    bool check_a = false, check_n = false, check_od = false, check_pi = false, check_z = false;
+    // Subscribers para sincronizar
+    BagSubscriber<sensor_msgs::Image      > sub_im_as ;
+    BagSubscriber<sensor_msgs::Image      > sub_im_zed;
+    BagSubscriber<sensor_msgs::PointCloud2> sub_nuvem ;
+    BagSubscriber<sensor_msgs::PointCloud2> sub_pixel ;
+    BagSubscriber<Odometry                > sub_odom  ;
+    syncoff.reset(new SyncOff(syncPolicy(100), sub_im_as, sub_im_zed, sub_nuvem, sub_pixel, sub_odom));
+    funcionou_porra = syncoff->registerCallback(boost::bind(&Cloud_Work::callback_offline, this, _1, _2, _3, _4, _5));
+
     sensor_msgs::PointCloud2ConstPtr msg_cloud, msg_pixels;
     sensor_msgs::ImageConstPtr msg_ast_image, msg_zed_image;
     OdometryConstPtr msg_odom;
-
-    ros::Rate r(1);
 
     rosbag::View view(bag, rosbag::TopicQuery(topics));
 
@@ -401,125 +543,35 @@ void Cloud_Work::ProcessaOffline(){
     BOOST_FOREACH(rosbag::MessageInstance const m, view){
         if(m.getTopic() == "/astra2"){
             msg_ast_image = m.instantiate<sensor_msgs::Image>();
-            check_a = true;
+            if(msg_ast_image != NULL)
+                sub_im_as.newMessage(msg_ast_image);
         }
         if(m.getTopic() == "/astra_projetada"){
             msg_cloud = m.instantiate<sensor_msgs::PointCloud2>();
-            check_n = true;
+            if(msg_cloud != NULL)
+                sub_nuvem.newMessage(msg_cloud);
         }
         if(m.getTopic() == "/odom2"){
             msg_odom = m.instantiate<Odometry>();
-            check_od = true;
+            if(msg_odom != NULL)
+                sub_odom.newMessage(msg_odom);
         }
         if(m.getTopic() == "/pixels"){
             msg_pixels = m.instantiate<sensor_msgs::PointCloud2>();
-            check_pi = true;
+            if(msg_pixels != NULL)
+                sub_pixel.newMessage(msg_pixels);
         }
         if(m.getTopic() == "/zed2"){
             msg_zed_image = m.instantiate<sensor_msgs::Image>();
-            check_z = true;
+            if(msg_zed_image != NULL)
+                sub_im_zed.newMessage(msg_zed_image);
         }
 
-        // Se todas chegaram, trabalhar dependendo do comando externo
-        if(check_a && check_n && check_od && check_pi && check_z){
-            conjunto_dados_atual++;
-            this->publica_nuvens();
-            this->publica_nuvens_offline(msg_zed_image, msg_cloud);
-            // Aguarda comando aqui
-            while(comando_bag == 0){
-                this->publica_nuvens();
-                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
-                ROS_INFO("Aguardando comando da GUI no conjunto %d ....", conjunto_dados_atual);
-                r.sleep();
-            }
-
-            if(comando_bag == 1){ // Nao vamos usar essas mensagens
-
-                ROS_INFO("Nao usou o conjunto %d na acumulacao!", conjunto_dados_atual);
-                this->publica_nuvens();
-                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
-
-            } else if(comando_bag == 2){ // Aqui deveria ter o mesmo processamento visto quando online
-
-                // Converte odometria -> so uma vez no inicio para evitar drifts
-                Eigen::Quaternion<float> q;
-                Eigen::Vector3f offset;
-
-                // Converte odometria -> so uma vez no inicio para evitar drifts
-                q.x() = (float)msg_odom->pose.pose.orientation.x;
-                q.y() = (float)msg_odom->pose.pose.orientation.y;
-                q.z() = (float)msg_odom->pose.pose.orientation.z;
-                q.w() = (float)msg_odom->pose.pose.orientation.w;
-                offset << msg_odom->pose.pose.position.x, msg_odom->pose.pose.position.y, msg_odom->pose.pose.position.z;
-
-                // Reiniciando nuvens parciais
-                acumulada_parcial->clear();
-
-                // Converte nuvem -> ja devia estar filtrada do outro no
-                PointCloud<PointC  >::Ptr nuvem_inst (new PointCloud<PointC  >());
-                fromROSMsg(*msg_cloud, *nuvem_inst);
-                PointCloud<PointXYZ>::Ptr nuvem_pix  (new PointCloud<PointXYZ>());
-                fromROSMsg(*msg_pixels, *nuvem_pix);
-                // Garante que nao ha nenhum nan, e se tiver remove tambem na nuvem de pixels
-                filterForNan(nuvem_inst, nuvem_pix);
-                // Guarda a nuvem total, para o bat aproveitar melhor a otimizacao
-                PointCloud<PointC  >::Ptr nuvem_inst_total (new PointCloud<PointC  >());
-                PointCloud<PointXYZ>::Ptr nuvem_pix_total  (new PointCloud<PointXYZ>());
-                *nuvem_inst_total = *nuvem_inst;
-                *nuvem_pix_total  = *nuvem_pix ;
-
-                // Filtro de profundidade como vinda da GUI
-                passthrough(nuvem_inst, nuvem_pix, "z", 0, profundidade_max);
-                // Rotacao para corrigir odometria
-                transformPointCloud<PointC>(*nuvem_inst, *nuvem_inst, offset_astra_zed, rot_astra_zed);
-                transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, offset_astra_zed, rot_astra_zed);
-                // Acumulacao durante a aquisicao instantanea, sem transladar com a odometria
-                acumulada_parcial->header.frame_id = "odom";
-                *acumulada_parcial += *nuvem_inst;
-
-                ROS_INFO("Nuvem parcial capturada");
-
-                // Acumular com a global, a depender se primeira vez ou nao
-                registra_global_icp(acumulada_parcial, q, offset);
-
-                // Corrigir a nuvem completa tambem, para ser otimizada com o melhor chute inicial
-                transformPointCloud<PointC>(*nuvem_inst_total, *nuvem_inst_total, T_corrigida);
-
-                // Calculo da pose da camera com transformaçoes homogeneas antes de obter quaternions e translacao
-                // REFERENCIA : left_zed->ASTRA->ZED->ODOM
-                Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
-                Eigen::Matrix3f rot_azo;
-                rot_azo = Tazo.block(0, 0, 3, 3);
-                Eigen::Quaternion<float>q_azo(rot_azo);
-                Eigen::Vector3f t_azo;
-                t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
-
-                // Salva os dados na pasta do projeto -> PARCIAIS
-                if(acumulada_parcial->size() > 0){
-                    this->salva_dados_parciais(acumulada_parcial, msg_zed_image, msg_ast_image, nuvem_pix_total, nuvem_inst_total);
-                    ROS_INFO("Dados Parciais %d salvos!", contador_imagens);
-                }
-
-                // Salva no vetor de nuvens e poses para acumular tudo ao final
-                nuvem_pose n;
-                n.nuvem = *acumulada_parcial;
-                n.centro_camera = calcula_centro_camera(q_azo, t_azo);
-                np.push_back(n);
-
-                // Publica pra mostrar pra galera
-                this->publica_nuvens();
-                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
-
-            } // Fim do comando bag = 1 ou 2
-            // Reseta o comando para 0 e fica em aguardo
-            comando_bag = 0;
-            // Zera todos os marcadores e aguarda as novas mensagens
-            check_a = check_n = check_od = check_pi = check_z = false;
-        } // Fim do if para todos os checks
     } // Fim do FOREACH message
 
     bag.close();
     vamos_de_bag = false; // Ja fizemos tudo com os dados, para o programa seguir como de costume e nao cair
+    ROS_WARN("Acabamos a leitura da BAG offline, salve sua reconstrucao!!!!");
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
@@ -554,9 +606,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
 
-//    cout << "\n Calculo do Juliano:\n";
-//    this->printT(T_depth_astra_zed);
-
     if(imagePointsZed.size() > 9)
         Tazo = T_depth_astra_zed;
 
@@ -579,13 +628,10 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
 
     // Chamar aqui o bat para otimizar em cima de toda a matriz de Transformacao
     // Otimizar foco, rotacao e posicao para ZED
-//    cout << "\n Antes do bat:\n";
-//    this->printT(Tazo);
     camera co; // camera com resultados para otimizar
     Eigen::Vector2f s(imgzptr->image.cols/2.0, imgzptr->image.rows/2.0);
     bool funcionou;
     co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
-    //    co = bat(imagePointsZed, objectPointsZed, T_depth_astra_zed, fzed, s, funcionou);
     cout << endl << "Foi usado o bat? " << funcionou << endl;
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
@@ -596,8 +642,7 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
         fzed = 1462.0;
     }
     cout << "\n Depois do bat, com foco " << fzed <<":\n";
-    //    this->printT(Tazo);
-//    if(funcionou){
+
         Eigen::Matrix3f rot_azo;
         rot_azo << Tazo.block(0, 0, 3, 3);
         Eigen::Quaternion<float>q_azo(rot_azo);
@@ -628,9 +673,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
         // Salvar nuvem em arquivo .ply
         if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
             ROS_INFO("Nuvem parcial %d salva!", contador_imagens);
-//    } else {
-//        ROS_INFO("Nao salvou o arquivo parcial porque o bat nao conseguiu otimizar.");
-//    }
 
 } // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -879,7 +921,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
             foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
 
     /// Parametros para os bats ///
-    int nbats = 10000;
+    int nbats = 2000;
     float alfa = 0.5, lambda = 0.6, beta = 0.2, e = -0.1;
 
     // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
@@ -889,7 +931,7 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
     float fob_temp = 0;
 
     // Iteraçoes
-    int t = 0, t_max = 70, t_lim = 10;
+    int t = 0, t_max = 40, t_lim = 7;
 
     /// Iniciando os bats
     Eigen::MatrixXf bats(nbats, rest.cols());
@@ -1106,8 +1148,8 @@ void Cloud_Work::salva_nvm_acumulada(std::string nome){
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::reiniciar(){
     // Reinicia tudo que pode ser reiniciado aqui
-    acumulada_global->clear(); acumulada_parcial->clear();
-    acumulada_parcial_anterior->clear();
+    acumulada_global->clear(); acumulada_global_anterior->clear();
+    acumulada_parcial->clear(); acumulada_parcial_anterior->clear();
     np.clear();
 
     system("gnome-terminal -x sh -c 'rosservice call /zed/reset_odometry'");

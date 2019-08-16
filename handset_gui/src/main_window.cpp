@@ -39,9 +39,11 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     controle_gravacao = false; // Nao estamos gravando ainda
     ui.pushButton_capturar->setStyleSheet("background-color: rgb(100, 200, 250); color: rgb(0, 0, 0)");
     ui.pushButton_naocapturar->setStyleSheet("background-color: rgb(250, 100, 80); color: rgb(0, 0, 0)");
+    ui.pushButton_corrigirultimacaptura->setStyleSheet("background-color: rgb(250, 0, 50); color: rgb(0, 0, 0)");
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
     ui.pushButton_naocapturar->setEnabled(false); // So se as cameras ligarem ele habilita
+    ui.pushButton_corrigirultimacaptura->setEnabled(false); // So se as cameras ligarem ele habilita
     ui.checkBox_online->setChecked(false);
     ui.groupBox_gravardados->setVisible(false);
 
@@ -132,6 +134,11 @@ void MainWindow::on_pushButton_capturar_clicked(){
     }
 }
 
+/// Botao para corrigir ultima captura caso de algum erro
+void MainWindow::on_pushButton_corrigirultimacaptura_clicked(){
+    cw.set_comando_bag(3); // Assim mandamos corrigir la dentro da classe
+}
+
 /// Botao para gravar a parar gravacao da bag
 void MainWindow::on_pushButton_gravardados_clicked(){
     std::string bag = ui.lineEdit_nomebag->text().toStdString();
@@ -155,11 +162,13 @@ void MainWindow::on_checkBox_online_clicked(){
         ui.pushButton_selecionabag->setVisible(false);
         ui.lineEdit_nomeplaybag->setVisible(false);
         ui.pushButton_naocapturar->setVisible(false);
+        ui.pushButton_corrigirultimacaptura->setVisible(false);
         ui.groupBox_gravardados->setVisible(true);
     } else {
         ui.pushButton_selecionabag->setVisible(true);
         ui.lineEdit_nomeplaybag->setVisible(true);
         ui.pushButton_naocapturar->setVisible(true);
+        ui.pushButton_corrigirultimacaptura->setVisible(true);
         ui.groupBox_gravardados->setVisible(false);
     }
 }

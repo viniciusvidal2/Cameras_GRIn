@@ -88,6 +88,7 @@
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/connection.h>
+#include <message_filters/simple_filter.h>
 
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
@@ -134,7 +135,9 @@ private:
 
     typedef sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::PointCloud2, sensor_msgs::PointCloud2, Odometry> syncPolicy;
     typedef Synchronizer<syncPolicy> Sync;
+    typedef Synchronizer<syncPolicy> SyncOff;
     boost::shared_ptr<Sync> sync;
+    boost::shared_ptr<SyncOff> syncoff;
     message_filters::Connection funcionou_porra;
 
     /// Procedimentos internos ///
@@ -146,6 +149,9 @@ private:
     void callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_image, const sensor_msgs::ImageConstPtr &msg_zed_image,
                              const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
                              const OdometryConstPtr &msg_odom);
+    void callback_offline(const sensor_msgs::ImageConstPtr &msg_ast_image, const sensor_msgs::ImageConstPtr &msg_zed_image,
+                          const sensor_msgs::PointCloud2ConstPtr &msg_cloud, const sensor_msgs::PointCloud2ConstPtr &msg_pixels,
+                          const OdometryConstPtr &msg_odom);
     void registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Quaternion<float> rot, Eigen::Vector3f offset);
     void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix_total, PointCloud<PointC>::Ptr nuvem_bat);
     void salva_nvm_acumulada(std::string nome);
@@ -173,6 +179,7 @@ private:
     float fzed, fastra;
     // Nuvem acumulada total
     PointCloud<PointC>::Ptr acumulada_global;
+    PointCloud<PointC>::Ptr acumulada_global_anterior;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
     PointCloud<PointC>::Ptr acumulada_parcial;
     PointCloud<PointC>::Ptr acumulada_parcial_anterior;
@@ -193,7 +200,7 @@ private:
     // Bool para controle de se vamos por bag ou online
     bool vamos_de_bag;
     // Comando do que fazer com cada leitura de bag que vier
-    int comando_bag; // 0 nao faz nada, 1 pula a mensagem e 2 realmente processa
+    int comando_bag; // 0 nao faz nada, 1 pula a mensagem, 2 realmente processa, 3 corrige a ultima acumulacao errada
     int conjunto_dados_atual; // Contador para qual conjunto de dados e o atual na leitura de bag offline
     // Modelo da camera astra
     image_geometry::PinholeCameraModel astra_model;

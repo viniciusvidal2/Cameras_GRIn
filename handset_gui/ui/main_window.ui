@@ -80,10 +80,10 @@
        <widget class="QGroupBox" name="groupBox_captura">
         <property name="geometry">
          <rect>
-          <x>270</x>
+          <x>250</x>
           <y>180</y>
-          <width>231</width>
-          <height>181</height>
+          <width>291</width>
+          <height>201</height>
          </rect>
         </property>
         <property name="title">
@@ -97,7 +97,7 @@
           <rect>
            <x>20</x>
            <y>20</y>
-           <width>192</width>
+           <width>251</width>
            <height>80</height>
           </rect>
          </property>
@@ -155,8 +155,8 @@
           <rect>
            <x>20</x>
            <y>100</y>
-           <width>191</width>
-           <height>80</height>
+           <width>251</width>
+           <height>101</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -333,6 +333,77 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="pushButton_corrigirultimacaptura">
+            <property name="palette">
+             <palette>
+              <active>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>239</red>
+                  <green>41</green>
+                  <blue>41</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>164</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </active>
+              <inactive>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>239</red>
+                  <green>41</green>
+                  <blue>41</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>164</red>
+                  <green>0</green>
+                  <blue>0</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </inactive>
+              <disabled>
+               <colorrole role="Button">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="255">
+                  <red>239</red>
+                  <green>41</green>
+                  <blue>41</blue>
+                 </color>
+                </brush>
+               </colorrole>
+               <colorrole role="ButtonText">
+                <brush brushstyle="SolidPattern">
+                 <color alpha="96">
+                  <red>164</red>
+                  <green>166</green>
+                  <blue>168</blue>
+                 </color>
+                </brush>
+               </colorrole>
+              </disabled>
+             </palette>
+            </property>
+            <property name="text">
+             <string>Corrigir ultima captura</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="pushButton_encerrar">
             <property name="text">
              <string>Encerrar Captura</string>
@@ -346,7 +417,7 @@
         <property name="geometry">
          <rect>
           <x>40</x>
-          <y>380</y>
+          <y>400</y>
           <width>711</width>
           <height>25</height>
          </rect>
@@ -359,7 +430,7 @@
         <property name="geometry">
          <rect>
           <x>40</x>
-          <y>410</y>
+          <y>430</y>
           <width>711</width>
           <height>25</height>
          </rect>

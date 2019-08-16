@@ -49,13 +49,13 @@ void Cloud_Work::init(){
     acumulada_parcial              = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_parcial_anterior     = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
     acumulada_global               = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
-//    acumulada_parcial_frame_camera = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
-//    temp_nvm                       = (PointCloud<PointC>::Ptr) new PointCloud<PointC>;
 
     // Inicia publicadores de nuvens
     pub_parcial = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_parcial", 10);
     pub_global  = nh_.advertise<sensor_msgs::PointCloud2>("/acumulada_global" , 10);
 
+    pub_nuvemastra_offline = nh_.advertise<sensor_msgs::PointCloud2>("/astra_fonte_offline", 10);
+    pub_zed_offline = nh_.advertise<sensor_msgs::Image>("/zed_offline", 10);
 
     // Subscribers para sincronizar
     message_filters::Subscriber<sensor_msgs::Image      > sub_im_as (nh_, "/astra2"         , 10);
@@ -82,6 +82,10 @@ void Cloud_Work::init(){
 
     // Inicio do mutex de acumulacao - verdadeiro se estamos acumulando
     mutex_acumulacao = false;
+
+    // Controle de online ou offline iniciando como false, que e o normal, e o GUI mandara do contrario qualquer coisa
+    vamos_de_bag = false;
+    comando_bag = 0;
 
     // Definicao de rotacao fixa entre frame da ASTRA e da ZED -> de ASTRA->ZED A PRINCIPIO
     Eigen::Matrix3f matrix;
@@ -139,6 +143,12 @@ void Cloud_Work::publica_nuvens(){
     toROSMsg(*acumulada_global , global );
     pub_parcial.publish(parcial);
     pub_global.publish(global);
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void Cloud_Work::publica_nuvens_offline(sensor_msgs::ImageConstPtr im, sensor_msgs::PointCloud2ConstPtr pt){
+    // Convertendo e Publicando
+    pub_zed_offline.publish(*im);
+    pub_nuvemastra_offline.publish(*pt);
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::filter_grid(PointCloud<PointC>::Ptr cloud, float leaf_size){
@@ -365,10 +375,10 @@ void Cloud_Work::callback_acumulacao(const sensor_msgs::ImageConstPtr &msg_ast_i
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::ProcessaOffline(){
     // Lendo a bag
-    cout << "\n\nEntramos no processo offline com a bag " << caminho_bag.toStdString().c_str() << endl;
+    cout << "\n\nEntramos no processo offline com a bag " << caminho_bag << endl;
     rosbag::Bag bag;
-    if(!caminho_bag.isNull())
-        bag.open(caminho_bag.toStdString().c_str(),rosbag::bagmode::Read);
+    if(!caminho_bag.empty())
+        bag.open(caminho_bag,rosbag::bagmode::Read);
 
     std::vector<std::string> topics;
     topics.push_back(std::string("/astra2"         ));
@@ -387,6 +397,7 @@ void Cloud_Work::ProcessaOffline(){
     rosbag::View view(bag, rosbag::TopicQuery(topics));
 
     /// Para cada grupo de mensagens sincronizadas da bag resolver o que faz
+    conjunto_dados_atual = 0;
     BOOST_FOREACH(rosbag::MessageInstance const m, view){
         if(m.getTopic() == "/astra2"){
             msg_ast_image = m.instantiate<sensor_msgs::Image>();
@@ -411,18 +422,22 @@ void Cloud_Work::ProcessaOffline(){
 
         // Se todas chegaram, trabalhar dependendo do comando externo
         if(check_a && check_n && check_od && check_pi && check_z){
+            conjunto_dados_atual++;
             this->publica_nuvens();
+            this->publica_nuvens_offline(msg_zed_image, msg_cloud);
             // Aguarda comando aqui
             while(comando_bag == 0){
                 this->publica_nuvens();
-                ROS_INFO("Aguardando comando da GUI.....");
+                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+                ROS_INFO("Aguardando comando da GUI no conjunto %d ....", conjunto_dados_atual);
                 r.sleep();
             }
 
             if(comando_bag == 1){ // Nao vamos usar essas mensagens
 
+                ROS_INFO("Nao usou o conjunto %d na acumulacao!", conjunto_dados_atual);
                 this->publica_nuvens();
-                comando_bag = 0;
+                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
 
             } else if(comando_bag == 2){ // Aqui deveria ter o mesmo processamento visto quando online
 
@@ -493,9 +508,11 @@ void Cloud_Work::ProcessaOffline(){
 
                 // Publica pra mostrar pra galera
                 this->publica_nuvens();
+                this->publica_nuvens_offline(msg_zed_image, msg_cloud);
 
             } // Fim do comando bag = 1 ou 2
-
+            // Reseta o comando para 0 e fica em aguardo
+            comando_bag = 0;
             // Zera todos os marcadores e aguarda as novas mensagens
             check_a = check_n = check_od = check_pi = check_z = false;
         } // Fim do if para todos os checks
@@ -789,7 +806,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
         indices_nuvem.resize(goodKeypointsLeft.size(), -1);
         std::vector<float> melhores_distancias;
         melhores_distancias.resize(indices_nuvem.size(), 1000);
-        int lim_coord = 7; // Limite de distancia ao quadrado em pixels para cada coordenada
+        int lim_coord = 4; // Limite de distancia ao quadrado em pixels para cada coordenada
 
         #pragma omp parallel for num_threads(int(goodLeftKeypoints.size()))
         for(int i=0; i < goodKeypointsLeft.size(); i++) {
@@ -862,8 +879,8 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
             foco_est+libf, T_est(0, 3)+libt, T_est(1, 3)+libt, T_est(2, 3)+libt;
 
     /// Parametros para os bats ///
-    int nbats = 100;
-    float alfa = 0.7, lambda = 0.5, beta = 0.2, e = -0.01;
+    int nbats = 10000;
+    float alfa = 0.5, lambda = 0.6, beta = 0.2, e = -0.1;
 
     // Caracteristicas dos bats (velocidade, taxa de emissao de pulso e amplitude sonora
     Eigen::MatrixXf v(nbats, rest.cols()), r(nbats, rest.cols());
@@ -1121,7 +1138,7 @@ void Cloud_Work::set_profundidade_max(float d){
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::set_nome_bag(QString nome){
-    caminho_bag = nome;
+    caminho_bag = nome.toStdString();
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::set_dados_online_offline(bool vejamos){

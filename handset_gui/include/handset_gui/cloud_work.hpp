@@ -150,6 +150,7 @@ private:
     void salva_dados_parciais(PointCloud<PointC>::Ptr cloud, const sensor_msgs::ImageConstPtr &imagem_zed, const sensor_msgs::ImageConstPtr &imagem_ast, PointCloud<PointXYZ>::Ptr nuvem_pix_total, PointCloud<PointC>::Ptr nuvem_bat);
     void salva_nvm_acumulada(std::string nome);
     void publica_nuvens();
+    void publica_nuvens_offline(sensor_msgs::ImageConstPtr im, sensor_msgs::PointCloud2ConstPtr pt);
     void calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc, PointCloud<PointC> cloud, Eigen::MatrixXf C, int K);
     void comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr zed, PointCloud<PointC>::Ptr cloud);
     void resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud<PointC>::Ptr nuvem_total_bat, cv_bridge::CvImagePtr zed);
@@ -173,10 +174,8 @@ private:
     // Nuvem acumulada total
     PointCloud<PointC>::Ptr acumulada_global;
     // Nuvem acumulada parcial atual e anterior, para cada intervalo de aquisicao
-//    PointCloud<PointC>::Ptr acumulada_parcial_frame_camera;
     PointCloud<PointC>::Ptr acumulada_parcial;
     PointCloud<PointC>::Ptr acumulada_parcial_anterior;
-//    PointCloud<PointC>::Ptr temp_nvm;
     // Matriz de transformacao para a aproximacao ICP
     Eigen::Matrix4f T_icp;
     // Transformacoes para calculo de movimento relativo e otimizacao do chute inicial do ICP
@@ -185,14 +184,17 @@ private:
     // Publicadores para nuvem parcial e total;
     ros::Publisher pub_global;
     ros::Publisher pub_parcial;
+    ros::Publisher pub_zed_offline;
+    ros::Publisher pub_nuvemastra_offline;
     // Pasta onde sera guardado o projeto para o MART e tudo o mais
     std::string pasta;
     // Caminho completo para a bag de dados
-    QString caminho_bag;
+    std::string caminho_bag;
     // Bool para controle de se vamos por bag ou online
     bool vamos_de_bag;
     // Comando do que fazer com cada leitura de bag que vier
     int comando_bag; // 0 nao faz nada, 1 pula a mensagem e 2 realmente processa
+    int conjunto_dados_atual; // Contador para qual conjunto de dados e o atual na leitura de bag offline
     // Modelo da camera astra
     image_geometry::PinholeCameraModel astra_model;
     /// ARQUIVO NVM

@@ -218,7 +218,7 @@ Eigen::Matrix4f Cloud_Work::qt2T(Eigen::Quaternion<float> rot, Eigen::Vector3f o
 ///////////////////////////////////////////////////////////////////////////////////////////
 void Cloud_Work::removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<PointXYZ>::Ptr out){
     PointXYZ point;
-    for (int i=0; i<in->size(); i++) {
+    for (unsigned long i=0; i<in->size(); i++) {
         point.x = in->points[i].x;
         point.y = in->points[i].y;
         point.z = in->points[i].z;
@@ -613,12 +613,12 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     ofstream temp(arquivo_corr);
     if(temp.is_open()){
         temp << std::to_string(imagePointsZed.size())+"\n";
-        for (int k=0;k<imagePointsZed.size();k++) {
+        for (unsigned long k=0;k<imagePointsZed.size();k++) {
             std::string linha = std::to_string(imagePointsZed[k].x) + " " + std::to_string(imagePointsZed[k].y) + "\n";
             std::replace(linha.begin(), linha.end(), ',', '.');
             temp << linha;
         }
-        for (int k=0;k<objectPointsZed.size();k++) {
+        for (unsigned long k=0;k<objectPointsZed.size();k++) {
             std::string linha = std::to_string(objectPointsZed[k].x) + " " + std::to_string(objectPointsZed[k].y) + " " + std::to_string(objectPointsZed[k].z) + "\n";
             std::replace(linha.begin(), linha.end(), ',', '.');
             temp << linha;
@@ -827,7 +827,7 @@ void Cloud_Work::comparaSift(cv_bridge::CvImagePtr astra, cv_bridge::CvImagePtr 
         std::string pasta = std::string(home)+"/Desktop/teste/";
         Mat a, z;
         astra->image.copyTo(a); zed->image.copyTo(z);
-        for(int i=0; i<goodKeypointsLeft.size(); i++){
+        for(size_t i=0; i<goodKeypointsLeft.size(); i++){
             cv::Scalar color = cv::Scalar(rand() % 255, rand() % 255, rand() % 255);
             circle(a, goodKeypointsLeft[i].pt, 5, color, 2);
             circle(z, goodKeypointsRight[i].pt, 5, color, 2);
@@ -851,8 +851,8 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
         int lim_coord = 4; // Limite de distancia ao quadrado em pixels para cada coordenada
 
         #pragma omp parallel for num_threads(int(goodLeftKeypoints.size()))
-        for(int i=0; i < goodKeypointsLeft.size(); i++) {
-            for(int j=0; j < pixeis->size(); j++){
+        for(size_t i=0; i < goodKeypointsLeft.size(); i++) {
+            for(unsigned long j=0; j < pixeis->size(); j++){
                 float dx2 = (pixeis->points[j].x - goodKeypointsLeft[i].pt.x)*(pixeis->points[j].x - goodKeypointsLeft[i].pt.x);
                 float dy2 = (pixeis->points[j].y - goodKeypointsLeft[i].pt.y)*(pixeis->points[j].y - goodKeypointsLeft[i].pt.y);
 
@@ -866,7 +866,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
         // Relacionando pontos 3D com o SIFT da Zed
         imagePointsZed.clear();
         objectPointsZed.clear();
-        for (int i=0; i<indices_nuvem.size(); i++)
+        for (unsigned long i=0; i<indices_nuvem.size(); i++)
         {
             if (indices_nuvem[i] == -1)
                 continue;
@@ -1068,8 +1068,8 @@ void Cloud_Work::salvar_acumulada(){
     PointCloud<PointCN>::Ptr acumulada_global_normais      (new PointCloud<PointCN>());
     PointCloud<PointCN>::Ptr acumulada_global_normais_temp (new PointCloud<PointCN>());
     PointCloud<PointC>::Ptr cameras_temp (new PointCloud<PointC>());
-    for(int i=0; i < np.size(); i++){
-        ROS_INFO("Calculando normais na nuvem %d, de %d totais, aguarde...", i+1, np.size());
+    for(unsigned long i=0; i < np.size(); i++){
+        ROS_INFO("Calculando normais na nuvem %zu, de %zu totais, aguarde...", i+1, np.size());
         // Acumula para cada nuvem calculando as normais no sentido correto
         calcula_normais_com_pose_camera(acumulada_global_normais_temp, np.at(i).nuvem, np.at(i).centro_camera, 30);
         *acumulada_global_normais += *acumulada_global_normais_temp;
@@ -1116,7 +1116,7 @@ void Cloud_Work::calcula_normais_com_pose_camera(PointCloud<PointCN>::Ptr acc_te
     removeNaNNormalsFromPointCloud(*acc_temp, *acc_temp, indicesnan);
 
     // Forcar virar as normais na marra
-    for(int i=0; i < acc_temp->size(); i++){
+    for(unsigned long i=0; i < acc_temp->size(); i++){
         Eigen::Vector3f normal, cp;
         normal << acc_temp->points[i].normal_x, acc_temp->points[i].normal_y, acc_temp->points[i].normal_z;
         cp << p(0)-acc_temp->points[i].x, p(1)-acc_temp->points[i].y, p(2)-acc_temp->points[i].z;
@@ -1137,7 +1137,7 @@ void Cloud_Work::salva_nvm_acumulada(std::string nome){
     if(file.is_open()){
         file << "NVM_V3\n\n";
         file << std::to_string(acumulada_imagens.size())+"\n"; // Quantas imagens
-        for(int i=0; i < acumulada_imagens.size(); i++){ // Escreve todos os nomes acumulados de imagens
+        for(unsigned long i=0; i < acumulada_imagens.size(); i++){ // Escreve todos os nomes acumulados de imagens
             file << acumulada_imagens[i];
         }
     }

@@ -38,7 +38,7 @@ MainWindow::MainWindow(int argc, char** argv, QWidget *parent)
     ui.aba_1->setCurrentIndex(0); // ensure the first tab is showing - qt-designer should have this already hardwired, but often loses it (settings?).
     controle_gravacao = false; // Nao estamos gravando ainda
     ui.pushButton_capturar->setStyleSheet("background-color: rgb(100, 200, 250); color: rgb(0, 0, 0)");
-    ui.pushButton_naocapturar->setStyleSheet("background-color: rgb(250, 100, 80); color: rgb(0, 0, 0)");
+    ui.pushButton_naocapturar->setStyleSheet("background-color: rgb(250, 250, 0); color: rgb(0, 0, 0)");
     ui.pushButton_corrigirultimacaptura->setStyleSheet("background-color: rgb(250, 0, 50); color: rgb(0, 0, 0)");
     ui.pushButton_gravardados->setStyleSheet("background-color: rgb(0, 200, 50); color: rgb(0, 0, 0)");
     ui.pushButton_capturar->setEnabled(false); // So se as cameras ligarem ele habilita
@@ -106,6 +106,7 @@ void MainWindow::on_pushButton_inicio_clicked(){
     }
     ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
     ui.pushButton_naocapturar->setEnabled(true); // Agora pode nao capturar
+    ui.pushButton_corrigirultimacaptura->setEnabled(true); // Agora rola de corrigir a captura defeituosa
 }
 
 /// Botao de selecionar a bag a tocar

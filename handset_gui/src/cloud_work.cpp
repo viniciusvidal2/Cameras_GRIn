@@ -399,6 +399,7 @@ void Cloud_Work::callback_offline(const sensor_msgs::ImageConstPtr &msg_ast_imag
     conjunto_dados_atual++;
     this->publica_nuvens();
     this->publica_nuvens_offline(msg_zed_image, msg_cloud);
+
     // Aguarda comando aqui
     while(comando_bag == 0){
         this->publica_nuvens();
@@ -606,8 +607,8 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     ///// Escrevendo para a zed aqui /////
     Eigen::Matrix4f Tazo = T_astra_zed*T_corrigida.inverse();
 
-    if(imagePointsZed.size() > 9)
-        Tazo = T_depth_astra_zed;
+//    if(imagePointsZed.size() > 9)
+//        Tazo = T_depth_astra_zed;
 
     // Arquivo para conferencia de pontos 2D com 3D
     ofstream temp(arquivo_corr);
@@ -632,7 +633,6 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     Eigen::Vector2f s(imgzptr->image.cols/2.0, imgzptr->image.rows/2.0);
     bool funcionou;
     co = bat(imagePointsZed, objectPointsZed, Tazo, fzed, s, funcionou);
-    cout << endl << "Foi usado o bat? " << funcionou << endl;
 
     // Uma vez otimizado pelo bat a partir das correspondencias de pontos
     if(funcionou){
@@ -643,36 +643,36 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     }
     cout << "\n Depois do bat, com foco " << fzed <<":\n";
 
-        Eigen::Matrix3f rot_azo;
-        rot_azo << Tazo.block(0, 0, 3, 3);
-        Eigen::Quaternion<float>q_azo(rot_azo);
-        Eigen::Vector3f t_azo;
-        t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
+    Eigen::Matrix3f rot_azo;
+    rot_azo << Tazo.block(0, 0, 3, 3);
+    Eigen::Quaternion<float>q_azo(rot_azo);
+    Eigen::Vector3f t_azo;
+    t_azo << Tazo(0, 3), Tazo(1, 3), Tazo(2, 3);
 
-        // Centro da camera, para escrever no arquivo NVM
-        Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
+    // Centro da camera, para escrever no arquivo NVM
+    Eigen::MatrixXf C = calcula_centro_camera(q_azo, t_azo);
 
-        // Escreve o arquivo NVM parcial, super necessario
-        ofstream nvmz(arquivo_nvm_z);
-        if(nvmz.is_open()){
+    // Escreve o arquivo NVM parcial, super necessario
+    ofstream nvmz(arquivo_nvm_z);
+    if(nvmz.is_open()){
 
-            nvmz << "NVM_V3\n\n";
-            nvmz << "1\n"; // Quantas imagens, sempre uma aqui
-            std::string linha_imagem = escreve_linha_imagem(fzed, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
-            nvmz << linha_imagem; // Imagem com detalhes de camera
-            // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
-            acumulada_imagens.push_back(linha_imagem);
+        nvmz << "NVM_V3\n\n";
+        nvmz << "1\n"; // Quantas imagens, sempre uma aqui
+        std::string linha_imagem = escreve_linha_imagem(fzed, arquivo_imzed, C, q_azo); // Imagem com detalhes de camera
+        nvmz << linha_imagem; // Imagem com detalhes de camera
+        // Anota no vetor de imagens que irao para o arquivo NVM da nuvem acumulada
+        acumulada_imagens.push_back(linha_imagem);
 
-        } // fim do if is open
-        nvmz.close(); // Fechar para nao ter erro
+    } // fim do if is open
+    nvmz.close(); // Fechar para nao ter erro
 
-        // Calcular normais para a nuvem
-        pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
-        calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
+    // Calcular normais para a nuvem
+    pcl::PointCloud<PointCN>::Ptr final_parcial (new pcl::PointCloud<PointCN>);
+    calcula_normais_com_pose_camera(final_parcial, *cloud, C, 30);
 
-        // Salvar nuvem em arquivo .ply
-        if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
-            ROS_INFO("Nuvem parcial %d salva!", contador_imagens);
+    // Salvar nuvem em arquivo .ply
+    if(pcl::io::savePLYFileASCII(arquivo_nuvem, *final_parcial))
+        ROS_INFO("Nuvem parcial %d salva!", contador_imagens);
 
 } // Fim da funcao de salvar arquivos parciais
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -848,7 +848,7 @@ void Cloud_Work::resolveAstraPixeis(PointCloud<PointXYZ>::Ptr pixeis, PointCloud
         indices_nuvem.resize(goodKeypointsLeft.size(), -1);
         std::vector<float> melhores_distancias;
         melhores_distancias.resize(indices_nuvem.size(), 1000);
-        int lim_coord = 4; // Limite de distancia ao quadrado em pixels para cada coordenada
+        int lim_coord = 10; // Limite de distancia ao quadrado em pixels para cada coordenada
 
         #pragma omp parallel for num_threads(int(goodLeftKeypoints.size()))
         for(size_t i=0; i < goodKeypointsLeft.size(); i++) {
@@ -994,11 +994,11 @@ Cloud_Work::camera Cloud_Work::bat(std::vector<Point2f> xy_zed, std::vector<Poin
 
     // Traz os valores de volta para o range original a partir do melhor bat e guarda na camera
     float f_bom  = (rest(1,0) - rest(0,0))*(bats.row(indice_melhor_bat)(0) + 1)/2 + rest(0, 0);
-//    float tx_bom = (rest(1,1) - rest(0,1))*(bats.row(indice_melhor_bat)(1) + 1)/2 + rest(0, 1);
-//    float ty_bom = (rest(1,2) - rest(0,2))*(bats.row(indice_melhor_bat)(2) + 1)/2 + rest(0, 2);
-//    float tz_bom = (rest(1,3) - rest(0,3))*(bats.row(indice_melhor_bat)(3) + 1)/2 + rest(0, 3);
+    float tx_bom = (rest(1,1) - rest(0,1))*(bats.row(indice_melhor_bat)(1) + 1)/2 + rest(0, 1);
+    float ty_bom = (rest(1,2) - rest(0,2))*(bats.row(indice_melhor_bat)(2) + 1)/2 + rest(0, 2);
+    float tz_bom = (rest(1,3) - rest(0,3))*(bats.row(indice_melhor_bat)(3) + 1)/2 + rest(0, 3);
     c.foco = f_bom;
-//    T_est.block<3, 1>(0, 3) << tx_bom, ty_bom, tz_bom;
+    T_est.block<3, 1>(0, 3) << tx_bom, ty_bom, tz_bom;
     c.T << T_est;
 
     // Limpar os vetores

@@ -211,7 +211,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
     // Mensagem Nuvem de pixels
     toROSMsg(*nuvem_pixels, msg_pixels);
     msg_pixels.header.frame_id = nuvem_pixels->header.frame_id;
-    msg_pixels.header.stamp = ros::Time::now();
+    msg_pixels.header.stamp = msg_cor.header.stamp;
 
     // Mensagem Odometria
     Odometry msg_odo2 = *msg_odo;
@@ -223,7 +223,7 @@ void callback(const sensor_msgs::ImageConstPtr& msg_astra,
 
     // Mensagem para imagem da astra seguindo sincronizada
     sensor_msgs::Image msg_astra2 = *msg_astra;
-    msg_astra2.header.stamp = msg_astra->header.stamp;
+    msg_astra2.header.stamp = msg_cor.header.stamp;
 
     // Publicando tudo junto
     pub_odom.publish(msg_odo2);

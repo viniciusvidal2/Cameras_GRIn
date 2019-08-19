@@ -107,6 +107,8 @@ void MainWindow::on_pushButton_inicio_clicked(){
     ui.pushButton_capturar->setEnabled(true); // Agora pode capturar
     ui.pushButton_naocapturar->setEnabled(true); // Agora pode nao capturar
     ui.pushButton_corrigirultimacaptura->setEnabled(true); // Agora rola de corrigir a captura defeituosa
+
+    cw.set_frame_inicio_bag(ui.lineEdit_frameinicio->text().toInt()); // Setar o inicio da leitura da bag para nao perder tempo com o registrado anteriormente
 }
 
 /// Botao de selecionar a bag a tocar

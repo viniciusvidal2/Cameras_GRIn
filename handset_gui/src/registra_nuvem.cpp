@@ -56,7 +56,8 @@ void RegistraNuvem::init(){
     Eigen::Quaternion<float> rot_temp(matrix);
     rot_astra_zed = rot_temp.inverse(); // Aqui esta de ZED->ASTRA (nuvens)
 //    offset_astra_zed << 0.04936, 0.034, -0.00314; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, da LEFT_ZED para ASTRA_RGB
-    offset_astra_zed << 0.052, 0.01, -0.01; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, por reconfigure com imagem raw objetos proximos
+//    offset_astra_zed << 0.052, 0.01, -0.01; // No frame da ASTRA, apos rotaçao de ZED->ASTRA, por reconfigure com imagem raw objetos proximos
+    offset_astra_zed << 0, 0, 0; // Já resolvido antes de salvar na outra classe
     // Matriz de transformaçao que leva ASTRA->ZED, assim pode calcular posicao da CAMERA ao multiplicar por ZED->ODOM
     T_astra_zed << matrix, offset_astra_zed,
                    0, 0, 0, 1;
@@ -270,11 +271,12 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
-    icp.setMaximumIterations(500); // Chute inicial bom 10-100
+    icp.setMaximumIterations(300); // Chute inicial bom 10-100
     icp.setTransformationEpsilon(1*1e-10);
     icp.setEuclideanFitnessEpsilon(1*1e-12);
     icp.setMaxCorrespondenceDistance(0.1);
 
+    #pragma omp parallel
     PointCloud<PointT> final2;
     icp.align(final2, T);
 
@@ -519,7 +521,7 @@ std::string RegistraNuvem::escreve_linha_imagem(std::string pasta, camera c){
 ///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Vector3f RegistraNuvem::calcula_centroide(PointCloud<PointT>::Ptr cloud){
     float x = 0, y = 0, z = 0;
-    for(int i=0; i < cloud->size(); i++){
+    for(unsigned long i=0; i < cloud->size(); i++){
         x = x + cloud->points[i].x;
         y = y + cloud->points[i].y;
         z = z + cloud->points[i].z;
@@ -547,7 +549,8 @@ void RegistraNuvem::filter_color(PointCloud<PointT>::Ptr cloud_in, int rmin, int
   color_cond->addComparison (PackedRGBComparison<PointT>::Ptr (new PackedRGBComparison<PointT> ("b", ComparisonOps::GT, bMin)));
 
   // build the filter
-  ConditionalRemoval<PointT> condrem (color_cond);
+  ConditionalRemoval<PointT> condrem;
+  condrem.setCondition(color_cond);
   condrem.setInputCloud(cloud_in);
   condrem.setKeepOrganized(true);
 
@@ -612,7 +615,7 @@ void RegistraNuvem::aplica_filtro_polinomio(int grau){
   PointCloud<PointXYZRGB>::Ptr temp (new PointCloud<PointXYZRGB>());
   PointCloud<PointT>::Ptr tempnormal (new PointCloud<PointT>());
   PointXYZRGB point;
-  for(int i=0; i<nuvem_filtrar_temp->size(); i++){
+  for(unsigned long i=0; i<nuvem_filtrar_temp->size(); i++){
     point.x = nuvem_filtrar_temp->points[i].x;
     point.y = nuvem_filtrar_temp->points[i].y;
     point.z = nuvem_filtrar_temp->points[i].z;
@@ -621,7 +624,7 @@ void RegistraNuvem::aplica_filtro_polinomio(int grau){
     point.b = nuvem_filtrar_temp->points[i].b;
     temp->push_back(point);
   }
-  ROS_INFO("Tamanho da nuvem %d.", temp->size());
+  ROS_INFO("Tamanho da nuvem %zu.", temp->size());
   ROS_INFO("Começando a suavizar a nuvem...");
   pcl::search::KdTree<PointXYZRGB>::Ptr tree (new pcl::search::KdTree<PointXYZRGB>());
   MovingLeastSquares<PointXYZRGB, PointT> mls;
@@ -632,7 +635,7 @@ void RegistraNuvem::aplica_filtro_polinomio(int grau){
   mls.setInputCloud(temp);
   mls.process(*tempnormal);
   ROS_INFO("Nuvem suavizada!");
-  for(int i=0; i<nuvem_filtrar_temp->size(); i++){
+  for(unsigned long i=0; i<nuvem_filtrar_temp->size(); i++){
     nuvem_filtrar_temp->points[i].x = tempnormal->points[i].x;
     nuvem_filtrar_temp->points[i].y = tempnormal->points[i].y;
     nuvem_filtrar_temp->points[i].z = tempnormal->points[i].z;

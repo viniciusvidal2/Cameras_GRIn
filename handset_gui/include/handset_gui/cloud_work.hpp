@@ -124,6 +124,7 @@ public:
     void salvar_acumulada();
     void set_profundidade_max(float d);
     void set_comando_bag(int c);
+    void set_frame_inicio_bag(int f);
     void reiniciar();
     Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
@@ -199,9 +200,10 @@ private:
     std::string caminho_bag;
     // Bool para controle de se vamos por bag ou online
     bool vamos_de_bag;
-    // Comando do que fazer com cada leitura de bag que vier
+    // Controles para a leitura do bag
     int comando_bag; // 0 nao faz nada, 1 pula a mensagem, 2 realmente processa, 3 corrige a ultima acumulacao errada
     int conjunto_dados_atual; // Contador para qual conjunto de dados e o atual na leitura de bag offline
+    int frame_inicio_bag; // Frame onde vai começar a leitura do bag
     // Modelo da camera astra
     image_geometry::PinholeCameraModel astra_model;
     /// ARQUIVO NVM

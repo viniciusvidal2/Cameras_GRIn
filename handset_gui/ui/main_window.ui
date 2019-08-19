@@ -80,7 +80,7 @@
        <widget class="QGroupBox" name="groupBox_captura">
         <property name="geometry">
          <rect>
-          <x>250</x>
+          <x>310</x>
           <y>180</y>
           <width>291</width>
           <height>231</height>
@@ -418,7 +418,7 @@
          <rect>
           <x>30</x>
           <y>440</y>
-          <width>711</width>
+          <width>841</width>
           <height>25</height>
          </rect>
         </property>
@@ -431,7 +431,7 @@
          <rect>
           <x>30</x>
           <y>470</y>
-          <width>711</width>
+          <width>841</width>
           <height>25</height>
          </rect>
         </property>
@@ -447,7 +447,7 @@
          <rect>
           <x>40</x>
           <y>90</y>
-          <width>711</width>
+          <width>831</width>
           <height>80</height>
          </rect>
         </property>
@@ -459,7 +459,7 @@
           <rect>
            <x>0</x>
            <y>30</y>
-           <width>711</width>
+           <width>831</width>
            <height>31</height>
           </rect>
          </property>
@@ -499,13 +499,16 @@
          <rect>
           <x>40</x>
           <y>10</y>
-          <width>711</width>
+          <width>831</width>
           <height>61</height>
          </rect>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
+           <property name="sizeConstraint">
+            <enum>QLayout::SetNoConstraint</enum>
+           </property>
            <item>
             <widget class="QCheckBox" name="checkBox_online">
              <property name="text">
@@ -522,6 +525,29 @@
            </item>
            <item>
             <widget class="QLineEdit" name="lineEdit_nomeplaybag"/>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_5">
+             <property name="text">
+              <string>Inicio:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="lineEdit_frameinicio">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="text">
+              <string>0</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>

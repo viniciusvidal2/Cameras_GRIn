@@ -167,12 +167,16 @@ void MainWindow::on_checkBox_online_clicked(){
         ui.pushButton_naocapturar->setVisible(false);
         ui.pushButton_corrigirultimacaptura->setVisible(false);
         ui.groupBox_gravardados->setVisible(true);
+        ui.lineEdit_frameinicio->setVisible(false);
+        ui.label_frameinicio->setVisible(false);
     } else {
         ui.pushButton_selecionabag->setVisible(true);
         ui.lineEdit_nomeplaybag->setVisible(true);
         ui.pushButton_naocapturar->setVisible(true);
         ui.pushButton_corrigirultimacaptura->setVisible(true);
         ui.groupBox_gravardados->setVisible(false);
+        ui.lineEdit_frameinicio->setVisible(true);
+        ui.label_frameinicio->setVisible(true);
     }
 }
 
@@ -238,7 +242,7 @@ void MainWindow::on_pushButton_camerasfonte_clicked(){
 /// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada
 void MainWindow::on_pushButton_iniciararquivos_clicked(){
     system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/tgt_src.rviz'");
-    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
+//    system("gnome-terminal -x sh -c 'rosrun rviz rviz -d $HOME/handsets_ws/src/Cameras_GRIn/handset_gui/resources/acumulada_ajustada.rviz'");
 }
 
 /// Sliders sao liberados, a nuvem pode ser transformada
@@ -314,9 +318,9 @@ void MainWindow::on_lineEdit_limitez_returnPressed(){
 
 /// Refinando o valor a partir dos linedits do lado direito
 void MainWindow::on_lineEdit_X_returnPressed(){
-    int valor = ui.lineEdit_X->text().toInt();
+    double valor = ui.lineEdit_X->text().toDouble();
     if(valor >= ui.horizontalSlider_x->minimum() && valor <= ui.horizontalSlider_x->maximum()){
-        ui.horizontalSlider_x->setValue(valor);
+        ui.horizontalSlider_x->setValue(int(valor));
 
         double x = ui.lineEdit_X->text().toDouble();
         double y = ui.lineEdit_Y->text().toDouble();
@@ -326,9 +330,9 @@ void MainWindow::on_lineEdit_X_returnPressed(){
     }
 }
 void MainWindow::on_lineEdit_Y_returnPressed(){
-    int valor = ui.lineEdit_Y->text().toInt();
+    double valor = ui.lineEdit_Y->text().toDouble();
     if(valor >= ui.horizontalSlider_y->minimum() && valor <= ui.horizontalSlider_y->maximum()){
-        ui.horizontalSlider_y->setValue(valor);
+        ui.horizontalSlider_y->setValue(int(valor));
 
         double x = ui.lineEdit_X->text().toDouble();
         double y = ui.lineEdit_Y->text().toDouble();
@@ -338,9 +342,9 @@ void MainWindow::on_lineEdit_Y_returnPressed(){
     }
 }
 void MainWindow::on_lineEdit_Z_returnPressed(){
-    int valor = ui.lineEdit_Z->text().toInt();
+    double valor = ui.lineEdit_Z->text().toDouble();
     if(valor >= ui.horizontalSlider_z->minimum() && valor <= ui.horizontalSlider_z->maximum()){
-        ui.horizontalSlider_z->setValue(valor);
+        ui.horizontalSlider_z->setValue(int(valor));
 
         double x = ui.lineEdit_X->text().toDouble();
         double y = ui.lineEdit_Y->text().toDouble();
@@ -352,9 +356,9 @@ void MainWindow::on_lineEdit_Z_returnPressed(){
 
 /// Refinando o valor a partir dos linedits de rotacao
 void MainWindow::on_lineEdit_rotacaox_returnPressed(){
-    int valor = ui.lineEdit_rotacaox->text().toInt();
+    double valor = ui.lineEdit_rotacaox->text().toDouble();
     if(valor >= ui.dial_x->minimum() && valor <= ui.dial_x->maximum()){
-        ui.dial_x->setValue(valor);
+        ui.dial_x->setValue(int(valor));
 
         double x = ui.lineEdit_rotacaox->text().toDouble();
         double y = ui.lineEdit_rotacaoy->text().toDouble();
@@ -364,9 +368,9 @@ void MainWindow::on_lineEdit_rotacaox_returnPressed(){
     }
 }
 void MainWindow::on_lineEdit_rotacaoy_returnPressed(){
-    int valor = ui.lineEdit_rotacaoy->text().toInt();
+    double valor = ui.lineEdit_rotacaoy->text().toDouble();
     if(valor >= ui.dial_y->minimum() && valor <= ui.dial_y->maximum()){
-        ui.dial_y->setValue(valor);
+        ui.dial_y->setValue(int(valor));
 
         double x = ui.lineEdit_rotacaox->text().toDouble();
         double y = ui.lineEdit_rotacaoy->text().toDouble();
@@ -376,9 +380,9 @@ void MainWindow::on_lineEdit_rotacaoy_returnPressed(){
     }
 }
 void MainWindow::on_lineEdit_rotacaoz_returnPressed(){
-    int valor = ui.lineEdit_rotacaoz->text().toInt();
+    double valor = ui.lineEdit_rotacaoz->text().toDouble();
     if(valor >= ui.dial_z->minimum() && valor <= ui.dial_z->maximum()){
-        ui.dial_z->setValue(valor);
+        ui.dial_z->setValue(int(valor));
 
         double x = ui.lineEdit_rotacaox->text().toDouble();
         double y = ui.lineEdit_rotacaoy->text().toDouble();
@@ -390,6 +394,8 @@ void MainWindow::on_lineEdit_rotacaoz_returnPressed(){
 
 /// Botao para registrar as nuvens
 void MainWindow::on_pushButton_registrar_clicked(){
+    if(ui.checkBox_icp->isChecked())
+        rn.set_profundidade_icp(ui.lineEdit_profundidadeicp->text().toDouble()/100.0);
     rn.registrar_nuvens(ui.checkBox_icp->isChecked());
 
     float x, y, z, rx, ry, rz;

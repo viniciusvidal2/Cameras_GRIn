@@ -94,6 +94,8 @@ public:
     void set_translacao(float tx, float ty, float tz);
     void set_rotacao(float rx, float ry, float rz);
 
+    void set_profundidade_icp(double p);
+
     void publicar_nuvens();    
     void registrar_nuvens(bool icp_flag);
     void salvar_dados_finais(QString pasta);
@@ -164,6 +166,8 @@ private:
     std::string pasta_filtrada;
     std::string nome_nuvem_filtrada;
     bool aba3;
+    // Profundidade do icp para filtragem de voxel
+    double profundidade_icp;
 
     /// Metodos ///
     void criaMatriz();

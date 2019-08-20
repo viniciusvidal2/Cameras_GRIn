@@ -71,7 +71,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>0</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -527,7 +527,7 @@
             <widget class="QLineEdit" name="lineEdit_nomeplaybag"/>
            </item>
            <item>
-            <widget class="QLabel" name="label_5">
+            <widget class="QLabel" name="label_frameinicio">
              <property name="text">
               <string>Inicio:</string>
              </property>
@@ -1036,24 +1036,11 @@
         <property name="title">
          <string>Registro final das nuvens</string>
         </property>
-        <widget class="QCheckBox" name="checkBox_icp">
-         <property name="geometry">
-          <rect>
-           <x>10</x>
-           <y>30</y>
-           <width>171</width>
-           <height>23</height>
-          </rect>
-         </property>
-         <property name="text">
-          <string>Usar ICP</string>
-         </property>
-        </widget>
         <widget class="QPushButton" name="pushButton_registrar">
          <property name="geometry">
           <rect>
            <x>10</x>
-           <y>60</y>
+           <y>90</y>
            <width>141</width>
            <height>25</height>
           </rect>
@@ -1062,53 +1049,126 @@
           <string>Registrar nuvens</string>
          </property>
         </widget>
-        <widget class="QLineEdit" name="lineEdit_pastafinal">
+        <widget class="QWidget" name="horizontalLayoutWidget_6">
          <property name="geometry">
           <rect>
-           <x>30</x>
-           <y>160</y>
+           <x>10</x>
+           <y>50</y>
            <width>241</width>
-           <height>25</height>
+           <height>31</height>
           </rect>
          </property>
-         <property name="text">
-          <string>resultado</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
+         <layout class="QHBoxLayout" name="_2">
+          <property name="spacing">
+           <number>16</number>
+          </property>
+          <property name="sizeConstraint">
+           <enum>QLayout::SetNoConstraint</enum>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="checkBox_icp">
+            <property name="text">
+             <string>Usar ICP</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_5">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>Profundidade: </string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit_profundidadeicp">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>200</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>2</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
-        <widget class="QPushButton" name="pushButton_salvarfinal">
+        <widget class="QWidget" name="horizontalLayoutWidget_7">
          <property name="geometry">
           <rect>
-           <x>30</x>
-           <y>200</y>
-           <width>241</width>
-           <height>25</height>
+           <x>10</x>
+           <y>30</y>
+           <width>160</width>
+           <height>22</height>
           </rect>
          </property>
-         <property name="text">
-          <string>Salvar arquivos</string>
-         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_8">
+          <item>
+           <widget class="QCheckBox" name="checkBox_features">
+            <property name="text">
+             <string>Usar Features</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
-        <widget class="QLabel" name="label_6">
+        <widget class="QWidget" name="verticalLayoutWidget_3">
          <property name="geometry">
           <rect>
-           <x>30</x>
-           <y>90</y>
-           <width>241</width>
-           <height>61</height>
+           <x>20</x>
+           <y>130</y>
+           <width>251</width>
+           <height>101</height>
           </rect>
          </property>
-         <property name="text">
-          <string>Nome da pasta final, que fica na area de trabalho com os arquivos calculados:</string>
-         </property>
-         <property name="alignment">
-          <set>Qt::AlignCenter</set>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QLabel" name="label_6">
+            <property name="text">
+             <string>Nome da pasta final, que fica na area de trabalho com os arquivos calculados:</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit_pastafinal">
+            <property name="text">
+             <string>resultado</string>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton_salvarfinal">
+            <property name="text">
+             <string>Salvar arquivos</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </widget>
        <zorder>horizontalLayoutWidget</zorder>

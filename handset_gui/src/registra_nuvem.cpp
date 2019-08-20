@@ -215,6 +215,7 @@ void RegistraNuvem::registrar_nuvens(bool icp_flag){
     } else {
 
         *acumulada = *tgt + *src_temp;
+        criaMatriz();
 
     }
     mutex_publicar = true;
@@ -259,7 +260,12 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
 
     *temp_src = *src; *temp_tgt = *tgt;
 
-    float leaf_size = 0.01;
+    float leaf_size;
+    if(profundidade_icp == 0){
+        leaf_size = 0.01;
+    } else {
+        leaf_size = profundidade_icp;
+    }
     filter_grid(temp_src, leaf_size);
     filter_grid(temp_tgt, leaf_size);
 
@@ -596,6 +602,10 @@ void RegistraNuvem::set_filter_colors(int rmin, int rmax, int gmin, int gmax, in
     mutex_publicar = false;
     filter_color(nuvem_filtrar_temp, rmin, rmax, gmin, gmax, bmin, bmax);
     mutex_publicar = true;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
+void RegistraNuvem::set_profundidade_icp(double p){
+    profundidade_icp = p;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::salvar_nuvem_filtrada(QString nome){

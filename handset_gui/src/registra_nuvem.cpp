@@ -74,7 +74,7 @@ void RegistraNuvem::init(){
     // Estamos na aba3?
     aba3 = false;
 
-    ros::Rate rate(2);
+    ros::Rate rate(0.5);
     while(ros::ok()){
         rate.sleep();
         publicar_nuvens();
@@ -277,7 +277,7 @@ Eigen::Matrix4f RegistraNuvem::icp(const PointCloud<PointT>::Ptr src,
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
-    icp.setMaximumIterations(300); // Chute inicial bom 10-100
+    icp.setMaximumIterations(100); // Chute inicial bom 10-100
     icp.setTransformationEpsilon(1*1e-10);
     icp.setEuclideanFitnessEpsilon(1*1e-12);
     icp.setMaxCorrespondenceDistance(0.1);

@@ -71,7 +71,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -1402,9 +1402,9 @@
         </property>
         <property name="geometry">
          <rect>
-          <x>90</x>
+          <x>40</x>
           <y>80</y>
-          <width>241</width>
+          <width>291</width>
           <height>191</height>
          </rect>
         </property>
@@ -1417,7 +1417,7 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>140</x>
+           <x>180</x>
            <y>130</y>
            <width>89</width>
            <height>51</height>
@@ -1433,7 +1433,7 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>50</x>
+           <x>70</x>
            <y>20</y>
            <width>171</width>
            <height>21</height>
@@ -1449,7 +1449,7 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>50</x>
+           <x>90</x>
            <y>90</y>
            <width>131</width>
            <height>20</height>
@@ -1465,7 +1465,7 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>140</x>
+           <x>180</x>
            <y>50</y>
            <width>89</width>
            <height>25</height>
@@ -1481,7 +1481,7 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>10</x>
+           <x>30</x>
            <y>50</y>
            <width>113</width>
            <height>25</height>
@@ -1497,9 +1497,9 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>10</x>
+           <x>90</x>
            <y>130</y>
-           <width>113</width>
+           <width>71</width>
            <height>25</height>
           </rect>
          </property>
@@ -1513,14 +1513,40 @@
          </property>
          <property name="geometry">
           <rect>
-           <x>10</x>
+           <x>90</x>
            <y>160</y>
-           <width>113</width>
+           <width>71</width>
            <height>25</height>
           </rect>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_17">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>130</y>
+           <width>51</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>n Mean:</string>
+         </property>
+        </widget>
+        <widget class="QLabel" name="label_18">
+         <property name="geometry">
+          <rect>
+           <x>20</x>
+           <y>160</y>
+           <width>51</width>
+           <height>21</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>Std:</string>
          </property>
         </widget>
        </widget>

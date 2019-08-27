@@ -128,9 +128,11 @@ void RegistraNuvem::set_nuvem_alvo(QString nome){
     arquivo_tgt = nome.toStdString();
     loadPLYFile(arquivo_tgt, *tgt);
     // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
+    std::string nome_arquivo_sozinho;
     for(int i=nome.length(); i>0; i--){
       if (nome[i] == '/'){
-        pasta_tgt = nome.left(i).toStdString();
+        pasta_tgt = nome.left(i).toStdString();        
+        nome_arquivo_sozinho = nome.right(nome.length()-i-1).toStdString();
         break;
       }
     }
@@ -140,6 +142,10 @@ void RegistraNuvem::set_nuvem_alvo(QString nome){
     transformPointCloud(*tgt, *tgt,  -centroide_tgt, Eigen::Quaternion<float>::Identity());
     ROS_INFO("Nuvem alvo deslocada.");
     mutex_publicar = true;
+
+    // Já adicionar o arquivo nvm da nuvem aqui de uma vez
+    nome_arquivo_sozinho = nome_arquivo_sozinho.substr(0, nome_arquivo_sozinho.find_first_of('.'));
+    arquivo_cameras_alvo = pasta_tgt + "/" + nome_arquivo_sozinho + ".nvm";
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_arquivo_cameras_alvo(QString nome){
@@ -151,9 +157,11 @@ void RegistraNuvem::set_nuvem_fonte(QString nome){
     arquivo_src = nome.toStdString();
     loadPLYFile(arquivo_src, *src);
     // Recolher aqui tambem so o nome da pasta pra fazer o arquivo final depois
+    std::string nome_arquivo_sozinho;
     for(int i=nome.length(); i>0; i--){
       if (nome[i] == '/'){
         pasta_src = nome.left(i).toStdString();
+        nome_arquivo_sozinho = nome.right(nome.length()-i-1).toStdString();
         break;
       }
     }
@@ -165,6 +173,10 @@ void RegistraNuvem::set_nuvem_fonte(QString nome){
     // A principio as nuvens sao iguais, depois havera modificacao
     *src_temp = *src;
     mutex_publicar = true;
+
+    // Já adicionar o arquivo nvm da nuvem aqui de uma vez
+    nome_arquivo_sozinho = nome_arquivo_sozinho.substr(0, nome_arquivo_sozinho.find_first_of('.'));
+    arquivo_cameras_fonte = pasta_src + "/" + nome_arquivo_sozinho + ".nvm";
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
 void RegistraNuvem::set_arquivo_cameras_fonte(QString nome){
@@ -308,7 +320,7 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
     // Ler os arquivos
     ifstream nvm_src, nvm_tgt;
     std::string linha_atual;
-    int conta_linha = 0;
+    int conta_linha = 0, conta_imagem = 1;
 
     nvm_src.open(arquivo_cameras_fonte);
     if(nvm_src.is_open()){
@@ -368,7 +380,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 for(int i=path2.length(); i > 0; i--){
                     if(path2[i] == '/'){
                         cam.nome_imagem_anterior = path2.right(path2.length()-i-1).toStdString();
-                        cam.nome_imagem = "src"+path2.right(path2.length()-i-1).toStdString();
+                        cam.nome_imagem = std::to_string(conta_imagem)+".jpg";// "src"+path2.right(path2.length()-i-1).toStdString();
+                        conta_imagem++;
                         break;
                     }
                 }
@@ -430,7 +443,8 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 for(int i=path2.length(); i > 0; i--){
                     if(path2[i] == '/'){
                         cam.nome_imagem_anterior = path2.right(path2.length()-i-1).toStdString();
-                        cam.nome_imagem = "tgt"+path2.right(path2.length()-i-1).toStdString();
+                        cam.nome_imagem = std::to_string(conta_imagem)+".jpg";// "tgt"+path2.right(path2.length()-i-1).toStdString();
+                        conta_imagem++;
                         break;
                     }
                 }

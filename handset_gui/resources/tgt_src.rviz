@@ -58,7 +58,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.00600000005
-      Style: Flat Squares
+      Style: Points
       Topic: /nuvem_alvo_temp
       Unreliable: false
       Use Fixed Frame: true
@@ -88,7 +88,7 @@ Visualization Manager:
       Selectable: true
       Size (Pixels): 3
       Size (m): 0.00600000005
-      Style: Flat Squares
+      Style: Points
       Topic: /nuvem_fonte_temp
       Unreliable: false
       Use Fixed Frame: true
@@ -119,25 +119,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 1.98075449
+      Distance: 5.17879629
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.334315717
-        Y: 0.176172763
-        Z: -0.574215353
+        X: 0.199781075
+        Y: 0.0985238776
+        Z: -0.142275944
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.00999999978
-      Pitch: 0.859796524
+      Pitch: 0.819796443
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.87675858
+      Yaw: 0.593314707
     Saved: ~
 Window Geometry:
   Displays:

@@ -8,11 +8,12 @@ laser_geometry::LaserProjection projector;
 
 void s2ptc_callback(const sensor_msgs::LaserScanConstPtr& laser_readings)
 {
-    sensor_msgs::PointCloud cloud;
+    sensor_msgs::PointCloud2 cloud;
     cloud.header.frame_id = laser_readings->header.frame_id;
     cloud.header.stamp    = laser_readings->header.stamp;
     projector.projectLaser(*laser_readings, cloud);
     ptc_pub.publish(cloud);
+    ROS_INFO("Quantos pontos? %zu", cloud.data.size());
 }
 
 int main(int argc, char **argv)
@@ -21,7 +22,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     ros::Subscriber laser_sub = nh.subscribe("/scan", 1000, s2ptc_callback);
-    ptc_pub = nh.advertise<sensor_msgs::PointCloud>("/scan/PointCloud", 1000);
+    ptc_pub = nh.advertise<sensor_msgs::PointCloud2>("/scan2/PointCloud", 1000);
 
     ros::spin();
 

@@ -592,9 +592,9 @@ void Cloud_Work::salva_dados_parciais(PointCloud<PointC>::Ptr cloud,
     char* home;
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
-    std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + "z.jpg";
+    std::string arquivo_imzed  = pasta + std::to_string(contador_imagens) + ".jpg";
     std::string arquivo_nuvem  = pasta + std::to_string(contador_imagens) + ".ply";
-    std::string arquivo_nvm_z  = pasta + std::to_string(contador_imagens) + "z.nvm";
+    std::string arquivo_nvm_z  = pasta + std::to_string(contador_imagens) + ".nvm";
     std::string arquivo_corr   = pasta + std::to_string(contador_imagens) + "_cor.txt";
 
     // Converte e salva imagem da zed e da astra

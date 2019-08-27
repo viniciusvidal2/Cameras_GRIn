@@ -81,8 +81,6 @@ private Q_SLOTS:
     /// ABA 2 ///
     void on_pushButton_nuvemalvo_clicked();
     void on_pushButton_nuvemfonte_clicked();
-    void on_pushButton_camerasalvo_clicked();
-    void on_pushButton_camerasfonte_clicked();
     void on_pushButton_iniciararquivos_clicked();
 
     void on_horizontalSlider_x_sliderReleased();

@@ -214,14 +214,6 @@ void MainWindow::on_pushButton_nuvemalvo_clicked(){
     rn.set_nuvem_alvo(nome_alvo);
 }
 
-/// Botao para arquivo NVM de cameras da nuvem ALVO
-void MainWindow::on_pushButton_camerasalvo_clicked(){
-    QString cameras_alvo = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Alvo", "", "NVM Files (*.nvm)");
-    ui.lineEdit_camerasalvo->setText(cameras_alvo);
-
-    rn.set_arquivo_cameras_alvo(cameras_alvo);
-}
-
 /// Botao para pegar arquivo da nuvem FONTE
 void MainWindow::on_pushButton_nuvemfonte_clicked(){
     QString nome_fonte;
@@ -229,14 +221,6 @@ void MainWindow::on_pushButton_nuvemfonte_clicked(){
     ui.lineEdit_nuvemfonte->setText(nome_fonte);
 
     rn.set_nuvem_fonte(nome_fonte);
-}
-
-/// Botao para arquivo NVM de cameras da nuvem ALVO
-void MainWindow::on_pushButton_camerasfonte_clicked(){
-    QString cameras_fonte = QFileDialog::getOpenFileName(this, "Cameras da Nuvem Fonte", "", "NVM Files (*.nvm)");
-    ui.lineEdit_camerasfonte->setText(cameras_fonte);
-
-    rn.set_arquivo_cameras_fonte(cameras_fonte);
 }
 
 /// Botao para iniciar os visualizadores para os topicos de nuvens alvo, fonte modificada e acumulada

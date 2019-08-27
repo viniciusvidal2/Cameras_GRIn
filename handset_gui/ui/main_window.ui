@@ -71,7 +71,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>2</number>
+       <number>1</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -594,40 +594,11 @@
          </item>
         </layout>
        </widget>
-       <widget class="QWidget" name="horizontalLayoutWidget_2">
-        <property name="geometry">
-         <rect>
-          <x>30</x>
-          <y>60</y>
-          <width>891</width>
-          <height>41</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
-          <widget class="QPushButton" name="pushButton_camerasalvo">
-           <property name="text">
-            <string>Cameras Alvo</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lineEdit_camerasalvo">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
        <widget class="QWidget" name="horizontalLayoutWidget_3">
         <property name="geometry">
          <rect>
           <x>30</x>
-          <y>100</y>
+          <y>60</y>
           <width>891</width>
           <height>41</height>
          </rect>
@@ -642,35 +613,6 @@
          </item>
          <item>
           <widget class="QLineEdit" name="lineEdit_nuvemfonte">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-       <widget class="QWidget" name="horizontalLayoutWidget_4">
-        <property name="geometry">
-         <rect>
-          <x>30</x>
-          <y>140</y>
-          <width>891</width>
-          <height>41</height>
-         </rect>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <item>
-          <widget class="QPushButton" name="pushButton_camerasfonte">
-           <property name="text">
-            <string>Cameras a ajustar</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="lineEdit_camerasfonte">
            <property name="enabled">
             <bool>true</bool>
            </property>
@@ -1172,9 +1114,7 @@
         </widget>
        </widget>
        <zorder>horizontalLayoutWidget</zorder>
-       <zorder>horizontalLayoutWidget_2</zorder>
        <zorder>horizontalLayoutWidget_3</zorder>
-       <zorder>horizontalLayoutWidget_4</zorder>
        <zorder>pushButton_iniciararquivos</zorder>
        <zorder>groupBox_2</zorder>
        <zorder>groupBox</zorder>

@@ -71,7 +71,7 @@
        <locale language="English" country="Australia"/>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab_inicio">
        <attribute name="title">
@@ -141,7 +141,7 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>3</string>
+             <string>5</string>
             </property>
             <property name="alignment">
              <set>Qt::AlignCenter</set>
@@ -996,7 +996,7 @@
           <rect>
            <x>10</x>
            <y>50</y>
-           <width>241</width>
+           <width>272</width>
            <height>31</height>
           </rect>
          </property>
@@ -1057,7 +1057,7 @@
            <x>10</x>
            <y>30</y>
            <width>160</width>
-           <height>22</height>
+           <height>25</height>
           </rect>
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_8">

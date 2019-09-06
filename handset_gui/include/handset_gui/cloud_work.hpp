@@ -35,6 +35,12 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/registration/icp.h>
+#include <pcl/registration/gicp.h>
+#include <pcl/registration/gicp6d.h>
+#include <pcl/registration/transformation_estimation_point_to_plane.h>
+#include <pcl/registration/correspondence_rejection_median_distance.h>
+#include <pcl/registration/correspondence_rejection_surface_normal.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/io/ascii_io.h>
 #include <pcl/io/vtk_lib_io.h>
 #include <pcl/io/ply_io.h>
@@ -47,6 +53,7 @@
 #include <pcl/surface/mls.h>
 #include <pcl/surface/texture_mapping.h>
 #include <pcl/filters/extract_indices.h>
+#include <pcl/registration/correspondence_rejection_distance.h>
 
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
@@ -127,6 +134,7 @@ public:
     void set_frame_inicio_bag(int f);
     void reiniciar();
     Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
+    Eigen::Matrix4f icp_gen(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
     void cancela_listeners(bool eai); // A janela principal vai chamar dependendo de como estiver pra rodar, online ou nao
 

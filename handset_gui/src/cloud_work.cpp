@@ -227,6 +227,84 @@ void Cloud_Work::removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<Po
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
+Eigen::Matrix4f Cloud_Work::icp_gen(const PointCloud<PointC>::Ptr src,
+                                    const PointCloud<PointC>::Ptr tgt,
+                                    Eigen::Matrix4f T){
+    ROS_INFO("Entrando no ICP generalizado");
+
+    // Reduzindo complexidade das nuvens
+    PointCloud<PointC>::Ptr temp_src (new PointCloud<PointC>());
+    PointCloud<PointC>::Ptr temp_tgt (new PointCloud<PointC>());
+
+    *temp_src = *src; *temp_tgt = *tgt;
+
+    float leaf_size = 0.006;
+    filter_grid(temp_src, leaf_size);
+    filter_grid(temp_tgt, leaf_size);
+
+    Eigen::Matrix4f T_icp = T;
+
+    NormalEstimationOMP<PointC, Normal> ne;
+    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
+    ne.setSearchMethod(tree);
+    PointCloud<Normal>::Ptr src_normals (new PointCloud<Normal>());
+    PointCloud<Normal>::Ptr tgt_normals (new PointCloud<Normal>());
+    PointCloud<PointCN>::Ptr src_total (new PointCloud<PointCN>());
+    PointCloud<PointCN>::Ptr tgt_total (new PointCloud<PointCN>());
+    ne.setKSearch(20);
+    ne.setNumberOfThreads(4);
+
+    ROS_INFO("Calculando as normais no ICP generalizado.");
+    ne.setInputCloud(temp_src);
+    ne.compute(*src_normals);
+    ne.setInputCloud(temp_tgt);
+    ne.compute(*tgt_normals);
+
+    concatenateFields(*temp_src, *src_normals, *src_total);
+    concatenateFields(*temp_tgt, *tgt_normals, *tgt_total);
+    ROS_INFO("Normais calculadas.");
+
+    IterativeClosestPointWithNormals<PointCN, PointCN> icpn;
+    icpn.setInputSource(src_total);
+    icpn.setInputTarget(tgt_total);
+    PointCloud<PointCN> final;
+    icpn.setMaxCorrespondenceDistance(0.2);
+    icpn.setMaximumIterations(300);
+    icpn.align(final, T);
+
+    if(icpn.hasConverged()){
+        T_icp = icpn.getFinalTransformation();
+        ROS_INFO("Convergiu com nota %f.", icpn.getFitnessScore());
+    }
+
+    final.clear();
+
+    /// ICP generalizado ///
+//    GeneralizedIterativeClosestPoint<PointC, PointC> gicp;
+//    pcl::registration::CorrespondenceRejectorSurfaceNormal<PointC>::Ptr rej_nor (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>());
+//    rej_nor->setThreshold(0.1*M_PI);
+//    gicp.addCorrespondenceRejector(rej_nor);
+//    gicp.setInputSource(temp_src);
+//    gicp.setInputTarget(temp_tgt);
+//    gicp.setMaxCorrespondenceDistance(0.04);
+//    gicp.setEuclideanFitnessEpsilon(1*1e-6);
+//    gicp.setMaximumIterations(1000);
+//    gicp.setRANSACIterations(300);
+//    gicp.setUseReciprocalCorrespondences(true);
+//    gicp.setTransformationEpsilon(1*1e-5);
+
+//    PointCloud<PointC> final2;
+//    gicp.align(final2, T);
+
+//    if(gicp.hasConverged()){
+//        ROS_INFO("Convergiu com nota %f.", gicp.getFitnessScore());
+//        T_icp = gicp.getFinalTransformation();
+//    }
+
+//    final2.clear();
+    return T_icp;
+}
+///////////////////////////////////////////////////////////////////////////////////////////
 Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
                                 const PointCloud<PointC>::Ptr tgt,
                                 Eigen::Matrix4f T){
@@ -237,7 +315,7 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
 
     *temp_src = *src; *temp_tgt = *tgt;
 
-    float leaf_size = 0.01;
+    float leaf_size = 0.004;
     filter_grid(temp_src, leaf_size);
     filter_grid(temp_tgt, leaf_size);
 
@@ -246,13 +324,19 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
     /// ICP COMUM ///
     // Criando o otimizador de ICP comum
     pcl::IterativeClosestPoint<PointC, PointC> icp;
+    pcl::registration::CorrespondenceRejectorMedianDistance::Ptr rej_med (new pcl::registration::CorrespondenceRejectorMedianDistance);
+    rej_med->setMedianFactor (3.0);
+    icp.addCorrespondenceRejector (rej_med);
+    pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>);
+    icp.addCorrespondenceRejector (rej_samp);
+
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
-    icp.setMaximumIterations(300); // Chute inicial bom 10-100
-    icp.setTransformationEpsilon(1*1e-10);
-    icp.setEuclideanFitnessEpsilon(1*1e-12);
-    icp.setMaxCorrespondenceDistance(0.3);
+    icp.setMaximumIterations(1000); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-7);
+    icp.setEuclideanFitnessEpsilon(1*1e-13);
+    icp.setMaxCorrespondenceDistance(0.2);
 
     PointCloud<PointC> final2;
     icp.align(final2, T);

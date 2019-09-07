@@ -34,5 +34,27 @@ Para a ASTRA não há dependência com nenhum dos itens anteriores, e seu pacote
 
 Aqui neste repositório está o nó que lê os dados de astra e zed e os publica em novos tópicos, que devem ser vistos pelo usuário ou salvos em arquivo bag de ROS. Os tópicos lidos são:
 
+1. "/camera/rgb/image_raw":      imagem RGB publicada pela nó da câmera ASTRA
+2. "/camera/depth/image_raw":    imagem de profundidade da câmera ASTRA
+3. "/zed/left/image_rect_color": imagem RGB da lente esquerda da ZED
+4. "/zed/odom":                  mensagem de odometria vinda da câmera ZED
 
+O nó ROS programado em astra_calibrada.cpp vai pegar essas informações e repassar para serem publicadas em 5 tópicos sincronizados, que seriam:
 
+1. "/astra_projetada": nuvem de pontos RGB calibrada da câmera ASTRA
+2. "/pixels"         : nuvem de pontos para falar correspondências entre imagens de profundiadade e RGB da ASTRA
+3. "/odom2"          : odometria da câmera ZED sincronizada
+4. "/zed2"           : imagem RGB da lente esquerda da ZED sincronizada
+4. "/astra2"         : imagem RGB da câmera ASTRA sincronizada
+
+Todos os últimos 5 tópicos publicados devem ser gravados no arquivo BAG usando o roslaunch record.launch . É importante gravar neste arquivo os arquivos raw, não comprimidos, para não perder a sincronia a princípio.
+Deve haver opção de nome e local de gravação do arquivo para diferenciar um do outro. No script launch já estao todos os dados que devem ser salvos
+
+### Para lancar o sistema
+
+O sistema é lançado em roslaunch, com o arquivo lancar_sistema.launch . Chamando este arquivo se liga a ASTRA e a ZED com seus respectivos nós ROS, e ainda o nó descrito anteriormente para processar e gravar as imagens.
+
+### Para visualização
+
+A nuvem de pontos que o usuário deveria ver seria a que realmente está sendo gravada, vinda no tópico "/astra_projetada".
+Quanto a iamgens, fica a critério do desenvolvedor qual tópico, porém deve ser da lente esquerda da câmera ZED.

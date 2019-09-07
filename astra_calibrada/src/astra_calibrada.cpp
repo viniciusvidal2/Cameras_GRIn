@@ -48,12 +48,6 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <nav_msgs/Odometry.h>
 
-// Dynamic Reconfigure
-#include <dynamic_reconfigure/server.h>
-#include <astra_calibrada/calib_params_Config.h>
-
-// Otimizacao paralelo
-
 using namespace pcl;
 using namespace std;
 using namespace tf;

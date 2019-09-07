@@ -50,8 +50,6 @@ include_directories(${CUDA_INCLUDE_DIRS})
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
-# Parametros ajustaveis zed-astra calibracao
-generate_dynamic_reconfigure_options(cfg/params.cfg)
 #include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)
 catkin_package(
 #  INCLUDE_DIRS include
@@ -88,33 +86,3 @@ target_link_libraries(astra_calibrada
   ${roslib_LIBRARIES}
   ${OpenMP_LIBS}
 )
-
-add_executable(astra_calibrada_felipe src/astra_calibrada_felipe.cpp)
-target_link_libraries(astra_calibrada_felipe
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
-
-add_executable(calibrar_astra_online src/calibrar_astra_online.cpp)
-target_link_libraries(calibrar_astra_online
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
-
-add_executable(calibrar_astra_zed src/calibrar_astra_zed.cpp)
-target_link_libraries(calibrar_astra_zed
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-  ${OpenCV_LIBS}
-  ${roslib_LIBRARIES}
-)
-
-#add_executable(viewer viewer.cpp)
-#target_link_libraries(viewer ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})
-
-#add_executable(sincroniza_odom sincroniza_odom.cpp)
-#target_link_libraries(sincroniza_odom ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${roslib_LIBRARIES})

@@ -363,14 +363,16 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 Tpose << rotantes, tantes,
                        0, 0, 0, 1;
                 // Separando a parte da odometria, no sentido ZED->ODOM
-                Tzo = T_astra_zed.inverse()*Tpose;
+//                Tzo = T_astra_zed.inverse()*Tpose;
+                Tzo = Tpose;
                 // Multiplicadno pela correcao obtida, no sentido ZED->ODOM
                 Tzo = Tzo*T_fim.inverse();
                 // Matriz de transformacao de ASTRA-> ZED com a matriz ZED->ODOM para calculo da nova pose da camera
-                Tzo = T_astra_zed*Tzo;
-                Rzo << Tzo(0, 0), Tzo(0, 1), Tzo(0, 2),
-                       Tzo(1, 0), Tzo(1, 1), Tzo(1, 2),
-                       Tzo(2, 0), Tzo(2, 1), Tzo(2, 2);
+//                Tzo = T_astra_zed*Tzo;
+                Rzo = Tzo.block<3, 3>(0, 0);
+//                Rzo << Tzo(0, 0), Tzo(0, 1), Tzo(0, 2),
+//                       Tzo(1, 0), Tzo(1, 1), Tzo(1, 2),
+//                       Tzo(2, 0), Tzo(2, 1), Tzo(2, 2);
                 Eigen::Quaternion<float> qzo(Rzo); // Novo quaternion
                 tatual << Tzo(0, 3), Tzo(1, 3), Tzo(2, 3);
                 Catual = -Rzo.transpose()*tatual; // Novo centro da camera
@@ -433,7 +435,7 @@ void RegistraNuvem::salvar_dados_finais(QString pasta){
                 foco = stod(results.at(0));
                 // Quaternion antigo
                 qantes.w() = stod(results.at(1)); qantes.x() = stod(results.at(2));
-                qantes.y() = stod(results.at(3)); qantes.z() = stod(results.at(4).data());
+                qantes.y() = stod(results.at(3)); qantes.z() = stod(results.at(4));
                 // Centro da camera antigo
                 Cantes(0) = stof(results.at(5)); Cantes(1) = stof(results.at(6)); Cantes(2) = stof(results.at(7));
                 // Alterando devido ao novo centroide da nuvem

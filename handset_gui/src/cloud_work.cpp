@@ -333,10 +333,10 @@ Eigen::Matrix4f Cloud_Work::icp(const PointCloud<PointC>::Ptr src,
     icp.setUseReciprocalCorrespondences(true);
     icp.setInputTarget(temp_tgt);
     icp.setInputSource(temp_src);
-    icp.setMaximumIterations(1000); // Chute inicial bom 10-100
-    icp.setTransformationEpsilon(1*1e-7);
-    icp.setEuclideanFitnessEpsilon(1*1e-13);
-    icp.setMaxCorrespondenceDistance(0.2);
+    icp.setMaximumIterations(300); // Chute inicial bom 10-100
+    icp.setTransformationEpsilon(1*1e-11);
+    icp.setEuclideanFitnessEpsilon(1*1e-12);
+    icp.setMaxCorrespondenceDistance(0.15);
 
     PointCloud<PointC> final2;
     icp.align(final2, T);
@@ -1148,7 +1148,7 @@ void Cloud_Work::salvar_acumulada(){
     home = getenv("HOME");
     std::string pasta = std::string(home)+"/Desktop/teste/";
     std::string arquivo_nuvem = pasta+"nuvem_final.ply";
-    std::string arquivo_nvm   = pasta+"cameras_final.nvm";
+    std::string arquivo_nvm   = pasta+"nuvem_final.nvm";
 
     ROS_INFO("Salvando nuvem acumulada.....");
     // Acumulada global com normais

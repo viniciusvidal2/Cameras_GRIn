@@ -227,9 +227,9 @@ void Cloud_Work::removeColorFromPoints(PointCloud<PointC>::Ptr in, PointCloud<Po
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
-Eigen::Matrix4f Cloud_Work::icp_gen(const PointCloud<PointC>::Ptr src,
-                                    const PointCloud<PointC>::Ptr tgt,
-                                    Eigen::Matrix4f T){
+Eigen::Matrix4f Cloud_Work::gicp(const PointCloud<PointC>::Ptr src,
+                                 const PointCloud<PointC>::Ptr tgt,
+                                 Eigen::Matrix4f T){
     ROS_INFO("Entrando no ICP generalizado");
 
     // Reduzindo complexidade das nuvens
@@ -244,64 +244,71 @@ Eigen::Matrix4f Cloud_Work::icp_gen(const PointCloud<PointC>::Ptr src,
 
     Eigen::Matrix4f T_icp = T;
 
-    NormalEstimationOMP<PointC, Normal> ne;
-    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
-    ne.setSearchMethod(tree);
-    PointCloud<Normal>::Ptr src_normals (new PointCloud<Normal>());
-    PointCloud<Normal>::Ptr tgt_normals (new PointCloud<Normal>());
-    PointCloud<PointCN>::Ptr src_total (new PointCloud<PointCN>());
-    PointCloud<PointCN>::Ptr tgt_total (new PointCloud<PointCN>());
-    ne.setKSearch(20);
-    ne.setNumberOfThreads(4);
+//    NormalEstimationOMP<PointC, Normal> ne;
+//    search::KdTree<PointC>::Ptr tree (new search::KdTree<PointC>());
+//    ne.setSearchMethod(tree);
+//    PointCloud<Normal>::Ptr src_normals (new PointCloud<Normal>());
+//    PointCloud<Normal>::Ptr tgt_normals (new PointCloud<Normal>());
+//    PointCloud<PointCN>::Ptr src_total (new PointCloud<PointCN>());
+//    PointCloud<PointCN>::Ptr tgt_total (new PointCloud<PointCN>());
+//    ne.setKSearch(20);
+//    ne.setNumberOfThreads(4);
 
-    ROS_INFO("Calculando as normais no ICP generalizado.");
-    ne.setInputCloud(temp_src);
-    ne.compute(*src_normals);
-    ne.setInputCloud(temp_tgt);
-    ne.compute(*tgt_normals);
+//    ROS_INFO("Calculando as normais no ICP generalizado.");
+//    ne.setInputCloud(temp_src);
+//    ne.compute(*src_normals);
+//    ne.setInputCloud(temp_tgt);
+//    ne.compute(*tgt_normals);
 
-    concatenateFields(*temp_src, *src_normals, *src_total);
-    concatenateFields(*temp_tgt, *tgt_normals, *tgt_total);
-    ROS_INFO("Normais calculadas.");
+//    concatenateFields(*temp_src, *src_normals, *src_total);
+//    concatenateFields(*temp_tgt, *tgt_normals, *tgt_total);
+//    ROS_INFO("Normais calculadas.");
 
-    IterativeClosestPointWithNormals<PointCN, PointCN> icpn;
-    icpn.setInputSource(src_total);
-    icpn.setInputTarget(tgt_total);
-    PointCloud<PointCN> final;
-    icpn.setMaxCorrespondenceDistance(0.2);
-    icpn.setMaximumIterations(300);
-    icpn.align(final, T);
+//    IterativeClosestPointWithNormals<PointCN, PointCN> icpn;
+//    icpn.setInputSource(src_total);
+//    icpn.setInputTarget(tgt_total);
+//    PointCloud<PointCN> final;
+//    icpn.setMaxCorrespondenceDistance(0.2);
+//    icpn.setMaximumIterations(300);
+//    icpn.align(final, T);
 
-    if(icpn.hasConverged()){
-        T_icp = icpn.getFinalTransformation();
-        ROS_INFO("Convergiu com nota %f.", icpn.getFitnessScore());
-    }
-
-    final.clear();
-
-    /// ICP generalizado ///
-//    GeneralizedIterativeClosestPoint<PointC, PointC> gicp;
-//    pcl::registration::CorrespondenceRejectorSurfaceNormal<PointC>::Ptr rej_nor (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>());
-//    rej_nor->setThreshold(0.1*M_PI);
-//    gicp.addCorrespondenceRejector(rej_nor);
-//    gicp.setInputSource(temp_src);
-//    gicp.setInputTarget(temp_tgt);
-//    gicp.setMaxCorrespondenceDistance(0.04);
-//    gicp.setEuclideanFitnessEpsilon(1*1e-6);
-//    gicp.setMaximumIterations(1000);
-//    gicp.setRANSACIterations(300);
-//    gicp.setUseReciprocalCorrespondences(true);
-//    gicp.setTransformationEpsilon(1*1e-5);
-
-//    PointCloud<PointC> final2;
-//    gicp.align(final2, T);
-
-//    if(gicp.hasConverged()){
-//        ROS_INFO("Convergiu com nota %f.", gicp.getFitnessScore());
-//        T_icp = gicp.getFinalTransformation();
+//    if(icpn.hasConverged()){
+//        T_icp = icpn.getFinalTransformation();
+//        ROS_INFO("Convergiu com nota %f.", icpn.getFitnessScore());
 //    }
 
-//    final2.clear();
+//    final.clear();
+
+    /// ICP generalizado ///
+    GeneralizedIterativeClosestPoint<PointC, PointC> gicp;
+//    pcl::registration::CorrespondenceRejectorSurfaceNormal::Ptr rej_nor (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>());
+//    rej_nor->setThreshold(0.1*M_PI);
+    pcl::IterativeClosestPoint<PointC, PointC> icp;
+    pcl::registration::CorrespondenceRejectorMedianDistance::Ptr rej_med (new pcl::registration::CorrespondenceRejectorMedianDistance);
+    rej_med->setMedianFactor (3.0);
+    icp.addCorrespondenceRejector (rej_med);
+    pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>::Ptr rej_samp (new pcl::registration::CorrespondenceRejectorSampleConsensus<PointC>);
+    icp.addCorrespondenceRejector (rej_samp);
+
+//    gicp.addCorrespondenceRejector(rej_nor);
+    gicp.setInputSource(temp_src);
+    gicp.setInputTarget(temp_tgt);
+    gicp.setMaxCorrespondenceDistance(0.1);
+    gicp.setEuclideanFitnessEpsilon(1*1e-11);
+    gicp.setMaximumIterations(300);
+//    gicp.setRANSACIterations(300);
+    gicp.setUseReciprocalCorrespondences(true);
+    gicp.setTransformationEpsilon(1*1e-11);
+
+    PointCloud<PointC> final2;
+    gicp.align(final2, T);
+
+    if(gicp.hasConverged()){
+        ROS_INFO("Convergiu com nota %f.", gicp.getFitnessScore());
+        T_icp = gicp.getFinalTransformation();
+    }
+
+    final2.clear();
     return T_icp;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +370,7 @@ void Cloud_Work::registra_global_icp(PointCloud<PointC>::Ptr parcial, Eigen::Qua
             mutex_acumulacao = 1;
             /// Alinhar nuvem de forma fina por ICP - devolve a transformacao correta para ser usada ///
             /// PASSAR PRIMEIRO A SOURCE, DEPOIS TARGET, DEPOIS A ODOMETRIA INICIAL A OTIMIZAR       ///
-            T_corrigida = this->icp(parcial, acumulada_global, T_chute_icp);
+            T_corrigida = this->gicp(parcial, acumulada_global, T_chute_icp);
             transformPointCloud(*parcial, *parcial, T_corrigida);
             // Guarda a acumulada anterior aqui
             *acumulada_global_anterior = *acumulada_global;

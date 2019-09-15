@@ -9,7 +9,7 @@
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <sensor_msgs/PointCloud.h>
+//#include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/CameraInfo.h>
 
 #include <image_transport/image_transport.h>
@@ -24,7 +24,6 @@
 #include <camera_calibration_parsers/parse.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <yaml-cpp/yaml.h>
-#include <unordered_set>
 
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
@@ -41,17 +40,17 @@
 #include <pcl/registration/correspondence_rejection_median_distance.h>
 #include <pcl/registration/correspondence_rejection_surface_normal.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
-#include <pcl/io/ascii_io.h>
-#include <pcl/io/vtk_lib_io.h>
+//#include <pcl/io/ascii_io.h>
+//#include <pcl/io/vtk_lib_io.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/normal_3d_omp.h>
-#include <pcl/geometry/mesh_io.h>
-#include <pcl/PolygonMesh.h>
-#include <pcl/surface/gp3.h>
-#include <pcl/surface/poisson.h>
-#include <pcl/surface/mls.h>
-#include <pcl/surface/texture_mapping.h>
+//#include <pcl/geometry/mesh_io.h>
+//#include <pcl/PolygonMesh.h>
+//#include <pcl/surface/gp3.h>
+//#include <pcl/surface/poisson.h>
+//#include <pcl/surface/mls.h>
+//#include <pcl/surface/texture_mapping.h>
 #include <pcl/filters/extract_indices.h>
 #include <pcl/registration/correspondence_rejection_distance.h>
 
@@ -60,11 +59,11 @@
 #include <tf_conversions/tf_eigen.h>
 #include <ctime>
 
-#include <mavros_msgs/GlobalPositionTarget.h>
-#include <mavros_msgs/ParamSet.h>
-#include <mavros_msgs/ParamSetRequest.h>
-#include <mavros_msgs/ParamSetResponse.h>
-#include <mavros_msgs/ParamValue.h>
+//#include <mavros_msgs/GlobalPositionTarget.h>
+//#include <mavros_msgs/ParamSet.h>
+//#include <mavros_msgs/ParamSetRequest.h>
+//#include <mavros_msgs/ParamSetResponse.h>
+//#include <mavros_msgs/ParamValue.h>
 
 #include <string>
 #include <iostream>
@@ -104,7 +103,7 @@
 #include <boost/foreach.hpp>
 
 using namespace pcl::io;
-using namespace pcl::geometry;
+//using namespace pcl::geometry;
 using namespace message_filters;
 using namespace nav_msgs;
 using namespace cv;
@@ -134,7 +133,7 @@ public:
     void set_frame_inicio_bag(int f);
     void reiniciar();
     Eigen::Matrix4f icp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
-    Eigen::Matrix4f icp_gen(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
+    Eigen::Matrix4f gicp(const PointCloud<PointC>::Ptr src, const PointCloud<PointC>::Ptr tgt, Eigen::Matrix4f T);
 
     void cancela_listeners(bool eai); // A janela principal vai chamar dependendo de como estiver pra rodar, online ou nao
 
